@@ -24,6 +24,7 @@ import { PaymentsAdmin } from './admin/PaymentsAdmin';
 import { ReportsAnalytics } from './admin/ReportsAnalytics';
 import { AIAutomation } from './admin/AIAutomation';
 import { NotificationsAdmin } from './admin/NotificationsAdmin';
+import NotificationView from './admin/NotificationView'
 import { SystemSettings } from './admin/SystemSettings';
 import { JobPortalAdmin } from './admin/JobPortalAdmin';
 import WritingService from './admin/WritingService';
@@ -43,6 +44,7 @@ type AdminSection =
   | 'reports'
   | 'ai'
   | 'notifications'
+  | 'notificationview'
   | 'jobs'
   | 'settings';
 
@@ -121,7 +123,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
 
 
 
-        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent">
+        <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent">
           <nav className="p-4">
             {menuItems.map((item) => (
               <button
@@ -210,7 +212,12 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
                       )}
                     </ul>
                     <div className="text-center py-2 border-t border-gray-200">
-                      <button className="text-[#bf2026] text-sm font-medium hover:underline">
+                      <button 
+                      onClick={()=>{
+                        setActiveSection("notificationview");
+                        setDropdownOpen(false)
+                      }}
+                      className="text-[#bf2026] text-sm font-medium hover:underline">
                         View all
                       </button>
                     </div>
@@ -276,6 +283,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
           {activeSection === 'reports' && <ReportsAnalytics />}
           {activeSection === 'ai' && <AIAutomation />}
           {activeSection === 'notifications' && <NotificationsAdmin />}
+          {activeSection === "notificationview" && <NotificationView />}
           {activeSection === 'jobs' && <JobPortalAdmin />}
           {activeSection === 'settings' && <SystemSettings />}
         </main>

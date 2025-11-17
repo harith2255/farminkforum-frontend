@@ -7,7 +7,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
-import { Upload, FileText, Plus, Edit, Trash2, Trash } from "lucide-react";
+import { Upload, FileText, Plus, Edit, Trash2, Trash  } from "lucide-react";
 
 type ContentType = "E-Book" | "Notes" | "Mock Test";
 
@@ -45,10 +45,38 @@ export function ContentManagement(): JSX.Element {
 
   // Sample data (unchanged semantics)
   const books = [
-    { id: 1, title: "Advanced Calculus", category: "Mathematics", author: "Dr. Smith", pages: 450, sales: 1240, status: "Published" },
-    { id: 2, title: "Quantum Physics", category: "Physics", author: "Prof. Johnson", pages: 520, sales: 980, status: "Published" },
-    { id: 3, title: "Machine Learning", category: "CS", author: "Dr. Chen", pages: 380, sales: 2150, status: "Published" },
-  ];
+  { 
+    id: 1, 
+    title: "Advanced Calculus", 
+    category: "Mathematics", 
+    author: "Dr. Smith", 
+    pages: 450, 
+    sales: 1240, 
+    status: "Published",
+    price: "Free"
+  },
+  { 
+    id: 2, 
+    title: "Quantum Physics", 
+    category: "Physics", 
+    author: "Prof. Johnson", 
+    pages: 520, 
+    sales: 980, 
+    status: "Published",
+    price: "₹999"
+  },
+  { 
+    id: 3, 
+    title: "Machine Learning", 
+    category: "CS", 
+    author: "Dr. Chen", 
+    pages: 380, 
+    sales: 2150, 
+    status: "Published",
+    price: "₹1199"
+  },
+];
+
 
   const notes = [
     { id: 1, title: "Calculus Quick Reference", category: "Mathematics", author: "Prof. Smith", downloads: 2450, price: "Free" },
@@ -194,6 +222,8 @@ const handleRemoveQuestion = (id: string) => {
                           <span>{book.pages} pages</span>
                           <span>•</span>
                           <span>{book.sales} sales</span>
+                          <span>•</span>
+                          <span>{book.price}</span>
                         </div>
                       </div>
                     </div>
@@ -221,7 +251,7 @@ const handleRemoveQuestion = (id: string) => {
                           setShowDeleteDialog(true);
                         }}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -562,6 +592,10 @@ const handleRemoveQuestion = (id: string) => {
                   <option>Physics</option>
                   <option>CS</option>
                 </select>
+              </div>
+              <div>
+                <Label>Price</Label>
+                <Input defaultValue={editItem.price} />
               </div>
 
               <div>

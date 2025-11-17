@@ -47,6 +47,7 @@ import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
 import CartPage from "./user/Cartpage";
+import BuyNowPage from "./user/BuyNowPage";
 import { FaReact, FaJsSquare, FaCss3Alt } from "react-icons/fa";
 
 
@@ -67,7 +68,8 @@ type UserSection =
   | "payments"
   | "profile"
   | "notifications"
-  | "cartpage";
+  | "cartpage"
+  | "buynowpage";
 
 export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboardProps) {
   const [activeSection, setActiveSection] = useState<UserSection>("dashboard");
@@ -103,6 +105,10 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
     { id: 2, message: "New notes added to your library.", time: "1d ago" },
     { id: 3, message: "Subscription renewed successfully.", time: "3d ago" },
   ];
+
+    const handleBuyNow = () => {
+    onNavigate("buynowpage");   // App.tsx will redirect to /buy-now
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -385,6 +391,7 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
             {activeSection === "profile" && <ProfileSettings />}
             {activeSection === "notifications" && <NotificationView onNavigate={onNavigate} />}
             {activeSection === "cartpage" && <CartPage items={cartItems} />}
+            {activeSection === "buynowpage" && <BuyNowPage/>}
           </Suspense>
         </main>
       </div>

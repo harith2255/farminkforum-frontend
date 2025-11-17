@@ -20,7 +20,7 @@ interface Order {
   title: string;
   type: string;
   deadline: string;
-  status: "In Progress" | "Assigned" | "Unassigned";
+  status: "Pending" | "Completed";
   progress: number;
   author_id: string | null;
 }
@@ -32,7 +32,7 @@ export default function AdminWritingDashboard() {
       title: "Agricultural Innovations",
       type: "Research Paper",
       deadline: "2025-11-20",
-      status: "In Progress",
+      status: "Pending",
       progress: 45,
       author_id: "writer_001",
     },
@@ -41,7 +41,7 @@ export default function AdminWritingDashboard() {
       title: "Adult Education Trends",
       type: "Essay",
       deadline: "2025-11-25",
-      status: "Assigned",
+      status: "Pending",
       progress: 80,
       author_id: "writer_002",
     },
@@ -50,7 +50,7 @@ export default function AdminWritingDashboard() {
       title: "Agricultural Policies Analysis",
       type: "Dissertation",
       deadline: "2025-12-05",
-      status: "Unassigned",
+      status: "Completed",
       progress: 0,
       author_id: null,
     },
@@ -61,26 +61,28 @@ export default function AdminWritingDashboard() {
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [authorId, setAuthorId] = useState("");
   const [message, setMessage] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+
 
   // ✅ Handle Assign Writer
-  const handleAssign = () => {
-    if (!selectedOrder) return;
-    if (!authorId) {
-      toast.error("Please enter an Author ID");
-      return;
-    }
+  // const handleAssign = () => {
+  //   if (!selectedOrder) return;
+  //   if (!authorId) {
+  //     toast.error("Please enter an Author ID");
+  //     return;
+  //   }
 
-    const updatedOrders = orders.map((o) =>
-      o.id === selectedOrder.id
-        ? { ...o, author_id: authorId, status: "Assigned" as const }
-        : o
-    );
+  //   const updatedOrders = orders.map((o) =>
+  //     o.id === selectedOrder.id
+  //       ? { ...o, author_id: authorId, status: "Assigned" as const }
+  //       : o
+  //   );
 
-    setOrders(updatedOrders);
-    toast.success(`Writer assigned to order #${selectedOrder.id}`);
-    setAuthorId("");
-    setIsAssignDialogOpen(false);
-  };
+  //   setOrders(updatedOrders);
+  //   toast.success(`Writer assigned to order #${selectedOrder.id}`);
+  //   setAuthorId("");
+  //   setIsAssignDialogOpen(false);
+  // };
 
   // ✅ Handle Send Message
   const handleSendMessage = () => {
@@ -108,15 +110,16 @@ export default function AdminWritingDashboard() {
               <CardTitle className="text-[#1d4d6a]">{order.title}</CardTitle>
               <Badge
                 className={
-                  order.status === "In Progress"
-                    ? "bg-blue-100 text-blue-700"
-                    : order.status === "Assigned"
+                  order.status === "Pending"
                     ? "bg-yellow-100 text-yellow-700"
-                    : "bg-gray-200 text-gray-700"
+                    : order.status === "Completed"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-200 text-gray-700"
                 }
               >
                 {order.status}
               </Badge>
+
             </CardHeader>
             <CardContent>
               <div className="text-sm text-gray-600 space-y-2 mb-3">
@@ -140,18 +143,6 @@ export default function AdminWritingDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setAuthorId(order.author_id || "");
-                    setIsAssignDialogOpen(true);
-                  }}
-                >
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Assign
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   disabled={!order.author_id}
                   onClick={() => {
                     setSelectedOrder(order);
@@ -167,7 +158,7 @@ export default function AdminWritingDashboard() {
         ))}
       </div>
 
-      {/* Assign Author Dialog */}
+      {/* Assign Author Dialog
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -194,23 +185,39 @@ export default function AdminWritingDashboard() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
 
       {/* Message Dialog */}
       <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Message Author</DialogTitle>
+            <DialogTitle>Message to Student</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Label>Message</Label>
-            <Textarea
-              placeholder="Type your message to the author..."
-              rows={5}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
+
+          <div className="space-y-4">
+            {/* Message */}
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                placeholder="Type your message to the author..."
+                rows={5}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+            </div>
+
+            {/* File Upload */}
+            <div>
+              <Label>Attachment (optional)</Label>
+              <Input
+                type="file"
+                accept="image/*, .pdf, .docx"
+                onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+            </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -218,15 +225,14 @@ export default function AdminWritingDashboard() {
             >
               Cancel
             </Button>
-            <Button
-              className="bg-[#bf2026] text-white"
-              onClick={handleSendMessage}
-            >
+
+            <Button className="bg-[#bf2026] text-white" onClick={handleSendMessage}>
               Send Message
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
