@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -59,7 +60,7 @@ export function LoginPage({
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/login", {
         email: formData.email,
         password: formData.password,
       });
@@ -159,7 +160,7 @@ export default function RegisterPage({ onNavigate }: { onNavigate: (page: string
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:5000/api/auth/register", {
+      const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/register", {
         email: formData.email,
         password: formData.password,
       });
@@ -168,7 +169,7 @@ export default function RegisterPage({ onNavigate }: { onNavigate: (page: string
 
       // 🧩 Now update profile name
       if (userId) {
-        await axios.put("http://localhost:5000/api/profile/update", {
+        await axios.put("https://ebook-backend-lxce.onrender.com/api/profile/update", {
           userId,
 
         });

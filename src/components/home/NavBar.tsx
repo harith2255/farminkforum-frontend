@@ -1,12 +1,13 @@
-import { Button } from "../ui/button";
-
+import { BookOpen } from 'lucide-react';
+import { Button } from '../ui/button';
+import * as React from 'react';
 interface NavbarProps {
   onNavigate: (page: string) => void;
 }
 
 export function Navbar({ onNavigate }: NavbarProps) {
   return (
-<nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-[#0f3b53] to-[#1d4d6a] shadow-lg backdrop-blur-md">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-[#0f3b53] to-[#1d4d6a] shadow-lg backdrop-blur-md">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-15 py-3">
 
         {/* ---------- Logo ---------- */}
@@ -18,7 +19,7 @@ export function Navbar({ onNavigate }: NavbarProps) {
             src="/logooutline.png"
             alt="FarmInk Forum Logo"
             className="h-15 w-auto object-contain drop-shadow-lg"
-            
+
           />
         </div>
 

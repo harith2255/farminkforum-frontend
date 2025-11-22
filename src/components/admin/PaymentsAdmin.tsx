@@ -2,21 +2,75 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { DollarSign, TrendingUp, CreditCard, Download, IndianRupee } from 'lucide-react';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import * as React from 'react';
 
 export function PaymentsAdmin() {
-  const stats = [
-    { label: 'Total Revenue', value: '₹145,890', change: '+18.2%', icon: IndianRupee },
-    { label: 'This Month', value: '₹45,230', change: '+12.5%', icon: TrendingUp },
-    { label: 'Subscriptions', value: '₹98,450', change: '+15.3%', icon: CreditCard },
-    { label: 'One-time Sales', value: '₹47,440', change: '+22.1%', icon: IndianRupee },
-  ];
+  const [stats, setStats] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
-  const transactions = [
-    { id: 'TXN-1234', user: 'Alex Rodriguez', type: 'Subscription', amount: '₹199.99', status: 'Completed', date: '2024-03-20' },
-    { id: 'TXN-1235', user: 'Sarah Johnson', type: 'E-book', amount: '₹24.99', status: 'Completed', date: '2024-03-20' },
-    { id: 'TXN-1236', user: 'Michael Chen', type: 'Writing Service', amount: '₹104.00', status: 'Pending', date: '2024-03-20' },
-    { id: 'TXN-1237', user: 'Emily Davis', type: 'Subscription', amount: '₹19.99', status: 'Failed', date: '2024-03-19' },
-  ];
+  useEffect(() => {
+    const loadPayments = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        console.log("TOKEN SENT:", token);
+
+        /* ---------------------------
+                   1️⃣ Fetch Payment Stats
+                --------------------------- */
+        console.log("▶ Fetching Stats...");
+
+        const statsRes = await axios.get(
+          "https://ebook-backend-lxce.onrender.com/api/admin/payments/stats",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        console.log("📊 Stats Response:", statsRes.data);
+
+        /* ---------------------------
+         2️⃣ Fetch Transactions
+      --------------------------- */
+        console.log("▶ Fetching Transactions...");
+        const txnRes = await axios.get(
+          "https://ebook-backend-lxce.onrender.com/api/admin/payments/transactions",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        console.log("📦 Raw Transactions Response:", txnRes.data);
+
+        if (!txnRes.data || !Array.isArray(txnRes.data.transactions)) {
+          console.error("❌ transactions is NOT an array:", txnRes.data);
+        } else {
+          console.log("🔎 transactions array length:", txnRes.data.transactions.length);
+
+          // Log the first item for shape debugging
+          if (txnRes.data.transactions[0]) {
+            console.log("🧩 First transaction object:", txnRes.data.transactions[0]);
+          }
+        }
+
+        /* ---------------------------
+           3️⃣ Set State
+        --------------------------- */
+        setStats(statsRes.data.stats);
+        setTransactions(txnRes.data.transactions);
+
+      } catch (error: any) {
+        console.error("❌ Payment Load Error:", error);
+
+        if (error.response) {
+          console.error("⚠ Backend Error Response:", error.response.data);
+          console.error("⚠ Backend Status:", error.response.status);
+        } else {
+          console.error("⚠ No backend response:", error.message);
+        }
+      }
+
+    };
+
+    loadPayments();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -64,8 +118,8 @@ export function PaymentsAdmin() {
                     <h4 className="text-[#1d4d6a]">{txn.id}</h4>
                     <Badge className={
                       txn.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                      txn.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
+                        txn.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
                     }>
                       {txn.status}
                     </Badge>

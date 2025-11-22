@@ -18,23 +18,13 @@ import {
   Settings,
   Navigation,
   ShoppingCart,
-  PenIcon,
+  PenTool,
 } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
 
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Progress } from "./ui/progress";
-import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Toaster } from "./ui/sonner";
 import { toast } from "sonner";
 
 import Explore from "./user/Explore";
@@ -47,8 +37,10 @@ import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
 import CartPage from "./user/Cartpage";
-import BuyNowPage from "./user/BuyNowPage";
-import { FaReact, FaJsSquare, FaCss3Alt } from "react-icons/fa";
+import axios from "axios";
+import * as React from "react";
+import { Progress } from "./ui/progress";
+import PurchasePage from "./PurchasePage";
 
 
 interface UserDashboardProps {
@@ -69,7 +61,8 @@ type UserSection =
   | "profile"
   | "notifications"
   | "cartpage"
-  | "buynowpage";
+  | "purchase"
+  | "purchase/cart";;
 
 export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboardProps) {
   const [activeSection, setActiveSection] = useState<UserSection>("dashboard");
@@ -77,38 +70,171 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  const [error, setError] = useState("");
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
 
-  const [cartItems] = useState([
-    { id: 1, name: "Atomic Habit", price: 12.99, image: "https://m.media-amazon.com/images/I/81bGKUa1e0L.jpg" },
-    { id: 2, name: "Deep Work", price: 9.99, image: "https://m.media-amazon.com/images/I/71g2ednj0JL.jpg" },
-    { id: 3, name: "Rich Dad Poor dad", price: 10.99, image: "https://m.media-amazon.com/images/I/81bsw6fnUiL.jpg" },
-  ])
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // ✅ FIX: Load Profile CLEANLY here
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const session = JSON.parse(localStorage.getItem("session") || "{}");
+        const token = session?.access_token || localStorage.getItem("token");
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setUser(res.data.profile || {});
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      }
+    }
+    loadProfile();
+  }, []);
+
+    // 🔥 Get section from URL on first load
+useEffect(() => {
+  const path = window.location.pathname;
+
+  if (path.startsWith("/user-dashboard/")) {
+    const sub = path.replace("/user-dashboard/", "").trim();
+    if (sub) {
+      setActiveSection(sub as UserSection);
+    }
+  }
+}, []);
+
+
+
+  useEffect(() => {
+  const handler = (e: any) => {
+    const section = e.detail;
+    if (section) {
+      setActiveSection(section);
+    }
+  };
+
+  window.addEventListener("restore-user-section", handler);
+  return () => window.removeEventListener("restore-user-section", handler);
+}, []);
+
+  // Dashboard fetch
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("You are not logged in.");
+          setLoading(false);
+          return;
+        }
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000,
+        });
+
+        setDashboardData(res.data);
+      } catch (err: any) {
+        console.error("Dashboard fetch error:", err);
+
+        if (err.code === "ECONNABORTED") {
+          setError("Server timeout.");
+        } else if (err.response) {
+          setError("Server error " + err.response.status);
+        } else {
+          setError("Failed to load dashboard.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  // Load cart
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/cart", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setCartItems(Array.isArray(res.data.items) ? res.data.items : []);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+      }
+    };
+
+    fetchCart();
+    const listener = () => fetchCart();
+    window.addEventListener("cart:changed", listener);
+    return () => window.removeEventListener("cart:changed", listener);
+  }, []);
+
+  // Notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const raw = res.data.notifications || [];
+
+const items = raw.map((n: any) => ({
+  ...n,
+  time: n.created_at
+    ? new Date(n.created_at).toLocaleString()
+    : "Unknown",
+}));
+
+setNotifications(items);
+setUnreadCount(items.filter((n: any) => !n.is_read).length);
+
+      } catch (err) {
+        
+        console.error("Failed to fetch notifications", err);
+      }
+    };
+
+    fetchNotifications();
+    const listener = () => fetchNotifications();
+    window.addEventListener("notifications:refresh", listener);
+    return () => window.removeEventListener("notifications:refresh", listener);
+  }, []);
 
   const menuItems = [
     { id: "dashboard" as UserSection, icon: Home, label: "Dashboard" },
     { id: "explore" as UserSection, icon: Navigation, label: "Explore" },
     { id: "library" as UserSection, icon: BookOpen, label: "My Library" },
     { id: "tests" as UserSection, icon: ClipboardCheck, label: "Mock Tests" },
-    { id: "notes" as UserSection, icon: FileText, label: "Notes" },
-    { id: "writing" as UserSection, icon: PenIcon, label: "Writing Services" },
+    { id: "writing" as UserSection, icon: PenTool, label: "Writing Services" },
     { id: "jobs" as UserSection, icon: Briefcase, label: "Job Portal" },
     { id: "payments" as UserSection, icon: CreditCard, label: "Payments" },
     { id: "profile" as UserSection, icon: User, label: "Profile" },
   ];
-
-  const notifications = [
-    { id: 1, message: "Your test results are available.", time: "2h ago" },
-    { id: 2, message: "New notes added to your library.", time: "1d ago" },
-    { id: 3, message: "Subscription renewed successfully.", time: "3d ago" },
-  ];
-
-    const handleBuyNow = () => {
-    onNavigate("buynowpage");   // App.tsx will redirect to /buy-now
-  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -144,6 +270,8 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
     onLogout();
   };
 
+
+
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
       {/* Sidebar */}
@@ -158,7 +286,7 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
               <p className="text-xs text-gray-500">Student Portal</p>
             </div>
           )}
-         {sidebarCollapsed && (
+          {sidebarCollapsed && (
             <span className="text-[#1d4d6a] font-medium text-sm">
               FarmInk Forum
             </span>
@@ -171,10 +299,13 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveSection(item.id);
-                  setDropdownOpen(false);
-                  setAvatarOpen(false);
-                }}
+  setActiveSection(item.id as UserSection);
+  setDropdownOpen(false);
+  setAvatarOpen(false);
+
+  // URL update without navigation
+  window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+}}
                 className={`w-full flex items-center ${sidebarCollapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-3"
                   } rounded-lg mb-1 transition-all group ${activeSection === item.id
                     ? "bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20"
@@ -216,7 +347,7 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
                 <Menu className="w-5 h-5 text-gray-600" />
               </Button>
               <div>
-                <h1 className="text-[#1d4d6a] mb-1">Welcome back, Alex!</h1>
+                <h1 className="text-[#1d4d6a] mb-1">Welcome back, {dashboardData?.user?.full_name || "Student"}!</h1>
                 <p className="text-sm text-gray-500">Continue your learning journey</p>
               </div>
             </div>
@@ -241,7 +372,7 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                 >
                   <Bell className="w-5 h-5 text-gray-600" />
-                  {notifications.length > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
                   )}
                 </button>
@@ -251,15 +382,49 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
                       Notifications
                     </div>
                     <ul className="max-h-60 overflow-y-auto">
+                      {notifications.length === 0 && (
+                        <p className="px-3 py-2 text-sm text-gray-400 text-center">No notifications</p>
+                      )}
+
                       {notifications.map((n) => (
                         <li
                           key={n.id}
-                          className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer"
+                          className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem("token");
+                              await axios.patch(
+                                `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
+                                {},
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+
+                              // mark as read immediately (UX fast)
+                              setNotifications(prev =>
+                                prev.map(item =>
+                                  item.id === n.id ? { ...item, is_read: true } : item
+                                )
+                              );
+
+                              setUnreadCount(prev => Math.max(prev - 1, 0));
+
+                              // optional: navigate to notifications page
+                              setActiveSection("notifications");
+                              setDropdownOpen(false);
+
+                            } catch (err) {
+                              console.error("Failed to mark read:", err);
+                            }
+                          }}
                         >
-                          {n.message}
+                          <p className={`text-gray-700 ${n.is_read ? "opacity-70" : "font-medium"}`}>
+                            {n.message}
+                          </p>
+                          <p className="text-xs text-gray-400">{n.time}</p>
                         </li>
                       ))}
                     </ul>
+
                     <div className="text-center py-2 border-t border-gray-200">
                       <button
                         onClick={() => {
@@ -298,18 +463,27 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
                     {cartItems.length > 0 ? (
                       <>
                         <ul className="max-h-60 overflow-y-auto">
-                          {cartItems.map((item) => (
-                            <li
-                              key={item.id}
-                              className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
-                            >
-                              <img src={item.image} alt={item.name} className="w-10 h-10 rounded" />
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-700">{item.name}</p>
-                                <p className="text-xs text-gray-500">₹{item.price.toFixed(2)}</p>
-                              </div>
-                            </li>
-                          ))}
+                          {cartItems.map((item) => {
+                            const product = item.book || item.note;
+
+                            return (
+                              <li key={item.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">
+                                <img
+                                  src={
+                                    product?.file_url?.match(/\.(png|jpg|jpeg)$/i)
+                                      ? product.file_url
+                                      : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                                  }
+                                  className="w-10 h-10 rounded"
+                                />
+
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-700">{product?.title}</p>
+                                  <p className="text-xs text-gray-500">₹{product?.price}</p>
+                                </div>
+                              </li>
+                            );
+                          })}
                         </ul>
                         <div className="text-center py-2 border-t">
                           <button
@@ -341,15 +515,31 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
                   onClick={() => setAvatarOpen(!avatarOpen)}
                 >
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback>AD</AvatarFallback>
+                    {user?.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                 </button>
                 {avatarOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
                     <div className="p-4 border-b border-gray-200 flex items-center gap-3">
                       <div>
-                        <p className="text-sm font-medium text-gray-700">Alex</p>
-                        <p className="text-xs text-gray-400">alex@student.com</p>
+ <p className="text-sm font-medium text-gray-700">
+                          {user?.full_name ||
+                            `${user?.first_name || ""} ${user?.last_name || ""}` ||
+                            "Guest User"}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {user?.email || "no-email@example.com"}
+                        </p>fgh'
+
                       </div>
                     </div>
                     <ul className="py-2">
@@ -380,41 +570,73 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
         {/* Main Content */}
         <main className="p-8">
           <Suspense fallback={<p>Loading...</p>}> {/* 🔹 UPDATED */}
-            {activeSection === "dashboard" && <DashboardHome onOpenBook={onOpenBook} />}
-            {activeSection === "explore" && <Explore onOpenBook={onOpenBook} />}
+            {activeSection === "dashboard" && (
+              <DashboardHome
+                onOpenBook={onOpenBook}
+                dashboardData={dashboardData}
+                loading={loading}
+                error={error}
+              />
+            )}
+
+            {activeSection === "explore" && (
+              <Explore
+                onOpenBook={onOpenBook}
+                onNavigate={onNavigate}   // ⭐ REQUIRED
+              />
+            )}
+
             {activeSection === "library" && <MyLibrary onOpenBook={onOpenBook} />}
             {activeSection === "tests" && <MockTests />}
-            {activeSection === "notes" && <NotesRepository />}
-            {activeSection === "writing" && <WritingServices />}
+            {activeSection === "notes" && <NotesRepository onNavigate={onNavigate} />
+            }
+            {activeSection === "writing" && <WritingServices onNavigate={onNavigate} />
+            }
             {activeSection === "jobs" && <JobPortal />}
-            {activeSection === "payments" && <PaymentsSubscriptions />}
+            {activeSection === "payments" && <PaymentsSubscriptions onNavigate={page => setActiveSection(page)} />}
+
             {activeSection === "profile" && <ProfileSettings />}
             {activeSection === "notifications" && <NotificationView onNavigate={onNavigate} />}
-            {activeSection === "cartpage" && <CartPage items={cartItems} />}
-            {activeSection === "buynowpage" && <BuyNowPage/>}
+            {activeSection === "cartpage" && <CartPage
+              items={cartItems}
+              onNavigate={(page) => setActiveSection(page)}
+            />
+            }
+            {activeSection === "purchase" && (
+              <PurchasePage onNavigate={onNavigate} />
+            )}
+
+            {activeSection === "purchase/cart" && (
+              <PurchasePage onNavigate={onNavigate} />
+            )}
+
           </Suspense>
         </main>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 
-function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) => void }) {
-  const [selectedTest, setSelectedTest] = useState<any>(null);
-  const [showAllTests, setShowAllTests] = useState(false);
+function DashboardHome({
+  onOpenBook,
+  dashboardData,
+  loading,
+  error
+}: {
+  onOpenBook: (book: any) => void;
+  dashboardData?: any;
+  loading: boolean;
+  error: string;
+}) {
+  if (loading)
+    return <p className="text-center text-gray-500">Loading dashboard...</p>;
 
-  const handleTestClick = (test: any) => setSelectedTest(test);
-  const handleCloseModal = () => setSelectedTest(null);
-  const handleStartTest = () => {
-    console.log("Starting test:", selectedTest.title);
-    setSelectedTest(null);
-  };
+  if (error)
+    return <p className="text-center text-red-500">{error}</p>;
 
-  const recentBooks = [
-    { id: 1, title: "Advanced Calculus", author: "Dr. Smith", progress: 65, cover: "📘" },
-    { id: 2, title: "Quantum Physics", author: "Prof. Johnson", progress: 42, cover: "📗" },
-    { id: 3, title: "Machine Learning", author: "Dr. Chen", progress: 88, cover: "📙" },
-  ];
+  const stats = dashboardData?.stats || {};
+
+  const recentBooks = dashboardData?.recentBooks || [];
 
   const allTests = [
     { id: 1, title: "Mathematics Mock Test 3", date: "2 days", questions: 50 },
@@ -423,86 +645,134 @@ function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) => void }) {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-6 flex justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Books Read</p>
-              <h3 className="text-[#1d4d6a] mb-1">24</h3>
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <TrendingUp className="w-3 h-3" />
-                <span>+3 this month</span>
-              </div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* 📚 Books Read */}
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <CardContent className="p-6 flex justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Books Read</p>
+            <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
+
+            <div className="flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp className="w-3 h-3" />
+              <span>+2 this month</span>
             </div>
-            <BookOpen className="w-6 h-6 text-[#bf2026]" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-6 flex justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Tests Completed</p>
-              <h3 className="text-[#1d4d6a] mb-1">18</h3>
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <Trophy className="w-3 h-3" />
-                <span>92% avg score</span>
-              </div>
+          </div>
+          <BookOpen className="w-6 h-6 text-[#bf2026]" />
+        </CardContent>
+      </Card>
+      {/* 📝 Tests Completed */}
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <CardContent className="p-6 flex justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Tests Completed</p>
+            <h3 className="text-[#1d4d6a] mb-1">{stats.testsCompleted ?? 0}</h3>
+
+            <div className="flex items-center gap-1 text-xs text-green-600">
+              <Trophy className="w-3 h-3" />
+              <span>
+                {stats.avgScore
+                  ? `${stats.avgScore}% avg score`
+                  : "No tests yet"}
+              </span>
             </div>
-            <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-6 flex justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Study Hours</p>
-              <h3 className="text-[#1d4d6a] mb-1">156</h3>
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <Clock className="w-3 h-3" />
-                <span>24h this week</span>
-              </div>
+          </div>
+          <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
+        </CardContent>
+      </Card>
+
+      {/* ⏳ Study Hours */}
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <CardContent className="p-6 flex justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Study Hours</p>
+            <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
+
+            <div className="flex items-center gap-1 text-xs text-green-600">
+              <Clock className="w-3 h-3" />
+              <span>Good progress</span>
             </div>
-            <TrendingUp className="w-6 h-6 text-[#bf2026]" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-6 flex justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Active Streak</p>
-              <h3 className="text-[#1d4d6a] mb-1">12 Days</h3>
-              <div className="flex items-center gap-1 text-xs text-orange-600">
-                <Trophy className="w-3 h-3" />
-                <span>Keep it up!</span>
-              </div>
+          </div>
+          <TrendingUp className="w-6 h-6 text-[#bf2026]" />
+        </CardContent>
+      </Card>
+
+      {/* 🔥 Active Streak */}
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <CardContent className="p-6 flex justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Active Streak</p>
+            <h3 className="text-[#1d4d6a] mb-1">
+              {stats.activeStreak ?? 0} Days
+            </h3>
+
+            <div className="flex items-center gap-1 text-xs text-orange-600">
+              <Trophy className="w-3 h-3" />
+              <span>
+                {stats.activeStreak >= 5
+                  ? "🔥 Great streak!"
+                  : "Keep it going!"}
+              </span>
             </div>
-            <Trophy className="w-6 h-6 text-[#bf2026]" />
+          </div>
+          <Trophy className="w-6 h-6 text-[#bf2026]" />
+        </CardContent>
+      </Card>
+
+      {/* Continue Reading */}
+      <div className="w-full md:col-span-4 ">
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-[#1d4d6a]">Continue Reading</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {recentBooks.length === 0 && (
+              <p className="text-gray-500 text-sm">
+                You haven't started reading any books yet.
+              </p>
+            )}
+
+            {recentBooks.map((entry: any, index: number) => {
+              const book = entry.books;
+
+              return (
+                <div
+                  key={index}
+                  className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                  onClick={() => onOpenBook(book)}
+                >
+                  <img
+                    src={
+                      book?.cover_url ||
+                      "https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                    }
+                    alt={book?.title}
+                    className="w-14 h-20 object-cover rounded-md shadow"
+                  />
+
+                  <div className="flex-1">
+                    <h4 className="text-[#1d4d6a] font-medium mb-1">
+                      {book?.title || "Untitled"}
+                    </h4>
+
+                    <p className="text-sm text-gray-500 mb-2">
+                      {book?.author || "Unknown Author"}
+                    </p>
+
+                    <Progress value={entry.progress || 0} className="h-2" />
+                  </div>
+
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>
 
-      {/* Continue Reading */}
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="text-[#1d4d6a]">Continue Reading</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {recentBooks.map((book) => (
-            <div
-              key={book.id}
-              className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-              onClick={() => onOpenBook(book)}
-            >
-              <div className="text-4xl">{book.cover}</div>
-              <div className="flex-1">
-                <h4 className="text-[#1d4d6a] mb-1">{book.title}</h4>
-                <p className="text-sm text-gray-500 mb-2">{book.author}</p>
-                <Progress value={book.progress} className="flex-1 h-2" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
+    </div >
   );
 }
+
+export default UserDashboard;

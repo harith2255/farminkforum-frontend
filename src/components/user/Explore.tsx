@@ -1,69 +1,97 @@
-import { useState } from "react";
+// src/components/explore/Explore.tsx
+import { useEffect, useState } from "react";
+import axios from "axios";
 import CategoryFilter from "../explore/CategorySection";
 import BooksGrid from "../explore/BooksGrid";
+import * as React from "react";
+import {toast} from "sonner"
+function Explore({
+  onOpenBook,
+  onNavigate
+}: {
+  onOpenBook: (book: any) => void;
+  onNavigate: (page: string) => void;
+}) {
+  const [books, setBooks] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [loading, setLoading] = useState(true);
 
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  category: string;
-  price: number;
-  rating: number;
-  reviews: number;
-  cover: string;
-}
+  const handleAddToCart = async (bookId: number) => {
+  const token = localStorage.getItem("token");
 
-function Explore({ onOpenBook }: { onOpenBook: (book: Book) => void }) {
+  if (!token) {
+    onNavigate("login");
+    return;
+  }
+
+  try {
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/cart/add",
+      { book_id: bookId, quantity: 1 },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    toast.success("Added to cart ✓");
+
+    // Let the dashboard cart refresh automatically
+    window.dispatchEvent(new CustomEvent("cart:changed"));
+  } catch (err) {
+    console.error("Add to cart failed:", err);
+    toast.error("Failed to add to cart");
+  }
+};
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        setLoading(true);
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/content?type=books");
+        let payload = res.data?.contents ?? [];
+
+        const token = localStorage.getItem("token");
+
+        if (token) {
+          payload = await Promise.all(
+            payload.map(async (book: any) => {
+              const check = await axios.get(
+                "https://ebook-backend-lxce.onrender.com/api/purchase/check",
+                {
+                  params: { bookId: book.id },
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+              return { ...book, purchased: check.data.purchased };
+            })
+          );
+        }
+
+        setBooks(payload);
+      } catch (err) {
+        console.error("Error fetching books:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
   const categories = [
     "All",
-    "Agricultural Extension Education",
-    "Adult and Continuing Education and Extension",
-  ];
-
-  const [selectedCategory, setSelectedCategory] = useState("All");
-
-  const books: Book[] = [
-    {
-      id: 1,
-      title: "Agricultural Extension Education",
-      author: "Dr. James Miller",
-      category: "Agricultural Extension Education",
-      price: 19.99,
-      rating: 4.7,
-      reviews: 325,
-      cover: "/placeholder.jpg", // Add a proper placeholder
-    },
-    {
-      id: 2,
-      title: "Adult and Continuing Education and Extension",
-      author: "Dr. Emily Johnson",
-      category: "Adult and Continuing Education and Extension",
-      price: 24.99,
-      rating: 4.6,
-      reviews: 289,
-      cover: "/placeholder.jpg",
-    },
+    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean)))
   ];
 
   const filteredBooks =
     selectedCategory === "All"
       ? books
-      : books.filter(
-          (book) =>
-            book.category.trim().toLowerCase() ===
-            selectedCategory.trim().toLowerCase()
-        );
+      : books.filter((b) => b.category === selectedCategory);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-[#1d4d6a] mb-1">Explore Books</h2>
-        <p className="text-sm text-gray-500">
-          Discover, learn, and get inspired by our collection of books.
-        </p>
-      </div>
+      <h2 className="text-[#1d4d6a] mb-1">Explore Books</h2>
+      <p className="text-sm text-gray-500">Discover amazing books</p>
 
-      {/* Category Filter */}
       <CategoryFilter
         categories={categories}
         selectedCategory={selectedCategory}
@@ -72,12 +100,52 @@ function Explore({ onOpenBook }: { onOpenBook: (book: Book) => void }) {
         layout="user"
       />
 
-      {/* Books Grid */}
-      <BooksGrid
-        books={filteredBooks}
-        onNavigate={() => {}}
-        isLoggedIn={true}
-      />
+      {loading ? (
+        <p className="text-gray-500 text-center">Loading books...</p>
+      ) : (
+       <BooksGrid
+  books={filteredBooks.map(book => ({
+    ...book,
+
+    onBuy: () => {
+      localStorage.setItem("purchaseType", "book");
+      localStorage.setItem("purchaseId", book.id.toString());
+      onNavigate("purchase");
+    },
+
+    onAddToCart: async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        onNavigate("login");
+        return;
+      }
+
+      try {
+        await axios.post(
+          "https://ebook-backend-lxce.onrender.com/api/cart/add",
+          { book_id: book.id, quantity: 1 },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        window.dispatchEvent(new CustomEvent("cart:changed"));
+        alert("Added to cart ✓");
+
+      } catch (err) {
+        console.error("Add to cart error:", err);
+        alert("Failed to add to cart");
+      }
+    }
+
+  }))}
+
+  onOpenBook={onOpenBook}
+  onNavigate={onNavigate}
+/>
+
+
+
+      )}
     </div>
   );
 }

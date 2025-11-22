@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '../ui/label';
 import { Plus, Pencil, Trash2, Briefcase, MapPin, IndianRupee, Building, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 interface Job {
   id: number;
@@ -22,81 +23,6 @@ interface Job {
   description: string;
   requirements: string[];
 }
-
-const initialJobs: Job[] = [
-  {
-    id: 1,
-    title: 'Research Assistant - Machine Learning',
-    company: 'Tech University',
-    location: 'Cambridge, MA',
-    type: 'Full-time',
-    level: 'Entry Level',
-    salary: '₹45,000 - ₹55,000',
-    posted: '2 days ago',
-    description: 'Seeking a research assistant to support ML projects in our AI lab.',
-    requirements: ['Bachelor\'s in CS', 'Python proficiency', 'ML fundamentals']
-  },
-  {
-    id: 2,
-    title: 'PhD Student - Quantum Physics',
-    company: 'State Research Institute',
-    location: 'Berkeley, CA',
-    type: 'Full-time',
-    level: 'PhD',
-    salary: '₹35,000 - ₹40,000',
-    posted: '1 week ago',
-    description: 'Fully funded PhD position in quantum computing research.',
-    requirements: ['Master\'s in Physics', 'Research experience', 'Strong mathematics']
-  },
-  {
-    id: 3,
-    title: 'Teaching Assistant - Mathematics',
-    company: 'Metropolitan University',
-    location: 'New York, NY',
-    type: 'Part-time',
-    level: 'Graduate',
-    salary: '₹20/hour',
-    posted: '3 days ago',
-    description: 'TA position for undergraduate calculus courses.',
-    requirements: ['Graduate student', 'Strong math background', 'Good communication']
-  },
-  {
-    id: 4,
-    title: 'Data Analyst Intern',
-    company: 'Research Corp',
-    location: 'Remote',
-    type: 'Internship',
-    level: 'Undergraduate',
-    salary: '₹15-₹20/hour',
-    posted: '5 days ago',
-    description: 'Summer internship analyzing educational data.',
-    requirements: ['Statistics knowledge', 'Excel/Python', 'Detail-oriented']
-  },
-  {
-    id: 5,
-    title: 'Postdoctoral Fellow - Biology',
-    company: 'Medical Research Center',
-    location: 'Boston, MA',
-    type: 'Full-time',
-    level: 'Postdoc',
-    salary: '₹55,000 - ₹65,000',
-    posted: '1 day ago',
-    description: 'Postdoc position in cellular biology research.',
-    requirements: ['PhD in Biology', '2+ publications', 'Lab experience']
-  },
-  {
-    id: 6,
-    title: 'Academic Content Writer',
-    company: 'EduTech Solutions',
-    location: 'Remote',
-    type: 'Contract',
-    level: 'Mid-level',
-    salary: '₹40-₹60/hour',
-    posted: '4 days ago',
-    description: 'Write educational content for online courses.',
-    requirements: ['Master\'s degree', 'Writing portfolio', 'Subject expertise']
-  },
-];
 
 export function JobPortalAdmin() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -115,15 +41,23 @@ export function JobPortalAdmin() {
   const [requirementInput, setRequirementInput] = useState('');
 
   // Load jobs from localStorage on mount
-  useEffect(() => {
-    const savedJobs = localStorage.getItem('academicJobs');
-    if (savedJobs) {
-      setJobs(JSON.parse(savedJobs));
-    } else {
-      setJobs(initialJobs);
-      localStorage.setItem('academicJobs', JSON.stringify(initialJobs));
-    }
-  }, []);
+useEffect(() => {
+  fetchJobs();
+}, []);
+
+const fetchJobs = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/jobs", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setJobs(res.data.jobs || []);
+
+  } catch (err) {
+    console.error("❌ Error fetching jobs:", err);
+  }
+};
+
 
   // Save jobs to localStorage whenever they change
   const saveJobs = (updatedJobs: Job[]) => {
@@ -131,65 +65,63 @@ export function JobPortalAdmin() {
     localStorage.setItem('academicJobs', JSON.stringify(updatedJobs));
   };
 
-  const handleAddJob = () => {
-    if (!formData.title || !formData.company || !formData.location || !formData.salary || !formData.description) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+const handleAddJob = async () => {
+  if (!formData.title || !formData.company || !formData.location || !formData.salary || !formData.description) {
+    toast.error("Please fill in all required fields");
+    return;
+  }
 
-    const newJob: Job = {
-      id: Date.now(),
-      title: formData.title,
-      company: formData.company,
-      location: formData.location,
-      type: formData.type || 'Full-time',
-      level: formData.level || 'Entry Level',
-      salary: formData.salary,
-      posted: 'Just now',
-      description: formData.description,
-      requirements: formData.requirements || []
-    };
-
-    const updatedJobs = [...jobs, newJob];
-    saveJobs(updatedJobs);
-    toast.success('Job posted successfully!');
+  try {
+    const token = localStorage.getItem("token");
+    await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/jobs", formData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    toast.success("Job posted successfully!");
+    fetchJobs();
     resetForm();
     setIsDialogOpen(false);
-  };
+  } catch (err) {
+    console.error("❌ Add job error:", err);
+    toast.error("Failed to post job");
+  }
+};
 
-  const handleUpdateJob = () => {
-    if (!editingJob || !formData.title || !formData.company || !formData.location || !formData.salary || !formData.description) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
 
-    const updatedJobs = jobs.map(job =>
-      job.id === editingJob.id
-        ? {
-            ...job,
-            title: formData.title!,
-            company: formData.company!,
-            location: formData.location!,
-            type: formData.type!,
-            level: formData.level!,
-            salary: formData.salary!,
-            description: formData.description!,
-            requirements: formData.requirements || []
-          }
-        : job
-    );
+  const handleUpdateJob = async () => {
+  if (!editingJob) return;
 
-    saveJobs(updatedJobs);
-    toast.success('Job updated successfully!');
+  try {
+    const token = localStorage.getItem("token");
+    await axios.put(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${editingJob.id}`, formData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    toast.success("Job updated successfully!");
+    fetchJobs();
     resetForm();
     setIsDialogOpen(false);
-  };
+  } catch (err) {
+    console.error("❌ Update job error:", err);
+    toast.error("Failed to update job");
+  }
+};
 
-  const handleDeleteJob = (id: number) => {
-    const updatedJobs = jobs.filter(job => job.id !== id);
-    saveJobs(updatedJobs);
-    toast.success('Job deleted successfully!');
-  };
+
+  const handleDeleteJob = async (id: number) => {
+  if (!window.confirm("Are you sure you want to delete this job?")) return;
+
+  try {
+    const token = localStorage.getItem("token");
+    await axios.delete(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    toast.success("Job deleted successfully!");
+    fetchJobs();
+  } catch (err) {
+    console.error("❌ Delete job error:", err);
+    toast.error("Failed to delete job");
+  }
+};
+
 
   const openEditDialog = (job: Job) => {
     setEditingJob(job);

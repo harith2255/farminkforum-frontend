@@ -142,9 +142,9 @@ export function ContentManagement() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [booksRes, notesRes, testsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/admin/content?type=books", { headers }),
-        axios.get("http://localhost:5000/api/admin/content?type=notes", { headers }),
-        axios.get("http://localhost:5000/api/admin/content?type=tests", { headers }),
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=books", { headers }),
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=notes", { headers }),
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=tests", { headers }),
       ]);
 
       setBooks(booksRes.data.contents || []);
@@ -197,7 +197,7 @@ export function ContentManagement() {
       data.append("tags", bookForm.tags || "");
       if (bookForm.file) data.append("file", bookForm.file);
 
-      await axios.post("http://localhost:5000/api/admin/content/upload", data, {
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
         headers: {
           ...getAuthHeaders(),
           "Content-Type": "multipart/form-data",
@@ -240,7 +240,7 @@ export function ContentManagement() {
       data.append("description", noteForm.description || "");
       if (noteForm.file) data.append("file", noteForm.file);
 
-      await axios.post("http://localhost:5000/api/admin/content/upload", data, {
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
         headers: {
           ...getAuthHeaders(),
           "Content-Type": "multipart/form-data",
@@ -292,7 +292,7 @@ export function ContentManagement() {
       data.append("description", testForm.description || "");
       if (testForm.file) data.append("file", testForm.file);
 
-      await axios.post("http://localhost:5000/api/admin/content/upload", data, {
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
         headers: {
           ...getAuthHeaders(),
           "Content-Type": "multipart/form-data",
@@ -328,7 +328,7 @@ export function ContentManagement() {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/admin/content/${type}/${id}`, {
+      await axios.delete(`https://ebook-backend-lxce.onrender.com/api/admin/content/${type}/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchContent();
@@ -390,7 +390,7 @@ export function ContentManagement() {
       }
 
       const backendType = editType.toLowerCase().replace(" ", "-");
-      await axios.put(`http://localhost:5000/api/admin/content/${backendType}/${editItem.id}`, data, {
+      await axios.put(`https://ebook-backend-lxce.onrender.com/api/admin/content/${backendType}/${editItem.id}`, data, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",

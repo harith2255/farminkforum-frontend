@@ -1,23 +1,115 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Download, FileText, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Download, FileText } from 'lucide-react';
+
+import {
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+
 
 export function ReportsAnalytics() {
-  const monthlyData = [
-    { month: 'Jan', users: 320, revenue: 45000, books: 1200 },
-    { month: 'Feb', revenue: 52000, users: 410, books: 1450 },
-    { month: 'Mar', revenue: 48000, users: 380, books: 1300 },
-    { month: 'Apr', revenue: 61000, users: 520, books: 1680 },
-    { month: 'May', revenue: 75000, users: 630, books: 2100 },
-    { month: 'Jun', revenue: 88000, users: 720, books: 2450 },
-  ];
+  const [analytics, setAnalytics] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const reports = [
-    { name: 'Monthly Revenue Report', description: 'Detailed revenue breakdown', format: 'PDF', lastGenerated: '2024-03-20' },
-    { name: 'User Engagement Analytics', description: 'User activity and engagement metrics', format: 'CSV', lastGenerated: '2024-03-19' },
-    { name: 'Content Performance', description: 'Top performing books and notes', format: 'PDF', lastGenerated: '2024-03-18' },
-  ];
+  const token = localStorage.getItem("token");
+
+  // --------------------------------------------
+  // Fetch Analytics (Revenue, Users, Books)
+  // --------------------------------------------
+  const fetchAnalytics = async () => {
+    try {
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/admin/reports/analytics",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setAnalytics(res.data.analytics || []);
+    } catch (err) {
+      console.error("Analytics error:", err);
+    }
+  };
+
+  // --------------------------------------------
+  // Fetch Generated Reports
+  // --------------------------------------------
+  const fetchReports = async () => {
+    try {
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/admin/reports",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setReports(res.data.reports || []);
+    } catch (err) {
+      console.error("Reports fetch error:", err);
+    }
+  };
+
+  // --------------------------------------------
+  // Generate New Report
+  // --------------------------------------------
+  const generateNewReport = async () => {
+    try {
+      const res = await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/admin/reports/generate",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("Report generated successfully!");
+      fetchReports(); // refresh report list
+    } catch (err) {
+      console.error("Generate report error:", err);
+      alert("Failed to generate report");
+    }
+  };
+
+  // --------------------------------------------
+  // Download Report
+  // --------------------------------------------
+  const downloadReport = async (id: string) => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await axios.get(
+        `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob"
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${id}.csv`;
+      a.click();
+    } catch (err) {
+      console.error("Download error:", err);
+    }
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      await fetchAnalytics();
+      await fetchReports();
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return <p className="text-center py-6 text-gray-500">Loading reports...</p>;
+  }
+
+
+
 
   return (
     <div className="space-y-6">
@@ -32,7 +124,7 @@ export function ReportsAnalytics() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
+            <LineChart data={analytics}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />
@@ -51,7 +143,7 @@ export function ReportsAnalytics() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
+            <BarChart data={analytics}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />

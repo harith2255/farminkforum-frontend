@@ -45,7 +45,7 @@ export function CustomerManagement() {
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      const res = await axios.get("http://localhost:5000/api/admin/customers", {
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/customers", {
         headers: { Authorization: `Bearer ${token}` },
         params: { search, status, plan, page, limit: 10 },
       });
@@ -90,7 +90,7 @@ export function CustomerManagement() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/admin/customers/${id}/suspend`,
+        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/suspend`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -105,7 +105,7 @@ export function CustomerManagement() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/admin/customers/${id}/activate`,
+        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/activate`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -122,7 +122,7 @@ export function CustomerManagement() {
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
-        `http://localhost:5000/api/admin/customers/${id}`,
+        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchCustomers();
@@ -141,7 +141,7 @@ export function CustomerManagement() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/admin/customers/${selectedCustomer.id}/email`,
+        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/email`,
         {
           subject: emailSubject,
           text: emailMessage,

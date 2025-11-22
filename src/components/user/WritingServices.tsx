@@ -1,64 +1,221 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { FileText, Upload, Clock, CheckCircle, AlertCircle, Calendar, Edit, MessageSquare, Download } from 'lucide-react';
-import { toast } from 'sonner';
+// --- IMPORTS (UNCHANGED) ---
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ui/dialog";
+import {
+  FileText,
+  Upload,
+  Calendar,
+  Edit,
+  MessageSquare,
+  Clock
+} from "lucide-react";
+import { toast } from "sonner";
+import * as React from "react";
 
-export function WritingServices() {
+// --- API BASE URL ---
+const API = "https://ebook-backend-lxce.onrender.com/api/writing";
+
+export function WritingServices({onNavigate}) {
+  // BACKEND STATES
+  const [services, setServices] = useState<any[]>([]);
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [completedOrders, setCompletedOrders] = useState<any[]>([]);
+
+  // LOADING
+  const [loading, setLoading] = useState(true);
+
+  // FORM STEPS
   const [step, setStep] = useState(1);
+
+  // NEW ORDER FORM STATE (FULL CONTROLLED)
+  const [formData, setFormData] = useState({
+    type: "",
+    academic_level: "",
+    title: "",
+    subject_area: "",
+    pages: "",
+    deadline: "",
+    instructions: ""
+  });
+
+
+  // HELPERS
+  const updateForm = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // DIALOGS
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
+
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [feedback, setFeedback] = useState('');
-  const [updatedDeadline, setUpdatedDeadline] = useState('');
+  const [feedback, setFeedback] = useState("");
+  const [updatedDeadline, setUpdatedDeadline] = useState("");
 
-  const activeOrders = [
-    { id: 1, title: 'Research Paper on AI Ethics', type: 'Research Paper', deadline: '2024-03-25', status: 'In Progress', progress: 60, writer: 'Dr. Sarah Johnson' },
-    { id: 2, title: 'Literature Review - Climate Change', type: 'Literature Review', deadline: '2024-03-30', status: 'Draft Review', progress: 85, writer: 'Prof. Michael Chen' },
-  ];
-
-  const completedOrders = [
-    { id: 3, title: 'Essay on Shakespeare', type: 'Essay', completedDate: '2024-03-10', grade: 'A', rating: 5 },
-    { id: 4, title: 'Lab Report - Chemistry', type: 'Lab Report', completedDate: '2024-02-28', grade: 'A-', rating: 4 },
-  ];
-
-  const services = [
-    { name: 'Research Paper', description: 'Comprehensive research papers with citations', turnaround: '7-14 days', price: 'From ₹49' },
-    { name: 'Essay Writing', description: 'Academic essays on any topic', turnaround: '3-7 days', price: 'From ₹29' },
-    { name: 'Dissertation', description: 'Full dissertation writing support', turnaround: '30-90 days', price: 'From ₹299' },
-    { name: 'Thesis Writing', description: 'Master\'s and PhD thesis assistance', turnaround: '14-60 days', price: 'From ₹199' },
-    { name: 'Literature Review', description: 'Detailed literature reviews', turnaround: '5-10 days', price: 'From ₹79' },
-    { name: 'Editing & Proofreading', description: 'Professional editing services', turnaround: '1-3 days', price: 'From ₹19' },
-  ];
-
+  // OPEN EDIT ORDER POPUP
   const handleEditOrder = (order: any) => {
     setSelectedOrder(order);
     setUpdatedDeadline(order.deadline);
     setIsEditDialogOpen(true);
   };
-
-  const handleSaveEdit = () => {
-    toast.success('Order updated successfully!');
-    setIsEditDialogOpen(false);
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
   };
+};
 
+
+  // OPEN FEEDBACK POPUP
   const handleProvideFeedback = (order: any) => {
     setSelectedOrder(order);
-    setFeedback('');
+    setFeedback("");
     setIsFeedbackDialogOpen(true);
   };
 
-  const handleSubmitFeedback = () => {
-    toast.success('Feedback sent to writer');
-    setIsFeedbackDialogOpen(false);
-  };
+  // FETCH SERVICES
+  const fetchServices = async () => {
+  const res = await fetch(`${API}/services`);
+  const data = await res.json();
+  setServices(data);
+};
+
+// FETCH ACTIVE ORDERS
+const fetchActiveOrders = async () => {
+  const res = await fetch(`${API}/orders/active`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  const data = await res.json();
+  setActiveOrders(Array.isArray(data) ? data : []);
+};
+
+
+// FETCH COMPLETED ORDERS
+const fetchCompletedOrders = async () => {
+  const res = await fetch(`${API}/orders/completed`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  const data = await res.json();
+  setCompletedOrders(Array.isArray(data) ? data : []);
+};
+
+// INITIAL LOAD
+useEffect(() => {
+  fetchServices();
+  fetchActiveOrders();
+  fetchCompletedOrders();
+  setLoading(false);
+}, []);
+
+// SUBMIT NEW ORDER
+const handleSubmitOrder = async () => {
+  try {
+    const res = await fetch(`${API}/order`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ...formData,
+        total_price: Number(formData.pages) * 10 + 20,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.error) return toast.error(data.error);
+
+    toast.success("Order placed successfully!");
+
+    // 🚀 REDIRECT TO PURCHASE PAGE
+    window.history.pushState({}, "", `/purchase/${data.order.id}`);
+onNavigate("purchase");
+
+
+  } catch (err) {
+    toast.error("Failed to place the order");
+  }
+};
+
+
+// SAVE EDITED ORDER
+const handleSaveEdit = async () => {
+  if (!selectedOrder) {
+    toast.error("No order selected");
+    return;
+  }
+
+  const res = await fetch(`${API}/orders/${selectedOrder.id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      deadline: updatedDeadline,
+      additional_notes: feedback,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (data.error) return toast.error(data.error);
+
+  toast.success("Order updated & writer notified!");
+  setIsEditDialogOpen(false);
+  fetchActiveOrders();
+};
+
+// SEND FEEDBACK
+const handleSubmitFeedback = async () => {
+  if (!selectedOrder) {
+    toast.error("No order selected");
+    return;
+  }
+
+  const res = await fetch(`${API}/feedback`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      order_id: selectedOrder.id,
+      writer_name: selectedOrder.writer || "Writer",
+      message: feedback,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (data.error) return toast.error(data.error);
+
+  toast.success("Message sent!");
+  setIsFeedbackDialogOpen(false);
+};
 
   return (
     <div className="space-y-6">
@@ -197,22 +354,6 @@ export function WritingServices() {
                         className="min-h-[150px]"
                       />
                     </div>
-
-                    <div>
-                      <Label>Citation Style</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select citation style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="apa">APA</SelectItem>
-                          <SelectItem value="mla">MLA</SelectItem>
-                          <SelectItem value="chicago">Chicago</SelectItem>
-                          <SelectItem value="harvard">Harvard</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
                     <div>
                       <Label>Additional Materials (Optional)</Label>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#bf2026] transition-colors cursor-pointer">
@@ -390,8 +531,8 @@ export function WritingServices() {
         {/* Services */}
         <TabsContent value="services" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {services.map((service, index) => (
-              <Card key={index} className="border-none shadow-md hover:shadow-lg transition-all">
+            {services.map((service) => (
+              <Card key={service.id} className="border-none shadow-md hover:shadow-lg transition-all">
                 <CardHeader>
                   <CardTitle className="text-[#1d4d6a]">{service.name}</CardTitle>
                   <CardDescription>{service.description}</CardDescription>
@@ -402,7 +543,7 @@ export function WritingServices() {
                       <Clock className="w-4 h-4" />
                       <span>{service.turnaround}</span>
                     </div>
-                    <div className="text-[#bf2026]">{service.price}</div>
+                    <div className="text-[#bf2026]">{service.price ? `₹${service.price}` : "Starting ₹49"}</div>
                   </div>
                   <Button className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white">
                     Order Now
@@ -473,7 +614,7 @@ export function WritingServices() {
               <>
                 <div className="p-3 bg-gray-50 rounded-lg mb-4">
                   <p className="text-sm text-gray-600 mb-1">Writer</p>
-                  <p className="text-[#1d4d6a]">{selectedOrder.writer}</p>
+                  <p className="text-[#1d4d6a]">{selectedOrder.writer_name || "Assigned Writer"}</p>
                   <p className="text-xs text-gray-500 mt-1">Working on: {selectedOrder.title}</p>
                 </div>
                 <div className="space-y-2">

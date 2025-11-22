@@ -4,6 +4,7 @@ import { StatsSection } from './home/Stats';
 import { FeaturesSection } from './home/Features';
 import { CTASection } from './home/Cta';
 import { Footer } from './home/Footer';
+import * as React from 'react';
 
 type HomeProps = {
   onNavigate: (path: string) => void;

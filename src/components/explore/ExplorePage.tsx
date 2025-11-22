@@ -1,24 +1,39 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/components/explore/ExplorePage.tsx
+import { useEffect, useState } from "react";
 import HeroSection from "./HeroSection";
 import CategoryFilter from "./CategorySection";
-//import StatsBar from "./StatusBar";
 import BooksGrid from "./BooksGrid";
+import * as React from "react";
 
-function ExplorePage({ onNavigate }: { onNavigate: (page: string) => void }) {
+function ExplorePage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [books, setBooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPublicBooks = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch("https://ebook-backend-lxce.onrender.com/api/content?type=books");
+        const json = await res.json();
+        const payload = json?.contents ?? json ?? [];
+
+        setBooks(payload);
+      } catch (err) {
+        console.error("Error fetching public books:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPublicBooks();
+  }, []);
 
   const categories = [
     "All",
-    "Agricultural Extension Education",
-    "Adult and Continuing Education and Extension"
-  ];
-
-  const books = [
-    { id: 1, title: "Agricultural Extension Education", author: "Dr. Sarah Smith", category: "Agricultural Extension Education", price: 24.99, rating: 4.8, reviews: 342, cover: "", bestseller: true },
-    { id: 2, title: "Adult and Continuing Education and Extension", author: "Prof. Michael Johnson", category: "Adult and Continuing Education and Extension", price: 29.99, rating: 4.9, reviews: 523, cover: "", trending: true },
-   
+    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean)))
   ];
 
   const filteredBooks = books.filter(
@@ -28,17 +43,35 @@ function ExplorePage({ onNavigate }: { onNavigate: (page: string) => void }) {
         book.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // 🚫 ALWAYS redirect to LOGIN for public Explore
+  const forceLogin = () => {
+    window.history.pushState({}, "", "/login");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   return (
     <div>
-      <HeroSection searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <HeroSection
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
+
       <div className="max-w-7xl mx-auto px-6 py-12">
         <CategoryFilter
           categories={categories}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
         />
-        {/* <StatsBar totalBooks={filteredBooks.length} /> */}
-        <BooksGrid books={filteredBooks} onNavigate={onNavigate} />
+
+        <BooksGrid
+          books={filteredBooks.map((b) => ({
+            ...b,
+            purchased: false, // just to avoid undefined
+            onBuy: forceLogin
+          }))}
+          onOpenBook={forceLogin}
+          onNavigate={forceLogin}   // ⬅️ REQUIRED so "Buy Now" triggers login
+        />
       </div>
     </div>
   );

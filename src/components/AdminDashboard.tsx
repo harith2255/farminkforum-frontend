@@ -24,7 +24,6 @@ import { PaymentsAdmin } from './admin/PaymentsAdmin';
 import { ReportsAnalytics } from './admin/ReportsAnalytics';
 import { AIAutomation } from './admin/AIAutomation';
 import { NotificationsAdmin } from './admin/NotificationsAdmin';
-import NotificationView from './admin/NotificationView'
 import { SystemSettings } from './admin/SystemSettings';
 import { JobPortalAdmin } from './admin/JobPortalAdmin';
 import WritingService from './admin/WritingService';
@@ -49,7 +48,7 @@ type AdminSection =
   | 'settings';
 
 export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
-  const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +74,29 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 2, message: 'Subscription renewed: John Smith', time: '10 mins ago' },
     { id: 3, message: 'New content uploaded: "Advanced Mathematics"', time: '1 hour ago' },
   ];
+
+  const getInitialSection = (): AdminSection => {
+    const path = window.location.pathname;
+    const section = path.split("/").pop() as AdminSection;
+
+    const valid: AdminSection[] = [
+      "dashboard",
+      "customers",
+      "content",
+      "drm",
+      "writing",
+      "payments",
+      "reports",
+      "ai",
+      "notifications",
+      "jobs",
+      "settings",
+    ];
+
+    return valid.includes(section) ? section : "dashboard";
+  };
+
+  const [activeSection, setActiveSection] = useState<AdminSection>(getInitialSection);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -128,7 +150,10 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
             {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => {
+                  setActiveSection(item.id);
+                  window.history.pushState({}, "", `/admin-dashboard/${item.id}`);
+                }}
                 className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'} rounded-lg mb-1 transition-all group ${activeSection === item.id
                   ? 'bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20'
                   : 'text-gray-300 hover:bg-[#2a5f7f] hover:text-white'
@@ -183,7 +208,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
               </div>
 
               {/* Notification Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              {/* <div className="relative" ref={dropdownRef}>
                 <button
                   className="relative p-2 hover:bg-gray-100 rounded-lg"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -223,7 +248,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
 
               {/* Avatar Dropdown */}
               <div className="relative" ref={avatarRef}>
@@ -283,7 +308,6 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
           {activeSection === 'reports' && <ReportsAnalytics />}
           {activeSection === 'ai' && <AIAutomation />}
           {activeSection === 'notifications' && <NotificationsAdmin />}
-          {activeSection === "notificationview" && <NotificationView />}
           {activeSection === 'jobs' && <JobPortalAdmin />}
           {activeSection === 'settings' && <SystemSettings />}
         </main>

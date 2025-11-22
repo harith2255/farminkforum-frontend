@@ -1,13 +1,128 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Send } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "../ui/select";
+import { Send } from "lucide-react";
+import { toast } from "sonner";
+import * as React from "react";
 
 export function NotificationsAdmin() {
+
+  const API = "https://ebook-backend-lxce.onrender.com/api/admin/notifications";
+
+  const [recipientType, setRecipientType] = useState("");
+  const [notificationType, setNotificationType] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [customList, setCustomList] = useState("");
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  /* ----------------------------------------------------
+    FETCH NOTIFICATION LOGS
+ ---------------------------------------------------- */
+  const loadNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${API}/logs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setNotifications(data.notifications || []);
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  /* ----------------------------------------------------
+    SEND NOTIFICATION
+ ---------------------------------------------------- */
+  const handleSend = async () => {
+    if (!recipientType || !notificationType || !subject || !message) {
+      return toast.error("Please fill all required fields.");
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${API}/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipient_type: recipientType,
+          notification_type: notificationType,
+          subject,
+          message,
+          custom_list: customList.split(",").map((e) => e.trim()),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) return toast.error(data.error);
+
+      toast.success("Notification sent!");
+
+      // Refresh list
+      loadNotifications();
+    } catch (err) {
+      toast.error("Failed to send notification");
+    }
+  };
+
+
+  /* ----------------------------------------------------
+   SAVE DRAFT
+---------------------------------------------------- */
+  const saveDraft = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${API}/draft`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipient_type: recipientType,
+          notification_type: notificationType,
+          subject,
+          message,
+          custom_list: customList.split(",").map((e) => e.trim()),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) return toast.error(data.error);
+
+      toast.success("Draft saved!");
+    } catch (err) {
+      toast.error("Failed to save draft");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,7 +172,7 @@ export function NotificationsAdmin() {
 
           <div>
             <Label>Message</Label>
-            <Textarea 
+            <Textarea
               placeholder="Write your message..."
               className="min-h-[150px]"
             />

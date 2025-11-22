@@ -6,7 +6,8 @@ import { PublicPages } from "./components/PublicPages";
 import { BookReader } from "./components/BookReader";
 import { Toaster } from "./components/ui/sonner";
 import TestPage from "./components/user/Testpage";
-import BuyNowPage from "./components/user/BuyNowPage";
+import PurchasePage from "./components/PurchasePage";
+import * as React from "react";
 
 type Page =
   | "home"
@@ -19,114 +20,174 @@ type Page =
   | "login"
   | "register"
   | "reader"
+  | "purchase"
   | "test"
-  | "collections"
-  | "buynow";
+  | "cart";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("home");
+  const [currentPage, setCurrentPage] = useState<Page | null>(null);
+  const [previousPage, setPreviousPage] = useState<Page>("home");
   const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ----------------------------------------------------------
-     1. Detect route on first load
-  ---------------------------------------------------------- */
-useEffect(() => {
+  /* ----------------------------------------------------
+     ⭐ INITIAL PAGE DETECTION
+  ---------------------------------------------------- */
+  useEffect(() => {
     const path = window.location.pathname;
 
-    if (path === "/test") setCurrentPage("test");
-    else if (path === "/user-dashboard") setCurrentPage("user-dashboard");
-    else if (path === "/admin-dashboard") setCurrentPage("admin-dashboard");
-    else if (path === "/buynow") setCurrentPage("buynow");
-    else if (path.startsWith("/collections")) {
-      setCurrentPage("collections");
-      const id = path.split("/collections/")[1];
-      if (id) localStorage.setItem("currentCollectionId", id);
+    if (path === "/cart" || path === "/cart/") {
+      setCurrentPage("user-dashboard");
+      setTimeout(() => {
+        window.history.replaceState({}, "", "/user-dashboard");
+        window.dispatchEvent(new CustomEvent("open-cart-page"));
+      }, 20);
+      return;
+    }
+
+    if (path.startsWith("/purchase/")) {
+      const id = path.split("/purchase/")[1];
+      setSelectedPurchaseId(id);
+      setCurrentPage("purchase");
+      return;
+    }
+
+    if (path.startsWith("/reader")) {
+      setCurrentPage("reader");
+      return;
+    }
+
+    if (path.startsWith("/test")) {
+      setCurrentPage("test");
+      return;
+    }
+
+    // 🔥 FIX: Handle ALL user-dashboard sub-routes
+    if (path.startsWith("/user-dashboard")) {
+      setCurrentPage("user-dashboard");
+      return;
+    }
+
+    if (path === "/admin-dashboard") {
+      setCurrentPage("admin-dashboard");
+    } else if (
+      ["/explore", "/pricing", "/about", "/contact", "/login", "/register"].includes(path)
+    ) {
+      setCurrentPage(path.replace("/", "") as Page);
     } else {
-      const clean = path.replace("/", "");
-      const valid = [
-        "explore",
-        "pricing",
-        "about",
-        "contact",
-        "login",
-        "register",
-      ];
-      if (valid.includes(clean)) setCurrentPage(clean as Page);
-      else setCurrentPage("home");
+      setCurrentPage("home");
     }
   }, []);
 
-  /* ----------------------------------------------------------
-     2. Restore login + role AFTER route detection
-        (Important fix to avoid overriding user navigation)
-  ---------------------------------------------------------- */
+  /* ----------------------------------------------------
+     ⭐ RESTORE SESSION
+  ---------------------------------------------------- */
   useEffect(() => {
+    const path = window.location.pathname;
+
     const loggedIn = localStorage.getItem("isLoggedIn");
-    const role = localStorage.getItem("role") as "user" | "admin" | null;
+    const role = localStorage.getItem("role");
 
-    if (loggedIn && role) {
-      setUserRole(role);
+    if (!loggedIn || !role) {
+      setLoading(false);
+      return;
+    }
 
-      // Only redirect if the current page is home
-      if (currentPage === "home") {
-        setCurrentPage(role === "admin" ? "admin-dashboard" : "user-dashboard");
+    setUserRole(role as "user" | "admin");
+
+    // Admin dashboard restore
+    if (path.startsWith("/admin-dashboard")) {
+      setCurrentPage("admin-dashboard");
+      setLoading(false);
+      return;
+    }
+
+    // User dashboard restore + restore section
+    if (path.startsWith("/user-dashboard")) {
+      setCurrentPage("user-dashboard");
+
+      const sub = path.replace("/user-dashboard/", "").trim();
+
+      if (sub && sub.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent("restore-user-section", { detail: sub })
+        );
+      }
+
+      setLoading(false);
+      return;
+    }
+
+    // Default redirect (only if user at "/")
+    if (path === "/" || path === "") {
+      if (role === "admin") {
+        setCurrentPage("admin-dashboard");
+        window.history.replaceState({}, "", "/admin-dashboard");
+      } else {
+        setCurrentPage("user-dashboard");
+        window.history.replaceState({}, "", "/user-dashboard");
       }
     }
 
     setLoading(false);
-  }, [currentPage]);
+  }, []);
 
-  /* ----------------------------------------------------------
-     3. Scroll to top on navigation
-  ---------------------------------------------------------- */
+  /* ----------------------------------------------------
+     ⭐ SCROLL TO TOP
+  ---------------------------------------------------- */
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage]);
 
-  /* ----------------------------------------------------------
-     Navigation Handlers
-  ---------------------------------------------------------- */
+  /* ----------------------------------------------------
+     ⭐ LOGIN
+  ---------------------------------------------------- */
   const handleLogin = (role: "user" | "admin") => {
     setUserRole(role);
+    setCurrentPage(role === "user" ? "user-dashboard" : "admin-dashboard");
+
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("role", role);
 
-    const page = role === "admin" ? "admin-dashboard" : "user-dashboard";
-    setCurrentPage(page);
-    window.history.pushState({}, "", `/${page}`);
+    window.history.pushState({}, "", `/${role === "user" ? "user-dashboard" : "admin-dashboard"}`);
   };
 
+  /* ----------------------------------------------------
+     ⭐ OPEN READER
+  ---------------------------------------------------- */
   const handleOpenBook = (book: any) => {
+    setPreviousPage(currentPage!);
     setSelectedBook(book);
     setCurrentPage("reader");
     window.history.pushState({}, "", "/reader");
   };
 
-  const handleNavigate = (page: string, id?: number) => {
-    // ⭐ NEW: Buy Now page protection
-    if (page === "buynow") {
-      const loggedIn = localStorage.getItem("isLoggedIn");
+  /* ----------------------------------------------------
+     ⭐ NAVIGATION HANDLER
+  ---------------------------------------------------- */
+  const handleNavigate = (page: string) => {
+    setPreviousPage(currentPage!);
 
-      if (!loggedIn) {
-        setCurrentPage("login");
-        window.history.pushState({}, "", "/login");
-        return;
-      }
+    if (page === "cartpage" || page === "cart") {
+      setCurrentPage("user-dashboard");
+      window.history.pushState({}, "", "/user-dashboard");
+
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("open-cart-page"));
+      }, 20);
+
+      return;
     }
 
-        setCurrentPage(page as Page);
-
-
-    if (page === "collections" && id) {
-      localStorage.setItem("currentCollectionId", id.toString());
-      window.history.pushState({}, "", `/collections/${id}`);
-    } else {
-      window.history.pushState({}, "", `/${page === "home" ? "" : page}`);
-    }
+    setCurrentPage(page as Page);
+    window.history.pushState({}, "", `/${page === "home" ? "" : page}`);
   };
 
+  /* ----------------------------------------------------
+     ⭐ LOGOUT
+  ---------------------------------------------------- */
   const handleLogout = () => {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("role");
@@ -136,10 +197,10 @@ useEffect(() => {
     window.history.pushState({}, "", "/");
   };
 
-  /* ----------------------------------------------------------
-     Loading Screen
-  ---------------------------------------------------------- */
-  if (loading) {
+  /* ----------------------------------------------------
+     ⭐ LOADING SCREEN
+  ---------------------------------------------------- */
+  if (loading || currentPage === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8]">
         <div className="text-center">
@@ -150,18 +211,17 @@ useEffect(() => {
     );
   }
 
-  /* ----------------------------------------------------------
-     Page Rendering
-  ---------------------------------------------------------- */
+  /* ----------------------------------------------------
+     ⭐ RENDER PAGES
+  ---------------------------------------------------- */
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
-      {/* Home */}
+
       {currentPage === "home" && (
         <Home onNavigate={handleNavigate} onOpenBook={handleOpenBook} />
       )}
 
-      {/* User Dashboard */}
-      {currentPage === "user-dashboard" && userRole === "user" && (
+      {currentPage === "user-dashboard" && (
         <UserDashboard
           onNavigate={handleNavigate}
           onOpenBook={handleOpenBook}
@@ -169,34 +229,38 @@ useEffect(() => {
         />
       )}
 
-      {/* Admin Dashboard (Protected) */}
-      {currentPage === "admin-dashboard" &&
-        (userRole === "admin" ? (
-          <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} />
-        ) : (
-          <div className="p-10 text-center text-red-600 font-semibold">
-            Access Denied
-          </div>
-        ))}
+      {currentPage === "admin-dashboard" && (
+        <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} />
+      )}
 
-      {/* Reader */}
       {currentPage === "reader" && selectedBook && (
-        <BookReader book={selectedBook} onClose={() => setCurrentPage("user-dashboard")} />
+        <BookReader
+          book={selectedBook}
+          onClose={() => {
+            setCurrentPage(previousPage);
+            window.history.pushState({}, "", `/${previousPage}`);
+          }}
+        />
       )}
 
-      {/* Public Pages */}
-      {["explore", "pricing", "about", "contact", "login", "register"].includes(currentPage) && (
-        <PublicPages page={currentPage as any} onNavigate={handleNavigate} onLogin={handleLogin} />
+      {currentPage === "purchase" && (
+        <PurchasePage
+          bookId={selectedPurchaseId}
+          noteId={selectedPurchaseId}
+          onNavigate={handleNavigate}
+        />
       )}
 
-      {/* Test page */}
+      {["pricing", "about", "contact", "login", "register"].includes(currentPage) && (
+        <PublicPages
+          page={currentPage as any}
+          onNavigate={handleNavigate}
+          onLogin={handleLogin}
+        />
+      )}
+
       {currentPage === "test" && (
         <TestPage onNavigate={handleNavigate} onLogout={handleLogout} />
-      )}
-
-      {/* ⭐ NEW Buy Now page */}
-      {currentPage === "buynow" && (
-        <BuyNowPage onNavigate={handleNavigate} onLogout={handleLogout} />
       )}
 
       <Toaster />

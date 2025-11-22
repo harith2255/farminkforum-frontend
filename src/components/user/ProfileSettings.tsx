@@ -6,8 +6,339 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { Switch } from '../ui/switch';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { User, Lock, Bell, Settings, Palette, Shield } from 'lucide-react';
+import axios, { AxiosResponse } from "axios";
+import * as React from "react";
+import { useState, useRef, useEffect } from "react";
 
-export function ProfileSettings() {
+
+const API = "https://ebook-backend-lxce.onrender.com/api/profile";
+
+type Profile = {
+  id?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  dob?: string; // yyyy-mm-dd
+  institution?: string;
+  field_of_study?: string;
+  academic_level?: string;
+  bio?: string;
+  avatar_url?: string;
+  // optional json columns (depends on your db)
+  email_notifications?: any;
+  push_notifications?: any;
+  // other fields...
+};
+
+type NotificationsShape = {
+  // email notifications object
+  email_notifications?: {
+    recommendations?: boolean;
+    test_reminders?: boolean;
+    writing_updates?: boolean;
+    marketing?: boolean;
+  };
+  // push notifications object
+  push_notifications?: {
+    reading_streak?: boolean;
+    test_scores?: boolean;
+    job_alerts?: boolean;
+  };
+};
+
+type SecurityShape = {
+  two_factor_enabled?: boolean;
+  method?: string;
+};
+
+type SessionItem = {
+  id: string;
+  device?: string;
+  location?: string;
+  last_active?: string;
+  active?: boolean;
+  user_agent?: string;
+};
+
+export const ProfileSettings: React.FC = () => {
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [notifications, setNotifications] = useState<NotificationsShape>({});
+  const [security, setSecurity] = useState<SecurityShape>({});
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+
+  // password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  // small ui messages
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  // helper to add Authorization header
+const getValidToken = () => {
+  // try Supabase session first
+  const session = JSON.parse(localStorage.getItem("session") || "{}");
+
+  return session?.access_token || localStorage.getItem("token");
+};
+
+const token = getValidToken();
+
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res: AxiosResponse<any> = await axios.get(API, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Backend expected structure: { profile, notifications, security }
+        const serverProfile: Profile = res.data.profile || null;
+        const serverNotifications: NotificationsShape = res.data.notifications || {};
+        const serverSecurity: SecurityShape = res.data.security || {};
+
+        setProfile(serverProfile);
+        setNotifications(serverNotifications);
+        setSecurity(serverSecurity);
+
+        // load sessions
+        await loadSessions();
+      } catch (err: any) {
+        console.error("Profile load error:", err);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* -------------------------
+     SESSIONS
+  ------------------------- */
+  const loadSessions = async () => {
+    try {
+      const res: AxiosResponse<SessionItem[]> = await axios.get(`${API}/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSessions(res.data || []);
+    } catch (err) {
+      console.error("Failed to load sessions", err);
+    }
+  };
+
+  const revoke = async (sessionId: string) => {
+    try {
+      await axios.delete(`${API}/sessions/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // refresh
+      await loadSessions();
+      setMessage("Session revoked");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to revoke session", err);
+      setError("Could not revoke session");
+    }
+  };
+
+  /* -------------------------
+     AVATAR UPLOAD
+  ------------------------- */
+  const onUploadClick = () => {
+    if (avatarInputRef.current) avatarInputRef.current.click();
+  };
+
+  const uploadAvatarFile = async (file?: File) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Max avatar size is 2MB");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const res = await axios.post(`${API}/avatar`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // backend returns { message, avatar_url }
+      setProfile((prev) => ({ ...(prev || {}), avatar_url: res.data.avatar_url }));
+      setMessage("Avatar updated");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+      setError("Failed to upload avatar");
+    }
+  };
+
+  /* -------------------------
+     UPDATE PERSONAL INFO (Manual Save)
+  ------------------------- */
+  const updatePersonalInfo = async () => {
+    if (!profile) return;
+    setError(null);
+    try {
+      const payload = {
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        email: profile.email,
+        phone: profile.phone,
+        dob: profile.dob,
+        institution: profile.institution,
+        field_of_study: profile.field_of_study,
+        academic_level: profile.academic_level,
+        bio: profile.bio,
+      };
+
+      const res = await axios.put(API, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // backend returns { message, profile }
+      setProfile(res.data.profile || profile);
+      setMessage("Profile updated");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to update profile", err);
+      setError(err?.response?.data?.error || "Could not update profile");
+    }
+  };
+
+  /* -------------------------
+     CHANGE PASSWORD
+  ------------------------- */
+  const changePassword = async () => {
+    setError(null);
+    if (!newPassword) {
+      setError("Enter a new password");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    try {
+      await axios.put(
+        `${API}/security/password`,
+        { new_password: newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage("Password updated");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      console.error("Password change failed", err);
+      setError(err?.response?.data?.error || "Failed to change password");
+    }
+  };
+
+  /* -------------------------
+     NOTIFICATIONS (Auto-save)
+     We send an object to backend: { email_notifications, push_notifications }
+     Backend must accept JSON in those fields (supabase jsonb or text)
+  ------------------------- */
+  const updateNotifSettings = async (payload: NotificationsShape) => {
+    try {
+      // optimistic update was already done in UI
+      await axios.put(`${API}/notifications`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessage("Notification settings saved");
+      setTimeout(() => setMessage(null), 2000);
+    } catch (err: any) {
+      console.error("Failed to save notifications", err);
+      setError(err?.response?.data?.error || "Failed to save notification settings");
+    }
+  };
+
+  // helper for toggles
+  const handleEmailToggle = (key: keyof NonNullable<NotificationsShape["email_notifications"]>) => {
+    const prevEmail = notifications.email_notifications || {};
+    const updated = { ...prevEmail, [key]: !prevEmail[key] };
+    const newNotifications = { ...notifications, email_notifications: updated };
+    setNotifications(newNotifications);
+    updateNotifSettings({ email_notifications: updated, push_notifications: notifications.push_notifications });
+  };
+
+  const handlePushToggle = (key: keyof NonNullable<NotificationsShape["push_notifications"]>) => {
+    const prevPush = notifications.push_notifications || {};
+    const updated = { ...prevPush, [key]: !prevPush[key] };
+    const newNotifications = { ...notifications, push_notifications: updated };
+    setNotifications(newNotifications);
+    updateNotifSettings({ email_notifications: notifications.email_notifications, push_notifications: updated });
+  };
+
+  /* -------------------------
+     PREFERENCES (Auto-save)
+  ------------------------- */
+  const updatePrefs = async (payload: Record<string, any>) => {
+    try {
+      await axios.put(`${API}/preferences`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessage("Preferences saved");
+      setTimeout(() => setMessage(null), 2000);
+    } catch (err: any) {
+      console.error("Failed to save preferences", err);
+      setError(err?.response?.data?.error || "Failed to save preferences");
+    }
+  };
+
+  /* -------------------------
+     TWO-FACTOR (toggle)
+  ------------------------- */
+  const toggle2FA = async (enabled: boolean, method = "app") => {
+    try {
+      await axios.put(`${API}/security/2fa`, { enabled, method }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSecurity((s) => ({ ...(s || {}), two_factor_enabled: enabled, method }));
+      setMessage(`Two-factor ${enabled ? "enabled" : "disabled"}`);
+      setTimeout(() => setMessage(null), 2000);
+    } catch (err: any) {
+      console.error("Failed to toggle 2FA", err);
+      setError(err?.response?.data?.error || "Failed to update two-factor settings");
+    }
+  };
+
+  /* -------------------------
+     Handlers for controlled inputs (profile)
+  ------------------------- */
+  const updateProfileField = (field: keyof Profile, value: any) => {
+    setProfile((p) => ({ ...(p || {}), [field]: value }));
+  };
+
+  /* -------------------------
+     UI helpers
+  ------------------------- */
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadAvatarFile(file);
+    e.currentTarget.value = ""; // reset input
+  };
+
+  /* -------------------------
+     RENDER
+  ------------------------- */
   return (
     <div className="space-y-6">
       <div>
@@ -306,5 +637,6 @@ export function ProfileSettings() {
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }
+

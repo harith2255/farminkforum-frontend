@@ -19,8 +19,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     title: "Agricultural Extension and Communication Management",
     author: "Dr. S.V. Patel",
     category: "Agricultural Extension Education",
-    cover:
-      "https://m.media-amazon.com/images/I/71V4D1R9LxL._SY425_.jpg",
+    cover: "./carouse1.webp",
     rating: 4.8,
     readers: 12400,
   },
@@ -30,7 +29,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     author: "Dr. R. Saravanan",
     category: "Agricultural Extension Education",
     cover:
-      "https://m.media-amazon.com/images/I/71UxLgP5SLL._SY425_.jpg",
+      "./carousel2.webp",
     rating: 4.7,
     readers: 15600,
   },
@@ -40,7 +39,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     author: "Dr. B. S. Bhatia",
     category: "Adult and Continuing Education",
     cover:
-      "https://m.media-amazon.com/images/I/61Vn2JwPiHL._SY425_.jpg",
+      "./carousel3.webp",
     rating: 4.6,
     readers: 9800,
   },
@@ -50,7 +49,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     author: "Dr. A. K. Singh",
     category: "Extension Education",
     cover:
-      "https://m.media-amazon.com/images/I/71VwJbJHPrL._SY425_.jpg",
+      "./carousel4.webp",
     rating: 4.9,
     readers: 17200,
   },
@@ -60,7 +59,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     author: "Dr. N. P. Singh",
     category: "Agricultural Extension",
     cover:
-      "https://m.media-amazon.com/images/I/71Kgn9N9ZRL._SY425_.jpg",
+      "./carousel5.webp",
     rating: 4.7,
     readers: 10200,
   },
@@ -70,7 +69,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     author: "Dr. R. K. Sharma",
     category: "Adult and Continuing Education",
     cover:
-      "https://m.media-amazon.com/images/I/71nZ2sHEkDL._SY425_.jpg",
+      "./carousel6.webp",
     rating: 4.8,
     readers: 11300,
   },
