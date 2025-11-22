@@ -538,8 +538,7 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
                         </p>
                         <p className="text-xs text-gray-400">
                           {user?.email || "no-email@example.com"}
-                        </p>fgh'
-
+                        </p>
                       </div>
                     </div>
                     <ul className="py-2">
