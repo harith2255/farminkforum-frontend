@@ -28,15 +28,6 @@ export function CustomerManagement() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
 
-  // Remove unused state variables
-  // const [filterOpen, setFilterOpen] = useState(false);
-  // const [sortOption, setSortOption] = useState('');
-  // const [searchQuery, setSearchQuery] = useState('');
-  // const [selectedPlans, setSelectedPlans] = useState<string[]>([]);
-  // const [mailPopup, setMailPopup] = useState<any>(null);
-  // const [mailText, setMailText] = useState("");
-  // const [actionMenu, setActionMenu] = useState<number | null>(null);
-
   // -------------------------------------
   // FETCH CUSTOMERS
   // -------------------------------------
@@ -51,8 +42,8 @@ export function CustomerManagement() {
       });
 
       // Fixed: Check the actual API response structure
-      setCustomers(res.data.data || res.data.customers || []);
-      setTotalPages(res.data.totalPages || res.data.pages || 1);
+      setCustomers(res.data.data || []);
+      setTotalPages(res.data.totalPages);
     } catch (err) {
       console.error("Error fetching customers:", err);
       setCustomers([]);
@@ -64,109 +55,71 @@ export function CustomerManagement() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [page, search, status, plan]); // Fixed: Added dependencies to refetch when filters change
+  }, [page]); // Fixed: Added dependencies to refetch when filters change
 
   const applyFilters = () => {
     setPage(1);
     fetchCustomers();
   };
 
-  // Handle search input with debounce
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (search !== "") {
-        setPage(1);
-        fetchCustomers();
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [search]);
-
   // -------------------------------------
   // ACTION HANDLERS
   // -------------------------------------
-  const suspendCustomer = async (id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/suspend`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchCustomers();
-    } catch (err) {
-      console.error("Error suspending customer:", err);
-      alert("Failed to suspend customer");
-    }
+const suspendCustomer = async (id: string) => {
+    const token = localStorage.getItem("token");
+
+    await axios.post(
+      `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/suspend`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    fetchCustomers();
   };
 
   const activateCustomer = async (id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/activate`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchCustomers();
-    } catch (err) {
-      console.error("Error activating customer:", err);
-      alert("Failed to activate customer");
-    }
+    const token = localStorage.getItem("token");
+
+    await axios.post(
+      `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/activate`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    fetchCustomers();
   };
 
-  const deleteCustomer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this customer? This action cannot be undone.")) return;
+ const deleteCustomer = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this customer?")) return;
 
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(
-        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchCustomers();
-    } catch (err) {
-      console.error("Error deleting customer:", err);
-      alert("Failed to delete customer");
-    }
+    const token = localStorage.getItem("token");
+
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    fetchCustomers();
   };
 
-  const sendEmail = async () => {
-    if (!emailSubject.trim() || !emailMessage.trim()) {
-      alert("Please enter both subject and message");
-      return;
-    }
+  const sendNotification = async () => {
+  const token = localStorage.getItem("token");
 
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/email`,
-        {
-          subject: emailSubject,
-          text: emailMessage,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  await axios.post(
+    `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/notify`,
+    {
+      title: emailSubject,
+      message: emailMessage,
+      link: "dashboard", // optional navigation link
+    },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 
-      alert("Email sent successfully!");
-      setShowEmailModal(false);
-      setEmailSubject("");
-      setEmailMessage("");
-      setSelectedCustomer(null);
-    } catch (err) {
-      console.error("Error sending email:", err);
-      alert("Failed to send email");
-    }
-  };
+  setShowEmailModal(false);
+  setEmailSubject("");
+  setEmailMessage("");
+};
 
-  // Reset filters
-  const resetFilters = () => {
-    setSearch("");
-    setStatus("");
-    setPlan("");
-    setPage(1);
-  };
 
   return (
     <div className="space-y-6">
@@ -178,9 +131,6 @@ export function CustomerManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={resetFilters}>
-            Reset Filters
-          </Button>
           <Button className="bg-[#bf2026] text-white">Export Data</Button>
         </div>
       </div>
@@ -207,7 +157,6 @@ export function CustomerManagement() {
               <option value="">All Status</option>
               <option value="Active">Active</option>
               <option value="Suspended">Suspended</option>
-              <option value="Inactive">Inactive</option>
             </select>
 
             <select
@@ -219,14 +168,12 @@ export function CustomerManagement() {
               <option value="Monthly">Monthly</option>
               <option value="Annual">Annual</option>
               <option value="Institutional">Institutional</option>
-              <option value="Free">Free</option>
             </select>
 
             <Button 
               variant="outline" 
               className="gap-2" 
               onClick={applyFilters}
-              disabled={loading}
             >
               <Filter className="w-4 h-4" />
               Apply
@@ -374,7 +321,7 @@ export function CustomerManagement() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    Previous
+                    Prev
                   </Button>
 
                   <span className="text-gray-600">
@@ -431,7 +378,7 @@ export function CustomerManagement() {
               </Button>
               <Button
                 className="bg-[#bf2026] text-white"
-                onClick={sendEmail}
+                onClick={sendNotification}
                 disabled={!emailSubject.trim() || !emailMessage.trim()}
               >
                 Send Email

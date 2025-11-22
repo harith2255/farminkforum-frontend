@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { Cpu, Zap, Tag, FileSearch } from 'lucide-react';
+import * as React from 'react';
 
 export function AIAutomation() {
   return (

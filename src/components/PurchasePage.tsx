@@ -136,9 +136,6 @@ export default function PurchasePage({ onNavigate }: any) {
     }
   };
 
-  const applyCoupon = () => {
-    // Implement coupon logic here
-  };
 
   /* -----------------------------
      UI

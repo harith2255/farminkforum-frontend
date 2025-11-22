@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -7,241 +12,289 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { toast } from "sonner";
-import { MessageSquare, CheckCircle, Clock, Download, FileText, User, Calendar, BookOpen, FileCheck, DollarSign } from "lucide-react";
+import axios from "axios";
+import {
+  FileText,
+  CheckCircle,
+  XCircle,
+  File,
+  Download,
+  BookOpen,
+  Calendar,
+  User,
+  DollarSign,
+  FileCheck,
+  MessageSquare,
+  Clock
+} from "lucide-react";
 
-interface Order {
-  id: number;
-  title: string;
-  type: string;
-  deadline: string;
-  status: "Pending" | "Completed";
-  progress: number;
-  student_name: string;
-  student_email: string;
-  academic_level: string;
-  subject_area: string;
-  number_of_pages: number;
-  detailed_instructions: string;
-  additional_materials: string[];
-  paid_amount: number;
-  currency: string;
-  order_date: string;
-  writer_notes?: string;
-}
+// Helper functions
+const getStatusIcon = (status: string) => {
+  return status === "Completed" ? CheckCircle : Clock;
+};
+
+const getStatusColor = (status: string) => {
+  return status === "Completed" 
+    ? "bg-green-100 text-green-800 hover:bg-green-100" 
+    : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+};
+
+const getDaysUntilDeadline = (deadline: string) => {
+  const today = new Date();
+  const deadlineDate = new Date(deadline);
+  const diffTime = deadlineDate.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const formatCurrency = (amount: number, currency: string) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD'
+  }).format(amount);
+};
 
 export default function AdminWritingDashboard() {
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: 1,
-      title: "Agricultural Innovations in Modern Farming",
-      type: "Research Paper",
-      deadline: "2025-11-20",
-      status: "Completed",
-      progress: 100,
-      student_name: "John Smith",
-      student_email: "john.smith@email.com",
-      academic_level: "Master's Degree",
-      subject_area: "Agricultural Science",
-      number_of_pages: 25,
-      detailed_instructions: "Please focus on sustainable farming practices and technological innovations in modern agriculture. Include case studies from developed countries. The paper should follow APA 7th edition formatting with at least 15 peer-reviewed references.",
-      additional_materials: ["research_guidelines.pdf", "reference_material.docx", "data_sets.xlsx"],
-      paid_amount: 4500,
-      currency: "₹",
-      order_date: "2025-10-15",
-      writer_notes: "Completed ahead of schedule. Student was very satisfied with the quality."
-    },
-    {
-      id: 2,
-      title: "Adult Education Trends in Rural Areas",
-      type: "Essay",
-      deadline: "2025-11-25",
-      status: "Completed",
-      progress: 100,
-      student_name: "Sarah Johnson",
-      student_email: "sarah.j@email.com",
-      academic_level: "Bachelor's Degree",
-      subject_area: "Education",
-      number_of_pages: 8,
-      detailed_instructions: "Analyze current trends in adult education with focus on rural communities. Discuss challenges and potential solutions. Use MLA formatting style.",
-      additional_materials: ["essay_requirements.pdf"],
-      paid_amount: 1800,
-      currency: "₹",
-      order_date: "2025-10-20"
-    },
-    {
-      id: 3,
-      title: "Agricultural Policies Analysis and Impact",
-      type: "Dissertation",
-      deadline: "2025-12-05",
-      status: "Pending",
-      progress: 0,
-      student_name: "Michael Brown",
-      student_email: "m.brown@email.com",
-      academic_level: "PhD",
-      subject_area: "Agricultural Economics",
-      number_of_pages: 80,
-      detailed_instructions: "Comprehensive analysis of agricultural policies from 2000-2025. Focus on economic impact, sustainability, and farmer welfare. Requires statistical analysis and econometric modeling. Harvard referencing style.",
-      additional_materials: ["dissertation_proposal.pdf", "data_analysis.xlsx", "literature_review.docx"],
-      paid_amount: 12000,
-      currency: "₹",
-      order_date: "2025-10-25"
-    },
-    {
-      id: 4,
-      title: "Sustainable Farming Methods for Future",
-      type: "Research Paper",
-      deadline: "2025-12-10",
-      status: "Pending",
-      progress: 0,
-      student_name: "Emily Davis",
-      student_email: "emily.davis@email.com",
-      academic_level: "Bachelor's Degree",
-      subject_area: "Environmental Science",
-      number_of_pages: 15,
-      detailed_instructions: "Compare traditional vs modern sustainable farming methods. Include cost-benefit analysis and environmental impact assessment. Chicago style formatting required.",
-      additional_materials: ["assignment_brief.pdf"],
-      paid_amount: 3200,
-      currency: "₹",
-      order_date: "2025-10-28"
-    },
-    {
-      id: 5,
-      title: "Impact of Climate Change on Crop Yields",
-      type: "Thesis",
-      deadline: "2025-12-15",
-      status: "Pending",
-      progress: 0,
-      student_name: "Robert Wilson",
-      student_email: "r.wilson@email.com",
-      academic_level: "Master's Degree",
-      subject_area: "Climate Science",
-      number_of_pages: 60,
-      detailed_instructions: "Quantitative analysis of climate change impact on major crop yields in South Asia. Requires GIS data analysis and predictive modeling. APA 7th edition formatting.",
-      additional_materials: ["thesis_guidelines.pdf", "climate_data.csv", "research_papers.zip"],
-      paid_amount: 8500,
-      currency: "₹",
-      order_date: "2025-11-01"
-    }
-  ]);
-
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  
+  // Dialog states
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  
+  // Message state
   const [message, setMessage] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
 
-  // ✅ Handle Mark as Complete
-  const handleMarkComplete = () => {
-    if (!selectedOrder) return;
+  const token = localStorage.getItem("token");
+  const headers = { Authorization: `Bearer ${token}` };
 
-    setOrders(prevOrders =>
-      prevOrders.map(order =>
-        order.id === selectedOrder.id
-          ? { ...order, status: "Completed", progress: 100 }
-          : order
-      )
-    );
-
-    toast.success(`Order "${selectedOrder.title}" marked as completed`);
-    setIsStatusDialogOpen(false);
-    setSelectedOrder(null);
-  };
-
-  // ✅ Handle Mark as Pending
-  const handleMarkPending = () => {
-    if (!selectedOrder) return;
-
-    setOrders(prevOrders =>
-      prevOrders.map(order =>
-        order.id === selectedOrder.id
-          ? { ...order, status: "Pending", progress: 0 }
-          : order
-      )
-    );
-
-    toast.success(`Order "${selectedOrder.title}" marked as pending`);
-    setIsStatusDialogOpen(false);
-    setSelectedOrder(null);
-  };
-
-  // ✅ Handle Send Message
-  const handleSendMessage = () => {
-    if (!selectedOrder) return;
-    if (!message.trim()) {
-      toast.error("Please enter a message");
-      return;
+  /* ================================
+     LOAD ALL ORDERS
+  =================================*/
+  const loadOrders = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/api/admin/writing-service/orders",
+        { headers }
+      );
+      setOrders(res.data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load orders");
     }
-
-    const attachmentInfo = attachment ? ` with attachment: ${attachment.name}` : "";
-    
-    toast.success(`Message sent to ${selectedOrder.student_name}${attachmentInfo}`);
-    
-    // Reset form
-    setMessage("");
-    setAttachment(null);
-    setIsMessageDialogOpen(false);
-    setSelectedOrder(null);
   };
 
-  // ✅ Handle file upload
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  /* ================================
+     ACCEPT ORDER
+  =================================*/
+  const acceptOrder = async (id: number) => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/admin/writing-service/orders/${id}/accept`,
+        {},
+        { headers }
+      );
+      toast.success("Order accepted");
+      loadOrders();
+    } catch (err) {
+      console.error(err);
+      toast.error("Error accepting order");
+    }
+  };
+
+  /* ================================
+     COMPLETE ORDER
+  =================================*/
+  const completeOrder = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      let notes_url = null;
+
+      // Upload file if provided
+      if (attachment) {
+        const formData = new FormData();
+        formData.append("file", attachment);
+
+        const uploadRes = await axios.post(
+          "http://localhost:5000/api/admin/writing-service/upload",
+          formData,
+          { headers: { ...headers, "Content-Type": "multipart/form-data" } }
+        );
+
+        notes_url = uploadRes.data.url;
+      }
+
+      // Send completion request
+      await axios.put(
+        `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+        { notes_url, content_text: message },
+        { headers }
+      );
+
+      toast.success("Order completed");
+      setMessage("");
+      setAttachment(null);
+      setIsMessageDialogOpen(false);
+      loadOrders();
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Error completing order");
+    }
+  };
+
+  /* ================================
+     REJECT ORDER
+  =================================*/
+  const rejectOrder = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      await axios.put(
+        `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/reject`,
+        { reason: message },
+        { headers }
+      );
+
+      toast.success("Order rejected");
+      setMessage("");
+      setIsMessageDialogOpen(false);
+      loadOrders();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reject order");
+    }
+  };
+
+  /* ================================
+     MARK AS COMPLETE
+  =================================*/
+  const handleMarkComplete = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      await axios.put(
+        `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+        { content_text: "Order marked as completed" },
+        { headers }
+      );
+
+      toast.success(`Order "${selectedOrder.title}" marked as completed`);
+      setIsStatusDialogOpen(false);
+      setSelectedOrder(null);
+      loadOrders();
+    } catch (err) {
+      console.error(err);
+      toast.error("Error marking order as complete");
+    }
+  };
+
+  /* ================================
+     MARK AS PENDING
+  =================================*/
+  const handleMarkPending = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      await axios.put(
+        `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/status`,
+        { status: "Pending" },
+        { headers }
+      );
+
+      toast.success(`Order "${selectedOrder.title}" marked as pending`);
+      setIsStatusDialogOpen(false);
+      setSelectedOrder(null);
+      loadOrders();
+    } catch (err) {
+      console.error(err);
+      toast.error("Error marking order as pending");
+    }
+  };
+
+  /* ================================
+     SEND MESSAGE
+  =================================*/
+  const handleSendMessage = async () => {
+    if (!selectedOrder || !message.trim()) return;
+
+    try {
+      let attachment_url = null;
+
+      // Upload attachment if provided
+      if (attachment) {
+        const formData = new FormData();
+        formData.append("file", attachment);
+
+        const uploadRes = await axios.post(
+          "http://localhost:5000/api/admin/writing-service/upload",
+          formData,
+          { headers: { ...headers, "Content-Type": "multipart/form-data" } }
+        );
+
+        attachment_url = uploadRes.data.url;
+      }
+
+      // Send message
+      await axios.post(
+        `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/message`,
+        { 
+          message: message.trim(),
+          attachment_url 
+        },
+        { headers }
+      );
+
+      toast.success("Message sent successfully");
+      setMessage("");
+      setAttachment(null);
+      setIsMessageDialogOpen(false);
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to send message");
+    }
+  };
+
+  /* ================================
+     HANDLE FILE UPLOAD
+  =================================*/
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (max 10MB)
+      // Check file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
         toast.error("File size must be less than 10MB");
         return;
       }
-      
-      // Check file type
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("Please upload only images, PDF, or DOCX files");
-        return;
-      }
-      
       setAttachment(file);
     }
   };
 
-  // ✅ Handle download additional materials
-  const handleDownloadMaterial = (material: string) => {
-    toast.info(`Downloading ${material}...`);
-    // In a real application, this would trigger an actual download
-    console.log(`Downloading: ${material}`);
-  };
-
-  // ✅ Get status badge color
-  const getStatusColor = (status: Order["status"]) => {
-    return status === "Completed" 
-      ? "bg-green-100 text-green-700 border-green-200" 
-      : "bg-yellow-100 text-yellow-700 border-yellow-200";
-  };
-
-  // ✅ Get status icon
-  const getStatusIcon = (status: Order["status"]) => {
-    return status === "Completed" ? CheckCircle : Clock;
-  };
-
-  // ✅ Calculate days until deadline
-  const getDaysUntilDeadline = (deadline: string) => {
-    const today = new Date();
-    const deadlineDate = new Date(deadline);
-    const diffTime = deadlineDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  // ✅ Format currency
-  const formatCurrency = (amount: number, currency: string) => {
-    return `${currency}${amount.toLocaleString()}`;
+  /* ================================
+     HANDLE DOWNLOAD MATERIAL
+  =================================*/
+  const handleDownloadMaterial = async (material: string) => {
+    try {
+      // This would typically download the file from your server
+      toast.info(`Downloading ${material}...`);
+      // Implement actual download logic here
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to download material");
+    }
   };
 
   return (
@@ -349,11 +402,11 @@ export default function AdminWritingDashboard() {
                 </div>
 
                 {/* Materials Section */}
-                {order.additional_materials.length > 0 && (
+                {order.additional_materials && order.additional_materials.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm">Materials Provided:</Label>
                     <div className="flex flex-wrap gap-1">
-                      {order.additional_materials.map((material, index) => (
+                      {order.additional_materials.map((material: string, index: number) => (
                         <Badge 
                           key={index} 
                           variant="outline" 
@@ -373,12 +426,12 @@ export default function AdminWritingDashboard() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Progress</span>
-                      <span>{order.progress}%</span>
+                      <span>{order.progress || 100}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className="h-2 rounded-full bg-green-500 transition-all duration-300"
-                        style={{ width: `${order.progress}%` }}
+                        style={{ width: `${order.progress || 100}%` }}
                       />
                     </div>
                   </div>
@@ -522,11 +575,11 @@ export default function AdminWritingDashboard() {
               </div>
 
               {/* Additional Materials */}
-              {selectedOrder.additional_materials.length > 0 && (
+              {selectedOrder.additional_materials && selectedOrder.additional_materials.length > 0 && (
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Additional Materials</Label>
                   <div className="space-y-2">
-                    {selectedOrder.additional_materials.map((material, index) => (
+                    {selectedOrder.additional_materials.map((material: string, index: number) => (
                       <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-gray-500" />

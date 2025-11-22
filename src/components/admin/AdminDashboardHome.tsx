@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react"; import axios from "axios"
+import React, { useEffect, useState } from "react"; 
+import axios from "axios"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Users, BookOpen, TrendingUp, ArrowUp, ArrowDown, IndianRupee } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -9,11 +10,48 @@ export function AdminDashboardHome() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  function formatActivity(activity: any) {
+  const { user_name, action_type, meta } = activity;
+
+  switch (action_type) {
+    case "upload_book":
+      return `${user_name} uploaded a book "${meta?.title}"`;
+
+    case "subscribe":
+      return `${user_name} subscribed to a ${meta?.plan}`;
+
+    case "subscription_activate":
+      return `${user_name} activated a ${meta?.plan}`;
+
+    case "renew_subscription":
+      return `${user_name} renewed their ${meta?.plan}`;
+
+    case "purchase_book":
+      return `${user_name} purchased the book "${meta?.title}"`;
+
+    case "publish_notes":
+      return `${user_name} published study notes for "${meta?.subject}"`;
+
+    case "update_content":
+      return `${user_name} updated content in category "${meta?.category}"`;
+
+    case "checkout_resource":
+      return `${user_name} checked out a resource from ${meta?.category}`;
+
+    case "login":
+      return `${user_name} logged in`;
+
+    case "signin":
+      return `${user_name} signed in`;
+
+    default:
+      return `${user_name} performed an action`;
+  }
+}
 
   // --------------------------
   // FILTER STATE
   // --------------------------
-  const [range, setRange] = useState<'7days' | 'month' | 'year'>('month');
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -102,7 +140,7 @@ export function AdminDashboardHome() {
         ))}
       </div>
 
-      {/* FILTER BUTTONS */}
+      {/* FILTER BUTTONS
       <div className="flex justify-end mt-2">
         <div className="flex gap-2 bg-white shadow p-1 rounded-lg">
           {['7days', 'month', 'year'].map((r) => (
@@ -118,7 +156,7 @@ export function AdminDashboardHome() {
             </button>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Revenue Trend - FULL WIDTH */}
       <Card className="border-none shadow-md">

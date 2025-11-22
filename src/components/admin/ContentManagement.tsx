@@ -1,7 +1,13 @@
 // src/components/admin/ContentManagement.tsx
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { Card, CardContent } from "../ui/card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
@@ -42,7 +48,19 @@ import {
   BookOpen,
   File,
   Users,
+  Image as ImageIcon,
 } from "lucide-react";
+
+type Book = any;
+type Note = any;
+type Test = any;
+
+const API = import.meta.env.VITE_API_BASE || "https://ebook-backend-lxce.onrender.com/api";
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export function ContentManagement() {
   const [books, setBooks] = useState<any[]>([]);
@@ -58,7 +76,7 @@ export function ContentManagement() {
   // Edit dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [editType, setEditType] = useState<"E-Book" | "Notes" | "Mock Test" | null>(null);
+  const [editType, setEditType] = useState<"book" | "note" | "test" | null>(null);
 
   // Upload form states
   const [bookForm, setBookForm] = useState({
@@ -69,6 +87,7 @@ export function ContentManagement() {
     description: "",
     tags: "",
     file: null as File | null,
+    cover: null as File | null,
   });
 
   const [noteForm, setNoteForm] = useState({
@@ -97,6 +116,339 @@ export function ContentManagement() {
   ]);
   const [mcqPage, setMcqPage] = useState(0);
 
+  const [uploading, setUploading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Fetch content
+  const fetchContent = async () => {
+    try {
+      setLoading(true);
+      const headers = getAuthHeaders();
+      const [booksRes, notesRes, testsRes] = await Promise.all([
+        axios.get(`${API}/admin/content?type=books`, { headers }),
+        axios.get(`${API}/admin/content?type=notes`, { headers }),
+        axios.get(`${API}/admin/content?type=tests`, { headers }),
+      ]);
+
+      setBooks(booksRes.data?.contents || []);
+      setNotes(notesRes.data?.contents || []);
+      setTests(testsRes.data?.contents || []);
+    } catch (err) {
+      console.error("❌ Error fetching content:", err);
+      alert("Failed to load content");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
+  // File change handlers
+  const onBookFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBookForm({ ...bookForm, file: e.target.files?.[0] ?? null });
+  };
+
+  const onBookCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBookForm({ ...bookForm, cover: e.target.files?.[0] ?? null });
+  };
+
+  const onNoteFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNoteForm({ ...noteForm, file: e.target.files?.[0] ?? null });
+  };
+
+  const onTestFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTestForm({ ...testForm, file: e.target.files?.[0] ?? null });
+  };
+
+  // Upload handlers
+  const uploadBook = async () => {
+    if (!bookForm.title || !bookForm.author || !bookForm.file) {
+      return alert("Please fill title, author and upload a file.");
+    }
+
+    try {
+      setUploading(true);
+      const data = new FormData();
+      data.append("type", "E-Book");
+      data.append("title", bookForm.title);
+      data.append("author", bookForm.author);
+      data.append("category", bookForm.category);
+      data.append("price", bookForm.price || "0");
+      data.append("description", bookForm.description || "");
+      data.append("tags", bookForm.tags || "");
+      data.append("file", bookForm.file as Blob);
+      // optional cover image
+      if (bookForm.cover) data.append("cover", bookForm.cover as Blob);
+
+      const headers = { ...getAuthHeaders(), "Content-Type": "multipart/form-data" };
+
+      await axios.post(`${API}/admin/content/upload`, data, { headers });
+
+      alert("✅ E-Book uploaded successfully!");
+      setShowUploadBook(false);
+      setBookForm({ 
+        title: "", 
+        author: "", 
+        category: "Agriculture", 
+        price: "", 
+        description: "", 
+        tags: "", 
+        file: null,
+        cover: null 
+      });
+      fetchContent();
+    } catch (err: any) {
+      console.error("uploadBook error", err);
+      alert(err?.response?.data?.error || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadNote = async () => {
+    if (!noteForm.title || !noteForm.author || !noteForm.file) {
+      return alert("Please fill title, author and upload a file.");
+    }
+
+    try {
+      setUploading(true);
+      const data = new FormData();
+      data.append("type", "Notes");
+      data.append("title", noteForm.title);
+      data.append("author", noteForm.author);
+      data.append("category", noteForm.category);
+      data.append("price", noteForm.price || "0");
+      data.append("description", noteForm.description || "");
+      data.append("file", noteForm.file as Blob);
+
+      const headers = { ...getAuthHeaders(), "Content-Type": "multipart/form-data" };
+      await axios.post(`${API}/admin/content/upload`, data, { headers });
+
+      alert("✅ Note uploaded successfully!");
+      setShowUploadNote(false);
+      setNoteForm({ 
+        title: "", 
+        author: "", 
+        category: "Agriculture", 
+        price: "", 
+        description: "", 
+        file: null 
+      });
+      fetchContent();
+    } catch (err: any) {
+      console.error("uploadNote error", err);
+      alert(err?.response?.data?.error || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadTest = async () => {
+    if (!testForm.title || !testForm.total_questions || !testForm.duration_minutes || !testForm.file) {
+      return alert("Please fill title, total questions, duration and upload file.");
+    }
+
+    try {
+      setUploading(true);
+      const data = new FormData();
+      data.append("type", "Mock Test");
+      data.append("title", testForm.title);
+      data.append("subject", testForm.subject || "Agriculture");
+      data.append("difficulty", testForm.difficulty || "Easy");
+      data.append("total_questions", testForm.total_questions || "0");
+      data.append("duration_minutes", testForm.duration_minutes || "0");
+
+      // Include MCQ data in the upload
+      data.append("mcq_data", JSON.stringify(mcqs));
+
+      if (testForm.scheduled_date) {
+        const iso = new Date(testForm.scheduled_date).toISOString();
+        data.append("scheduled_date", iso);
+      }
+
+      data.append("description", testForm.description || "");
+      if (testForm.file) data.append("file", testForm.file);
+
+      const headers = { ...getAuthHeaders(), "Content-Type": "multipart/form-data" };
+      await axios.post(`${API}/admin/content/upload`, data, { headers });
+
+      alert("✅ Mock test uploaded successfully!");
+      setShowUploadTest(false);
+      setTestForm({ 
+        title: "", 
+        subject: "Agriculture", 
+        difficulty: "Easy", 
+        total_questions: "", 
+        duration_minutes: "", 
+        scheduled_date: "", 
+        description: "", 
+        file: null 
+      });
+      // Reset MCQ data after upload
+      setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
+      setMcqPage(0);
+      fetchContent();
+    } catch (err: any) {
+      console.error("uploadTest error", err);
+      alert(err?.response?.data?.error || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // CORRECTED Delete handler
+  const handleDelete = async (id: string | number, type: "book" | "note" | "test") => {
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+    
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      let endpoint = "";
+      
+      switch (type) {
+        case "book":
+          endpoint = `${API}/admin/content/ebooks/${id}`;
+          break;
+        case "note":
+          endpoint = `${API}/admin/content/notes/${id}`;
+          break;
+        case "test":
+          endpoint = `${API}/admin/content/mock-tests/${id}`;
+          break;
+        default:
+          console.error("Invalid content type for deletion");
+          return;
+      }
+
+      console.log("Deleting from:", endpoint); 
+
+      await axios.delete(endpoint, {
+        headers,
+        data: {} // IMPORTANT FIX — DELETE MUST HAVE A BODY FOR MANY SERVERS
+      });
+      
+      alert("✅ Item deleted successfully!");
+      fetchContent();
+    } catch (err: any) {
+      console.error("Delete error:", err?.response?.data || err);
+      alert(err?.response?.data?.error || "Delete failed. Check console.");
+    }
+  };
+
+  // CORRECTED Edit handlers
+  const openEditModal = (item: any, type: "book" | "note" | "test") => {
+    console.log("Editing item:", item, "Type:", type); // Debug log
+    
+    // Prepare the item data for editing
+    const editData = { ...item };
+    
+    if (type === "test") {
+      // Parse MCQ data if it exists
+      try {
+        editData.mcq_data = typeof item.mcq_data === 'string' 
+          ? JSON.parse(item.mcq_data) 
+          : (item.mcq_data || []);
+      } catch (e) {
+        console.error("Error parsing MCQ data:", e);
+        editData.mcq_data = [];
+      }
+      editData.mcq_page = 0;
+    }
+    
+    setEditItem(editData);
+    setEditType(type);
+    setShowEditDialog(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editItem || !editType) return;
+    
+    try {
+      setEditSaving(true);
+      const token = localStorage.getItem("token");
+      const data = new FormData();
+
+      // Common fields
+      data.append("title", editItem.title || "");
+
+      if (editType === "book" || editType === "note") {
+        data.append("author", editItem.author || "");
+        data.append("category", editItem.category || "Agriculture");
+        data.append("price", editItem.price?.toString?.() || "0");
+        data.append("description", editItem.description || "");
+        
+        // Handle tags - convert array to string if needed
+        if (Array.isArray(editItem.tags)) {
+          data.append("tags", editItem.tags.join(","));
+        } else {
+          data.append("tags", editItem.tags || "");
+        }
+      } else if (editType === "test") {
+        data.append("subject", editItem.subject || "Agriculture");
+        data.append("difficulty", editItem.difficulty || "Easy");
+        data.append("total_questions", editItem.total_questions?.toString?.() || "0");
+        data.append("duration_minutes", editItem.duration_minutes?.toString?.() || "0");
+        
+        if (editItem.scheduled_date) {
+          data.append("scheduled_date", new Date(editItem.scheduled_date).toISOString());
+        }
+
+        // Handle MCQ data for tests
+        if (editItem.mcq_data && Array.isArray(editItem.mcq_data)) {
+          data.append("mcq_data", JSON.stringify(editItem.mcq_data));
+        }
+      }
+
+      // Handle file replacement
+      if (editItem.newFile instanceof File) {
+        data.append("file", editItem.newFile);
+      }
+
+      // Determine the correct endpoint
+      let endpoint = "";
+      switch (editType) {
+        case "book":
+          endpoint = `${API}/admin/content/ebooks/${editItem.id}`;
+          break;
+        case "note":
+          endpoint = `${API}/admin/content/notes/${editItem.id}`;
+          break;
+        case "test":
+          endpoint = `${API}/admin/content/mock-tests/${editItem.id}`;
+          break;
+        default:
+          console.error("Invalid edit type");
+          return;
+      }
+
+      console.log("Updating at:", endpoint); // Debug log
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      };
+
+      await axios.put(endpoint, data, { headers });
+
+      alert("✅ Updated successfully!");
+      setShowEditDialog(false);
+      setEditItem(null);
+      setEditType(null);
+      fetchContent();
+    } catch (err: any) {
+      console.error("Edit save error:", err);
+      alert(err?.response?.data?.error || "Update failed. Please check console for details.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // MCQ functions
   const addQuestion = () => {
     setMcqs([
       ...mcqs,
@@ -121,7 +473,7 @@ export function ContentManagement() {
 
   const updateQuestion = (index: number, key: string, value: string) => {
     const updated = [...mcqs];
-    updated[index][key] = value;
+    (updated[index] as any)[key] = value;
     setMcqs(updated);
   };
 
@@ -129,283 +481,6 @@ export function ContentManagement() {
     const updated = [...mcqs];
     updated[qIndex].options[optIndex] = value;
     setMcqs(updated);
-  };
-
-  const [uploading, setUploading] = useState(false);
-  const [editSaving, setEditSaving] = useState(false);
-
-  // Fetch content
-  const fetchContent = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const [booksRes, notesRes, testsRes] = await Promise.all([
-        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=books", { headers }),
-        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=notes", { headers }),
-        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/content?type=tests", { headers }),
-      ]);
-
-      setBooks(booksRes.data.contents || []);
-      setNotes(notesRes.data.contents || []);
-      setTests(testsRes.data.contents || []);
-    } catch (err) {
-      console.error("❌ Error fetching content:", err);
-      alert("Failed to load content");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchContent();
-  }, []);
-
-  // File changes
-  const onBookFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setBookForm({ ...bookForm, file: e.target.files?.[0] ?? null });
-  };
-  const onNoteFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNoteForm({ ...noteForm, file: e.target.files?.[0] ?? null });
-  };
-  const onTestFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTestForm({ ...testForm, file: e.target.files?.[0] ?? null });
-  };
-
-  // Helper to build headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
-  // Upload handlers
-  const uploadBook = async () => {
-    try {
-      if (!bookForm.title || !bookForm.author || !bookForm.file) {
-        return alert("Please fill title, author and upload a file.");
-      }
-      setUploading(true);
-
-      const data = new FormData();
-      data.append("type", "E-Book");
-      data.append("title", bookForm.title);
-      data.append("author", bookForm.author);
-      data.append("category", bookForm.category);
-      data.append("price", bookForm.price || "0");
-      data.append("description", bookForm.description || "");
-      data.append("tags", bookForm.tags || "");
-      if (bookForm.file) data.append("file", bookForm.file);
-
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert("✅ E-Book uploaded successfully!");
-      setShowUploadBook(false);
-      setBookForm({
-        title: "",
-        author: "",
-        category: "Agriculture",
-        price: "",
-        description: "",
-        tags: "",
-        file: null,
-      });
-      fetchContent();
-    } catch (err: any) {
-      console.error("Upload book error:", err);
-      alert(err.response?.data?.error || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const uploadNote = async () => {
-    try {
-      if (!noteForm.title || !noteForm.author || !noteForm.file) {
-        return alert("Please fill title, author and upload a file.");
-      }
-      setUploading(true);
-
-      const data = new FormData();
-      data.append("type", "Notes");
-      data.append("title", noteForm.title);
-      data.append("author", noteForm.author);
-      data.append("category", noteForm.category);
-      data.append("price", noteForm.price || "0");
-      data.append("description", noteForm.description || "");
-      if (noteForm.file) data.append("file", noteForm.file);
-
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert("✅ Note uploaded successfully!");
-      setShowUploadNote(false);
-      setNoteForm({
-        title: "",
-        author: "",
-        category: "Agriculture",
-        price: "",
-        description: "",
-        file: null,
-      });
-      fetchContent();
-    } catch (err: any) {
-      console.error("Upload note error:", err);
-      alert(err.response?.data?.error || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const uploadTest = async () => {
-    try {
-      if (!testForm.title || !testForm.total_questions || !testForm.duration_minutes || !testForm.file) {
-        return alert("Please fill title, total questions, duration and upload file.");
-      }
-      setUploading(true);
-
-      const data = new FormData();
-      data.append("type", "Mock Test");
-      data.append("title", testForm.title);
-      data.append("subject", testForm.subject || "Agriculture");
-      data.append("difficulty", testForm.difficulty || "Easy");
-      data.append("total_questions", testForm.total_questions || "0");
-      data.append("duration_minutes", testForm.duration_minutes || "0");
-
-      // Include MCQ data in the upload
-      data.append("mcq_data", JSON.stringify(mcqs));
-
-      if (testForm.scheduled_date) {
-        const iso = new Date(testForm.scheduled_date).toISOString();
-        data.append("scheduled_date", iso);
-      }
-
-      data.append("description", testForm.description || "");
-      if (testForm.file) data.append("file", testForm.file);
-
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/content/upload", data, {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert("✅ Mock test uploaded successfully!");
-      setShowUploadTest(false);
-      setTestForm({
-        title: "",
-        subject: "Agriculture",
-        difficulty: "Easy",
-        total_questions: "",
-        duration_minutes: "",
-        scheduled_date: "",
-        description: "",
-        file: null,
-      });
-      // Reset MCQ data after upload
-      setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
-      setMcqPage(0);
-      fetchContent();
-    } catch (err: any) {
-      console.error("Upload test error:", err);
-      alert(err.response?.data?.error || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Delete handler
-  const handleDelete = async (id: string, type: string) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) return;
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`https://ebook-backend-lxce.onrender.com/api/admin/content/${type}/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchContent();
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Delete failed");
-    }
-  };
-
-  // Edit handlers
-  const openEditModal = (item: any, type: "E-Book" | "Notes" | "Mock Test") => {
-    if (type === "Mock Test") {
-      const mcqData = item.mcq_data || [];
-      setEditItem({
-        ...item,
-        mcq_data: mcqData,
-        mcq_page: 0
-      });
-    } else {
-      setEditItem(item);
-    }
-    setEditType(type);
-    setShowEditDialog(true);
-  };
-
-  const handleEditSave = async () => {
-    if (!editItem || !editType) return;
-    try {
-      setEditSaving(true);
-      const token = localStorage.getItem("token");
-      const data = new FormData();
-
-      data.append("title", editItem.title || "");
-
-      if (editType === "E-Book" || editType === "Notes") {
-        data.append("author", editItem.author || "");
-        data.append("category", editItem.category || "Agriculture");
-        data.append("price", editItem.price?.toString?.() || "0");
-        data.append("description", editItem.description || "");
-        if (Array.isArray(editItem.tags)) {
-          data.append("tags", editItem.tags.join(","));
-        } else {
-          data.append("tags", editItem.tags || "");
-        }
-      } else {
-        data.append("subject", editItem.subject || "Agriculture");
-        data.append("difficulty", editItem.difficulty || "Easy");
-        data.append("total_questions", editItem.total_questions?.toString?.() || "0");
-        data.append("duration_minutes", editItem.duration_minutes?.toString?.() || "0");
-        if (editItem.scheduled_date) data.append("scheduled_date", new Date(editItem.scheduled_date).toISOString());
-
-        if (editItem.mcq_data) {
-          data.append("mcq_data", JSON.stringify(editItem.mcq_data));
-        }
-      }
-
-      if (editItem.newFile instanceof File) {
-        data.append("file", editItem.newFile);
-      }
-
-      const backendType = editType.toLowerCase().replace(" ", "-");
-      await axios.put(`https://ebook-backend-lxce.onrender.com/api/admin/content/${backendType}/${editItem.id}`, data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert("Updated successfully!");
-      setShowEditDialog(false);
-      fetchContent();
-    } catch (err) {
-      console.error("Edit save error:", err);
-      alert("Update failed");
-    } finally {
-      setEditSaving(false);
-    }
   };
 
   // Reset forms when dialogs close
@@ -423,6 +498,21 @@ export function ContentManagement() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Helper to render cover images
+  const renderCover = (item: any, fallbackText = "No Cover") => {
+    const url = item?.cover_url || item?.file_url || item?.file_url || null;
+    if (url) return (
+      <img src={url} alt={item.title} className="w-full h-44 object-cover rounded-t-md" />
+    );
+
+    return (
+      <div className="w-full h-44 bg-gray-100 flex items-center justify-center rounded-t-md">
+        <ImageIcon className="w-8 h-8 text-gray-400" />
+        <span className="sr-only">{fallbackText}</span>
+      </div>
+    );
   };
 
   return (
@@ -501,11 +591,21 @@ export function ContentManagement() {
                         <span>{book.downloads || 0} downloads</span>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(book, "E-Book")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1" 
+                          onClick={() => openEditModal(book, "book")}
+                        >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(book.id, "book")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700" 
+                          onClick={() => handleDelete(book.id, "book")}
+                        >
                           <Trash2 className="w-3 h-3 mr-1" />
                           Delete
                         </Button>
@@ -556,11 +656,21 @@ export function ContentManagement() {
                         <span>{note.downloads || 0} downloads</span>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(note, "Notes")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1" 
+                          onClick={() => openEditModal(note, "note")}
+                        >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(note.id, "note")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700" 
+                          onClick={() => handleDelete(note.id, "note")}
+                        >
                           <Trash2 className="w-3 h-3 mr-1" />
                           Delete
                         </Button>
@@ -572,6 +682,7 @@ export function ContentManagement() {
             </div>
           )}
         </TabsContent>
+        
         <TabsContent value="tests" className="space-y-4 mt-4">
           {loading ? (
             <div className="flex justify-center py-8">
@@ -630,11 +741,21 @@ export function ContentManagement() {
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2 mb-3">{test.description}</p>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(test, "Mock Test")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1" 
+                          onClick={() => openEditModal(test, "test")}
+                        >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(test.id, "test")}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700" 
+                          onClick={() => handleDelete(test.id, "test")}
+                        >
                           <Trash2 className="w-3 h-3 mr-1" />
                           Delete
                         </Button>
@@ -755,6 +876,40 @@ export function ContentManagement() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setBookForm({ ...bookForm, file: null })}
+                    className="ml-auto"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Cover Image (Optional)</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center mt-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onBookCoverChange}
+                  className="hidden"
+                  id="cover-upload"
+                />
+                <label htmlFor="cover-upload" className="cursor-pointer">
+                  <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">
+                    {bookForm.cover ? bookForm.cover.name : "Click to upload cover image"}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">JPG, PNG up to 5MB</p>
+                </label>
+              </div>
+              {bookForm.cover && (
+                <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 rounded">
+                  <ImageIcon className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-green-700">{bookForm.cover.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBookForm({ ...bookForm, cover: null })}
                     className="ml-auto"
                   >
                     <X className="w-3 h-3" />
@@ -1168,7 +1323,7 @@ export function ContentManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* EDIT DIALOG - Keep the existing edit dialog structure but apply similar UI improvements */}
+      {/* EDIT DIALOG */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -1186,7 +1341,7 @@ export function ContentManagement() {
                 />
               </div>
 
-              {editType !== "Mock Test" && (
+              {editType !== "test" && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1245,7 +1400,7 @@ export function ContentManagement() {
                 </>
               )}
 
-              {editType === "Mock Test" && (
+              {editType === "test" && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

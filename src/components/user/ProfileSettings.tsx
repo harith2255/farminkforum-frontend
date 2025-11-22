@@ -1,15 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { Switch } from '../ui/switch';
-import { Avatar, AvatarFallback } from '../ui/avatar';
-import { User, Lock, Bell, Settings, Palette, Shield } from 'lucide-react';
+// ProfileSettings.tsx
+import { useEffect, useRef, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { Switch } from "../ui/switch";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import axios, { AxiosResponse } from "axios";
 import * as React from "react";
-import { useState, useRef, useEffect } from "react";
-
 
 const API = "https://ebook-backend-lxce.onrender.com/api/profile";
 
@@ -64,7 +69,6 @@ type SessionItem = {
 
 export const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notifications, setNotifications] = useState<NotificationsShape>({});
   const [security, setSecurity] = useState<SecurityShape>({});
@@ -81,46 +85,13 @@ export const ProfileSettings: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   // helper to add Authorization header
-const getValidToken = () => {
-  // try Supabase session first
-  const session = JSON.parse(localStorage.getItem("session") || "{}");
+  const getValidToken = () => {
+    // try Supabase session first
+    const session = JSON.parse(localStorage.getItem("session") || "{}");
+    return session?.access_token || localStorage.getItem("token");
+  };
 
-  return session?.access_token || localStorage.getItem("token");
-};
-
-const token = getValidToken();
-
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res: AxiosResponse<any> = await axios.get(API, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // Backend expected structure: { profile, notifications, security }
-        const serverProfile: Profile = res.data.profile || null;
-        const serverNotifications: NotificationsShape = res.data.notifications || {};
-        const serverSecurity: SecurityShape = res.data.security || {};
-
-        setProfile(serverProfile);
-        setNotifications(serverNotifications);
-        setSecurity(serverSecurity);
-
-        // load sessions
-        await loadSessions();
-      } catch (err: any) {
-        console.error("Profile load error:", err);
-        setError("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const token = getValidToken();
 
   /* -------------------------
      SESSIONS
@@ -252,8 +223,6 @@ const token = getValidToken();
 
   /* -------------------------
      NOTIFICATIONS (Auto-save)
-     We send an object to backend: { email_notifications, push_notifications }
-     Backend must accept JSON in those fields (supabase jsonb or text)
   ------------------------- */
   const updateNotifSettings = async (payload: NotificationsShape) => {
     try {
@@ -327,6 +296,45 @@ const token = getValidToken();
   };
 
   /* -------------------------
+     Load profile data
+  ------------------------- */
+  const loadProfileFromServer = async () => {
+    try {
+      const res: AxiosResponse<any> = await axios.get(API, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const serverProfile: Profile = res.data.profile || null;
+      const serverNotifications: NotificationsShape = res.data.notifications || {};
+      const serverSecurity: SecurityShape = res.data.security || {};
+
+      setProfile(serverProfile);
+      setNotifications(serverNotifications);
+      setSecurity(serverSecurity);
+    } catch (err) {
+      console.error("Reload profile failed", err);
+    }
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        await loadProfileFromServer();
+        await loadSessions();
+      } catch (err: any) {
+        console.error("Profile load error:", err);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* -------------------------
      UI helpers
   ------------------------- */
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,12 +347,28 @@ const token = getValidToken();
   /* -------------------------
      RENDER
   ------------------------- */
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-[#1d4d6a] mb-1">Profile Settings</h2>
         <p className="text-sm text-gray-500">Manage your account settings and preferences</p>
       </div>
+
+      {/* Status Messages */}
+      {message && (
+        <div className="p-3 bg-green-100 text-green-700 rounded-lg">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="p-3 bg-red-100 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
 
       <Tabs defaultValue="personal" className="w-full">
         <TabsList className="bg-white border border-gray-200">
@@ -364,10 +388,24 @@ const token = getValidToken();
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
                 <Avatar className="w-24 h-24">
-                  <AvatarFallback className="bg-[#1d4d6a] text-white text-2xl">AR</AvatarFallback>
+                  {profile?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={profile.avatar_url} className="w-full h-full rounded-full" alt="avatar" />
+                  ) : (
+                    <AvatarFallback className="bg-[#1d4d6a] text-white text-2xl">
+                      {profile?.full_name?.slice(0, 2).toUpperCase() || "NA"}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div>
-                  <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white mb-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onFileChange}
+                  />
+                  <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white mb-2" onClick={onUploadClick}>
                     Upload New Photo
                   </Button>
                   <p className="text-xs text-gray-500">JPG, PNG or GIF. Max size 2MB.</p>
@@ -377,57 +415,85 @@ const token = getValidToken();
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>First Name</Label>
-                  <Input defaultValue="Alex" />
+                  <Input
+                    value={profile?.first_name ?? ""}
+                    onChange={(e) => updateProfileField("first_name", e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Last Name</Label>
-                  <Input defaultValue="Rodriguez" />
+                  <Input
+                    value={profile?.last_name ?? ""}
+                    onChange={(e) => updateProfileField("last_name", e.target.value)}
+                  />
                 </div>
               </div>
 
               <div>
                 <Label>Email Address</Label>
-                <Input type="email" defaultValue="alex.rodriguez@email.com" />
+                <Input
+                  value={profile?.email ?? ""}
+                  onChange={(e) => updateProfileField("email", e.target.value)}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Phone Number</Label>
-                  <Input defaultValue="+1 (555) 123-4567" />
+                  <Input
+                    value={profile?.phone ?? ""}
+                    onChange={(e) => updateProfileField("phone", e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Date of Birth</Label>
-                  <Input type="date" defaultValue="1998-05-15" />
+                  <Input
+                    type="date"
+                    value={profile?.dob ?? ""}
+                    onChange={(e) => updateProfileField("dob", e.target.value)}
+                  />
                 </div>
               </div>
 
               <div>
                 <Label>Institution</Label>
-                <Input defaultValue="Massachusetts Institute of Technology" />
+                <Input
+                  value={profile?.institution ?? ""}
+                  onChange={(e) => updateProfileField("institution", e.target.value)}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Field of Study</Label>
-                  <Input defaultValue="Computer Science" />
+                  <Input
+                    value={profile?.field_of_study ?? ""}
+                    onChange={(e) => updateProfileField("field_of_study", e.target.value)}
+                />
                 </div>
                 <div>
                   <Label>Academic Level</Label>
-                  <Input defaultValue="Graduate" />
+                  <Input
+                    value={profile?.academic_level ?? ""}
+                    onChange={(e) => updateProfileField("academic_level", e.target.value)}
+                  />
                 </div>
               </div>
 
               <div>
                 <Label>Bio</Label>
-                <textarea 
+                <textarea
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent min-h-[100px]"
-                  defaultValue="Graduate student studying machine learning and artificial intelligence."
+                  value={profile?.bio ?? ""}
+                  onChange={(e) => updateProfileField("bio", e.target.value)}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <Button variant="outline">Cancel</Button>
-                <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white">
+                <Button variant="outline" onClick={loadProfileFromServer}>
+                  Cancel
+                </Button>
+                <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white" onClick={updatePersonalInfo}>
                   Save Changes
                 </Button>
               </div>
@@ -445,17 +511,17 @@ const token = getValidToken();
             <CardContent className="space-y-4">
               <div>
                 <Label>Current Password</Label>
-                <Input type="password" />
+                <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
               </div>
               <div>
                 <Label>New Password</Label>
-                <Input type="password" />
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
               </div>
               <div>
                 <Label>Confirm New Password</Label>
-                <Input type="password" />
+                <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} />
               </div>
-              <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white">
+              <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white" onClick={changePassword}>
                 Update Password
               </Button>
             </CardContent>
@@ -472,14 +538,20 @@ const token = getValidToken();
                   <h4 className="text-[#1d4d6a] mb-1">Authenticator App</h4>
                   <p className="text-sm text-gray-500">Use an authenticator app for 2FA</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={!!security?.two_factor_enabled}
+                  onCheckedChange={(v) => toggle2FA(!!v, "app")}
+                />
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <h4 className="text-[#1d4d6a] mb-1">SMS Authentication</h4>
                   <p className="text-sm text-gray-500">Receive codes via text message</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={security?.method === "sms"}
+                  onCheckedChange={(v) => toggle2FA(!!v, "sms")}
+                />
               </div>
             </CardContent>
           </Card>
@@ -490,20 +562,21 @@ const token = getValidToken();
               <CardDescription>Manage your active login sessions</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="text-[#1d4d6a] mb-1">MacBook Pro - Chrome</h4>
-                  <p className="text-sm text-gray-500">Cambridge, MA • Active now</p>
+              {sessions.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h4 className="text-[#1d4d6a] mb-1">{s.device ?? "Unknown device"}</h4>
+                    <p className="text-sm text-gray-500">{s.location ?? "Unknown location"} • {s.last_active ?? "Unknown"}</p>
+                  </div>
+                  <div>
+                    {s.active ? (
+                      <Button variant="outline" size="sm">Current</Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => revoke(s.id)}>Revoke</Button>
+                    )}
+                  </div>
                 </div>
-                <Button variant="outline" size="sm">Current</Button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="text-[#1d4d6a] mb-1">iPhone - Safari</h4>
-                  <p className="text-sm text-gray-500">Cambridge, MA • 2 hours ago</p>
-                </div>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">Revoke</Button>
-              </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
@@ -522,10 +595,10 @@ const token = getValidToken();
                   <p className="text-sm text-gray-500">Choose your preferred reading mode</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="bg-white">
+                  <Button variant="outline" size="sm" className="bg-white" onClick={() => updatePrefs({ theme: "light" })}>
                     ☀️ Light
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => updatePrefs({ theme: "dark" })}>
                     🌙 Dark
                   </Button>
                 </div>
@@ -536,7 +609,10 @@ const token = getValidToken();
                   <h4 className="text-[#1d4d6a] mb-1">Auto-save Progress</h4>
                   <p className="text-sm text-gray-500">Automatically save your reading position</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={!!(profile && (profile as any).auto_save)}
+                  onCheckedChange={(v) => updatePrefs({ auto_save: !!v })}
+                />
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -544,7 +620,10 @@ const token = getValidToken();
                   <h4 className="text-[#1d4d6a] mb-1">Sync Highlights</h4>
                   <p className="text-sm text-gray-500">Sync your highlights across devices</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={!!(profile && (profile as any).sync_highlights)}
+                  onCheckedChange={(v) => updatePrefs({ sync_highlights: !!v })}
+                />
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -552,12 +631,15 @@ const token = getValidToken();
                   <h4 className="text-[#1d4d6a] mb-1">Reading Reminders</h4>
                   <p className="text-sm text-gray-500">Get daily reading reminders</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={!!(profile && (profile as any).reading_reminders)}
+                  onCheckedChange={(v) => updatePrefs({ reading_reminders: !!v })}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-md mt-4">
+          {/* <Card className="border-none shadow-md mt-4">
             <CardHeader>
               <CardTitle className="text-[#1d4d6a]">Language & Region</CardTitle>
               <CardDescription>Set your language and timezone preferences</CardDescription>
@@ -565,7 +647,11 @@ const token = getValidToken();
             <CardContent className="space-y-4">
               <div>
                 <Label>Language</Label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent">
+                <select
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent"
+                  defaultValue={(profile && (profile as any).language) || "English (US)"}
+                  onChange={(e) => updatePrefs({ language: e.target.value })}
+                >
                   <option>English (US)</option>
                   <option>Spanish</option>
                   <option>French</option>
@@ -574,7 +660,11 @@ const token = getValidToken();
               </div>
               <div>
                 <Label>Timezone</Label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent">
+                <select
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent"
+                  defaultValue={(profile && (profile as any).timezone) || "Eastern Time (ET)"}
+                  onChange={(e) => updatePrefs({ timezone: e.target.value })}
+                >
                   <option>Eastern Time (ET)</option>
                   <option>Pacific Time (PT)</option>
                   <option>Central Time (CT)</option>
@@ -582,7 +672,7 @@ const token = getValidToken();
                 </select>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </TabsContent>
 
         {/* Notifications */}
@@ -598,19 +688,31 @@ const token = getValidToken();
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">New book recommendations</span>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={!!notifications.email_notifications?.recommendations}
+                      onCheckedChange={() => handleEmailToggle("recommendations")}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Test reminders</span>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={!!notifications.email_notifications?.test_reminders}
+                      onCheckedChange={() => handleEmailToggle("test_reminders")}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Writing service updates</span>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={!!notifications.email_notifications?.writing_updates}
+                      onCheckedChange={() => handleEmailToggle("writing_updates")}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Marketing emails</span>
-                    <Switch />
+                    <Switch
+                      checked={!!notifications.email_notifications?.marketing}
+                      onCheckedChange={() => handleEmailToggle("marketing")}
+                    />
                   </div>
                 </div>
               </div>
@@ -620,15 +722,24 @@ const token = getValidToken();
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Reading streak reminders</span>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={!!notifications.push_notifications?.reading_streak}
+                      onCheckedChange={() => handlePushToggle("reading_streak")}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Test score notifications</span>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={!!notifications.push_notifications?.test_scores}
+                      onCheckedChange={() => handlePushToggle("test_scores")}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-700">Job alerts</span>
-                    <Switch />
+                    <Switch
+                      checked={!!notifications.push_notifications?.job_alerts}
+                      onCheckedChange={() => handlePushToggle("job_alerts")}
+                    />
                   </div>
                 </div>
               </div>
@@ -637,6 +748,7 @@ const token = getValidToken();
         </TabsContent>
       </Tabs>
     </div>
-  )
-}
+  );
+};
 
+export default ProfileSettings;
