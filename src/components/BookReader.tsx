@@ -1,276 +1,201 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
-import { 
-  X, 
-  Sun, 
-  Moon, 
-  ZoomIn, 
-  ZoomOut, 
-  Bookmark, 
-  Highlighter, 
-  Menu,
-  ChevronLeft,
-  ChevronRight,
-  Settings
-} from 'lucide-react';
-import { Slider } from './ui/slider';
+// src/components/BookReader.tsx
+import { useState, useEffect } from "react";
+import {
+  X, Sun, Moon, ZoomIn, ZoomOut,
+  Menu, ChevronLeft, ChevronRight
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Slider } from "./ui/slider";
+import PDFJSViewer from "./PDFJSViewer";
+import * as React from "react";
 
-interface BookReaderProps {
-  book: any;
-  onClose: () => void;
-}
-
-export function BookReader({ book, onClose }: BookReaderProps) {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [fontSize, setFontSize] = useState(18);
-  const [showMenu, setShowMenu] = useState(false);
+export function BookReader({ book, onClose }: any) {
+  const [theme, setTheme] = useState("light");
+  const [zoom, setZoom] = useState(1.2);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // highlight state
   const [highlightMode, setHighlightMode] = useState(false);
+  const [highlights, setHighlights] = useState<any[]>([]);
 
-  const totalPages = book.pages || 450;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const sampleContent = `
-    <h1>Chapter ${Math.floor(currentPage / 20) + 1}: Introduction to ${book.title}</h1>
-    
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-    
-    <h2>Key Concepts</h2>
-    
-    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-    
-    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
-    
-    <blockquote>"The important thing is not to stop questioning. Curiosity has its own reason for existing."</blockquote>
-    
-    <h2>Practical Applications</h2>
-    
-    <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
-    
-    <ul>
-      <li>Understanding fundamental principles</li>
-      <li>Applying theoretical knowledge to practical scenarios</li>
-      <li>Developing critical thinking skills</li>
-      <li>Building a strong foundation for advanced topics</li>
-    </ul>
-    
-    <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
-    
-    <h2>Summary</h2>
-    
-    <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.</p>
-  `;
+  // dispatch reader open globally (existing listeners rely on it)
+  useEffect(() => {
+    if (!book) return;
+    window.dispatchEvent(new CustomEvent("reader:open", { detail: book }));
+
+    // load highlights and last page for book
+    (async () => {
+      try {
+        if (!token) return;
+        // load highlights
+        const hres = await fetch(`https://ebook-backend-lxce.onrender.com/api/library/highlights/${book.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (hres.ok) {
+          const data = await hres.json();
+          // backend returns array of highlights
+          setHighlights(data || []);
+        }
+
+        // load last page
+        const pres = await fetch(`https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (pres.ok) {
+          const pjson = await pres.json();
+          if (pjson?.last_page) {
+            setCurrentPage(Number(pjson.last_page));
+          }
+        }
+      } catch (err) {
+        console.warn("load highlights/lastpage failed", err);
+      }
+    })();
+  }, [book]);
+
+  // Save last page whenever it changes (debounce lightly)
+  useEffect(() => {
+    if (!book) return;
+    const t = setTimeout(async () => {
+      try {
+        if (!token) return;
+        await fetch(`https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ last_page: currentPage })
+        });
+      } catch (err) {
+        console.warn("save last page failed", err);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [currentPage, book]);
+
+  // handler to add highlight (called by PDFJSViewer)
+  const handleAddHighlight = async (h: any) => {
+    // h expected shape: { page, xPct, yPct, wPct, hPct, color, text? }
+    try {
+      if (!token) return;
+      const res = await fetch("https://ebook-backend-lxce.onrender.com/api/library/highlights", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          book_id: book.id,
+          page: h.page,
+          x_pct: h.xPct,
+          y_pct: h.yPct,
+          w_pct: h.wPct,
+          h_pct: h.hPct,
+          color: h.color || "rgba(255,255,0,0.35)",
+          note: h.text || ""
+        })
+      });
+      if (!res.ok) throw new Error("save highlight failed");
+      const saved = await res.json();
+      // saved should include id and the stored fields
+      setHighlights(prev => [...prev, saved]);
+    } catch (err) {
+      console.warn("add highlight failed", err);
+    }
+  };
+
+  // handler to delete highlight
+  const handleDeleteHighlight = async (highlightId: number) => {
+    try {
+      if (!token) return;
+      const res = await fetch(`https://ebook-backend-lxce.onrender.com/api/library/highlights/${highlightId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("delete failed");
+      setHighlights(prev => prev.filter(h => h.id !== highlightId));
+    } catch (err) {
+      console.warn("delete highlight failed", err);
+    }
+  };
 
   return (
-    <div className={`fixed inset-0 z-50 ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'} transition-colors`}>
+    <div
+      className={`fixed inset-0 z-50 ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"}`}
+    >
       {/* Header */}
-      <header className={`sticky top-0 z-10 border-b ${theme === 'dark' ? 'border-gray-800 bg-black' : 'border-gray-200 bg-white'}`}>
+      <header className={`sticky top-0 z-10 border-b ${theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"}`}>
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              onClick={onClose}
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <X className="w-5 h-5" />
-            </Button>
+            <Button onClick={onClose} variant="ghost"><X /></Button>
             <div>
-              <h2 className={theme === 'dark' ? 'text-white' : 'text-[#1d4d6a]'}>{book.title}</h2>
+              <h2 className={theme === "dark" ? "text-white" : "text-[#1d4d6a]"}>{book.title}</h2>
               <p className="text-sm text-gray-500">{book.author}</p>
             </div>
           </div>
 
+          {/* Tools */}
           <div className="flex items-center gap-2">
-            {/* Font Size Controls */}
-            <Button
-              onClick={() => setFontSize(Math.max(14, fontSize - 2))}
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <ZoomOut className="w-5 h-5" />
-            </Button>
-            <span className="text-sm text-gray-500 w-12 text-center">{fontSize}px</span>
-            <Button
-              onClick={() => setFontSize(Math.min(24, fontSize + 2))}
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <ZoomIn className="w-5 h-5" />
+            <Button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} variant="ghost"><ZoomOut /></Button>
+            <Button onClick={() => setZoom((z) => Math.min(3, z + 0.1))} variant="ghost"><ZoomIn /></Button>
+            <Button onClick={() => setTheme(theme === "light" ? "dark" : "light")} variant="ghost">
+              {theme === "light" ? <Moon /> : <Sun />}
             </Button>
 
-            <div className={`w-px h-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} mx-2`} />
-
-            {/* Highlight Tool */}
+            {/* highlight toggle */}
             <Button
-              onClick={() => setHighlightMode(!highlightMode)}
+              onClick={() => setHighlightMode(m => !m)}
               variant="ghost"
-              size="sm"
-              className={`${highlightMode ? 'bg-yellow-100 text-yellow-700' : theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}`}
+              className={highlightMode ? "text-yellow-500" : ""}
             >
-              <Highlighter className="w-5 h-5" />
+              ✏️ Highlight
             </Button>
 
-            {/* Bookmark */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <Bookmark className="w-5 h-5" />
-            </Button>
-
-            <div className={`w-px h-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} mx-2`} />
-
-            {/* Theme Toggle */}
-            <Button
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </Button>
-
-            {/* Settings */}
-            <Button
-              onClick={() => setShowMenu(!showMenu)}
-              variant="ghost"
-              size="sm"
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
+            <Button variant="ghost"><Menu /></Button>
           </div>
         </div>
       </header>
 
-      {/* Reading Area */}
-      <div className="max-w-4xl mx-auto px-12 py-12">
-        <div 
-          className={`prose prose-lg max-w-none ${theme === 'dark' ? 'prose-invert' : ''}`}
-          style={{ fontSize: `${fontSize}px` }}
-          dangerouslySetInnerHTML={{ __html: sampleContent }}
+      {/* PDF Viewer (single viewer; overlay inside viewer) */}
+     <div className="flex justify-center py-6 h-[calc(100vh-220px)] overflow-auto">
+
+        <PDFJSViewer
+          url={book.file_url}
+          page={currentPage}
+          scale={zoom}
+          onTotalPages={setTotalPages}
+          onPageChange={setCurrentPage}
+          bookId={book.id}
+          highlightMode={highlightMode}
+          highlights={highlights}
+          onAddHighlight={handleAddHighlight}
+          onDeleteHighlight={handleDeleteHighlight}
         />
-
-        {/* DRM Watermark */}
-        <div className={`fixed bottom-4 left-4 text-xs ${theme === 'dark' ? 'text-gray-700' : 'text-gray-300'} pointer-events-none select-none`}>
-          Licensed to: Alex Rodriguez • {new Date().toISOString().split('T')[0]}
-        </div>
       </div>
 
-      {/* Page Navigation */}
-      <div className={`fixed bottom-0 left-0 right-0 border-t ${theme === 'dark' ? 'border-gray-800 bg-black' : 'border-gray-200 bg-white'}`}>
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <Button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              variant="ghost"
-              size="sm"
-              disabled={currentPage === 1}
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Previous
-            </Button>
-            <span className="text-sm text-gray-500">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              variant="ghost"
-              size="sm"
-              disabled={currentPage === totalPages}
-              className={theme === 'dark' ? 'text-white hover:bg-gray-900' : ''}
-            >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-          <Slider
-            value={[currentPage]}
-            onValueChange={(value) => setCurrentPage(value[0])}
-            min={1}
-            max={totalPages}
-            step={1}
-            className="cursor-pointer"
-          />
+      {/* Pagination */}
+      <div className={`fixed bottom-0 left-0 right-0 border-t ${theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"}`}>
+        <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}><ChevronLeft /> Prev</Button>
+
+          <span className="text-gray-500">Page {currentPage} / {totalPages}</span>
+
+          <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>Next <ChevronRight /></Button>
         </div>
+
+        <Slider
+          value={[currentPage]}
+          min={1}
+          max={totalPages}
+          onValueChange={(val) => setCurrentPage(val[0])}
+        />
       </div>
-
-      {/* Settings Panel */}
-      {showMenu && (
-        <div className={`fixed right-0 top-16 bottom-0 w-80 border-l ${theme === 'dark' ? 'border-gray-800 bg-black' : 'border-gray-200 bg-white'} shadow-xl p-6 overflow-y-auto`}>
-          <h3 className={`${theme === 'dark' ? 'text-white' : 'text-[#1d4d6a]'} mb-6`}>Reading Settings</h3>
-          
-          <div className="space-y-6">
-            <div>
-              <label className="text-sm text-gray-500 mb-2 block">Theme</label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => setTheme('light')}
-                  variant={theme === 'light' ? 'default' : 'outline'}
-                  className={theme === 'light' ? 'bg-[#bf2026] hover:bg-[#a01c22] text-white' : ''}
-                >
-                  <Sun className="w-4 h-4 mr-2" />
-                  Light
-                </Button>
-                <Button
-                  onClick={() => setTheme('dark')}
-                  variant={theme === 'dark' ? 'default' : 'outline'}
-                  className={theme === 'dark' ? 'bg-[#bf2026] hover:bg-[#a01c22] text-white' : ''}
-                >
-                  <Moon className="w-4 h-4 mr-2" />
-                  Dark
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-500 mb-2 block">Font Size: {fontSize}px</label>
-              <Slider
-                value={[fontSize]}
-                onValueChange={(value) => setFontSize(value[0])}
-                min={14}
-                max={24}
-                step={1}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-500 mb-2 block">Quick Navigation</label>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  Table of Contents
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Bookmarks
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  My Highlights
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Search in Book
-                </Button>
-              </div>
-            </div>
-
-            <div className={`border-t ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'} pt-4`}>
-              <h4 className="text-sm text-gray-500 mb-2">Reading Progress</h4>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div
-                  className="bg-[#bf2026] h-2 rounded-full"
-                  style={{ width: `${(currentPage / totalPages) * 100}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-500">
-                {Math.round((currentPage / totalPages) * 100)}% complete
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+export default BookReader;

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -16,8 +15,11 @@ import {
   MapPin,
   Briefcase,
   Clock,
+  IndianRupee,
   Building
 } from 'lucide-react';
+import axios from 'axios';
+import * as React from 'react';
 
 interface Job {
   id: number;
@@ -29,190 +31,174 @@ interface Job {
   salary: string;
   posted: string;
   description: string;
-  requirements: string[] | null; // ✅ FIXED: Allow null
+  requirements: string[] | null;  // ← allow null
 }
 
+
 export function JobPortal() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+ const [jobs, setJobs] = useState<Job[]>([]);
+const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedLevel, setSelectedLevel] = useState('all');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [salaryFilter, setSalaryFilter] = useState('any');
-  const [postedFilter, setPostedFilter] = useState('any');
-  const [loading, setLoading] = useState(true); // ✅ ADDED: Loading state
-  const [error, setError] = useState<string | null>(null); // ✅ ADDED: Error state
 
+  const [locationFilter, setLocationFilter] = useState("");
+const [salaryFilter, setSalaryFilter] = useState("any");
+const [postedFilter, setPostedFilter] = useState("any");
+
+
+useEffect(() => {
+  const fetchJobs = async () => {
+    try {
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/jobs");
+      console.log("BACKEND JOBS:", res.data);
+
+      setJobs(res.data);
+      setFilteredJobs(res.data);
+    } catch (err) {
+      console.error("❌ Failed to load jobs:", err);
+    }
+  };
+
+  fetchJobs();
+}, []);
+
+
+const applySideBarFilters = (
+  jobList: Job[],
+  search: string,
+  type: string,
+  level: string,
+  location = locationFilter,
+  salary = salaryFilter,
+  posted = postedFilter
+) => {
+  let filtered = jobList;
+
+  // 🔍 Search filter
+  if (search) {
+    filtered = filtered.filter(
+      (job) =>
+        job.title.toLowerCase().includes(search.toLowerCase()) ||
+        job.company.toLowerCase().includes(search.toLowerCase()) ||
+        job.description.toLowerCase().includes(search.toLowerCase())
+    );
+  }
+
+  // 🧩 Job type
+  if (type !== "all") {
+    filtered = filtered.filter(
+      (job) => job.type.toLowerCase() === type.toLowerCase()
+    );
+  }
+
+  // 🎓 Level filter
+  if (level !== "all") {
+    filtered = filtered.filter(
+      (job) => job.level.toLowerCase() === level.toLowerCase()
+    );
+  }
+
+  // 📌 Location filter
+  if (location.trim() !== "") {
+    filtered = filtered.filter((job) =>
+      job.location.toLowerCase().includes(location.toLowerCase())
+    );
+  }
+
+  // 💰 Salary filter
+  if (salary !== "any") {
+    filtered = filtered.filter((job) => {
+      const salaryText = job.salary.replace(/[^0-9]/g, "");
+
+      const numeric = parseInt(salaryText);
+      if (isNaN(numeric)) return false;
+
+      if (salary === "3-5") return numeric >= 300000 && numeric <= 500000;
+      if (salary === "5-7") return numeric >= 500000 && numeric <= 700000;
+      if (salary === "7+") return numeric >= 700000;
+
+      return true;
+    });
+  }
+
+  // 🕒 Posted Within Filter
+  if (posted !== "any") {
+    const now = new Date().getTime();
+
+    filtered = filtered.filter((job) => {
+      const jobDate = new Date(job.posted).getTime();
+      const diffDays = (now - jobDate) / (1000 * 60 * 60 * 24);
+
+      if (posted === "24h") return diffDays <= 1;
+      if (posted === "7d") return diffDays <= 7;
+      if (posted === "30d") return diffDays <= 30;
+
+      return true;
+    });
+  }
+
+  setFilteredJobs(filtered);
+};
+
+  // Listen for storage changes (when admin updates jobs)
   useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/jobs");
-        console.log("BACKEND JOBS:", res.data);
-        
-        // ✅ FIXED: Ensure requirements is always an array, even if null/undefined
-        const jobsWithSafeRequirements = res.data.map((job: any) => ({
-          ...job,
-          requirements: job.requirements || [] // Convert null to empty array
-        }));
-        
-        setJobs(jobsWithSafeRequirements);
-        setFilteredJobs(jobsWithSafeRequirements);
-      } catch (err) {
-        console.error("❌ Failed to load jobs:", err);
-        setError("Failed to load jobs. Please try again later.");
-      } finally {
-        setLoading(false);
+    const handleStorageChange = () => {
+      const savedJobs = localStorage.getItem('agriculturalJobs');
+      if (savedJobs) {
+        const parsedJobs = JSON.parse(savedJobs);
+        setJobs(parsedJobs);
+        applyFilters(parsedJobs, searchQuery, selectedType, selectedLevel);
       }
     };
 
-    fetchJobs();
-  }, []);
+    window.addEventListener('storage', handleStorageChange);
+    const interval = setInterval(handleStorageChange, 2000);
 
-  // Single unified filter function
-  const applyAllFilters = () => {
-    let filtered = jobs;
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [searchQuery, selectedType, selectedLevel]);
 
-    // 🔍 Search filter
-    if (searchQuery) {
+  const applyFilters = (jobList: Job[], search: string, type: string, level: string) => {
+    let filtered = jobList;
+
+    if (search) {
       filtered = filtered.filter(
         (job) =>
-          job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          job.description.toLowerCase().includes(searchQuery.toLowerCase())
+          job.title.toLowerCase().includes(search.toLowerCase()) ||
+          job.company.toLowerCase().includes(search.toLowerCase()) ||
+          job.description.toLowerCase().includes(search.toLowerCase())
       );
     }
 
-    // 🧩 Job type filter
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(
-        (job) => job.type.toLowerCase() === selectedType.toLowerCase()
-      );
+    if (type !== 'all') {
+      filtered = filtered.filter((job) => job.type.toLowerCase() === type.toLowerCase());
     }
 
-    // 🎓 Level filter
-    if (selectedLevel !== 'all') {
-      filtered = filtered.filter(
-        (job) => job.level.toLowerCase() === selectedLevel.toLowerCase()
-      );
-    }
-
-    // 📌 Location filter
-    if (locationFilter.trim() !== '') {
-      filtered = filtered.filter((job) =>
-        job.location.toLowerCase().includes(locationFilter.toLowerCase())
-      );
-    }
-
-    // 💰 Salary filter
-    if (salaryFilter !== 'any') {
-      filtered = filtered.filter((job) => {
-        const salaryText = job.salary.replace(/[^0-9]/g, '');
-        const numeric = parseInt(salaryText);
-        if (isNaN(numeric)) return false;
-
-        if (salaryFilter === '3-5') return numeric >= 300000 && numeric <= 500000;
-        if (salaryFilter === '5-7') return numeric >= 500000 && numeric <= 700000;
-        if (salaryFilter === '7+') return numeric >= 700000;
-
-        return true;
-      });
-    }
-
-    // 🕒 Posted Within Filter
-    if (postedFilter !== 'any') {
-      const now = new Date().getTime();
-      filtered = filtered.filter((job) => {
-        const jobDate = new Date(job.posted).getTime();
-        const diffDays = (now - jobDate) / (1000 * 60 * 60 * 24);
-
-        if (postedFilter === '24h') return diffDays <= 1;
-        if (postedFilter === '7d') return diffDays <= 7;
-        if (postedFilter === '30d') return diffDays <= 30;
-
-        return true;
-      });
+    if (level !== 'all') {
+      filtered = filtered.filter((job) => job.level.toLowerCase() === level.toLowerCase());
     }
 
     setFilteredJobs(filtered);
   };
 
-  // Apply filters when any filter changes
-  useEffect(() => {
-    applyAllFilters();
-  }, [searchQuery, selectedType, selectedLevel, locationFilter, salaryFilter, postedFilter, jobs]);
-
-  // Handle sidebar filter changes
-  const handleLocationChange = (value: string) => {
-    setLocationFilter(value);
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    applyFilters(jobs, value, selectedType, selectedLevel);
   };
 
-  const handleSalaryChange = (value: string) => {
-    setSalaryFilter(value);
+  const handleTypeChange = (value: string) => {
+    setSelectedType(value);
+    applyFilters(jobs, searchQuery, value, selectedLevel);
   };
 
-  const handlePostedChange = (value: string) => {
-    setPostedFilter(value);
+  const handleLevelChange = (value: string) => {
+    setSelectedLevel(value);
+    applyFilters(jobs, searchQuery, selectedType, value);
   };
-
-  // Apply filters button handler
-  const handleApplyFilters = () => {
-    applyAllFilters();
-  };
-
-  // ✅ FIXED: Safe requirements rendering function
-  const renderRequirements = (requirements: string[] | null) => {
-    // Handle null, undefined, or empty array
-    if (!requirements || requirements.length === 0) {
-      return <li>No specific requirements listed</li>;
-    }
-    
-    return requirements.map((req, index) => (
-      <li key={index}>{req}</li>
-    ));
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-[#1d4d6a] mb-1">Agricultural Job Portal</h2>
-          <p className="text-sm text-gray-500">Loading jobs...</p>
-        </div>
-        <Card className="border-none shadow-md">
-          <CardContent className="p-12 text-center">
-            <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-            <p className="text-gray-600">Loading job opportunities...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-[#1d4d6a] mb-1">Agricultural Job Portal</h2>
-          <p className="text-sm text-gray-500">{error}</p>
-        </div>
-        <Card className="border-none shadow-md">
-          <CardContent className="p-12 text-center">
-            <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-            <p className="text-gray-600">{error}</p>
-            <Button 
-              className="mt-4 bg-[#bf2026] hover:bg-[#a01c22] text-white"
-              onClick={() => window.location.reload()}
-            >
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -234,11 +220,11 @@ export function JobPortal() {
                   placeholder="Search by title, keyword..."
                   className="pl-10"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
             </div>
-            <Select value={selectedType} onValueChange={setSelectedType}>
+            <Select value={selectedType} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
@@ -250,7 +236,7 @@ export function JobPortal() {
                 <SelectItem value="contract">Contract</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+            <Select value={selectedLevel} onValueChange={handleLevelChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
@@ -278,44 +264,76 @@ export function JobPortal() {
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm text-gray-700 mb-2 block">Location</label>
-              <Input 
-                placeholder="City, State, or Remote" 
-                value={locationFilter}
-                onChange={(e) => handleLocationChange(e.target.value)}
-              />
+             <Input
+  placeholder="City, State, or Remote"
+  value={locationFilter}
+  onChange={(e) => {
+    setLocationFilter(e.target.value);
+    applySideBarFilters(jobs, searchQuery, selectedType, selectedLevel, e.target.value);
+  }}
+/>
+
             </div>
             <div>
               <label className="text-sm text-gray-700 mb-2 block">Salary Range</label>
-              <Select value={salaryFilter} onValueChange={handleSalaryChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any salary" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any salary</SelectItem>
-                  <SelectItem value="3-5">₹3L - ₹5L</SelectItem>
-                  <SelectItem value="5-7">₹5L - ₹7L</SelectItem>
-                  <SelectItem value="7+">₹7L+</SelectItem>
-                </SelectContent>
-              </Select>
+              <Select
+  value={salaryFilter}
+  onValueChange={(value) => {
+    setSalaryFilter(value);
+    applySideBarFilters(
+      jobs,
+      searchQuery,
+      selectedType,
+      selectedLevel,
+      locationFilter,
+      value,      // salary
+      postedFilter
+    );
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Any salary" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="any">Any salary</SelectItem>
+    <SelectItem value="3-5">₹3L - ₹5L</SelectItem>
+    <SelectItem value="5-7">₹5L - ₹7L</SelectItem>
+    <SelectItem value="7+">₹7L+</SelectItem>
+  </SelectContent>
+</Select>
+
+
             </div>
             <div>
               <label className="text-sm text-gray-700 mb-2 block">Posted Within</label>
-              <Select value={postedFilter} onValueChange={handlePostedChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Anytime" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Anytime</SelectItem>
-                  <SelectItem value="24h">Last 24 hours</SelectItem>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                </SelectContent>
-              </Select>
+              <Select
+  value={postedFilter}
+  onValueChange={(value) => {
+    setPostedFilter(value);
+    applySideBarFilters(
+      jobs,
+      searchQuery,
+      selectedType,
+      selectedLevel,
+      locationFilter,
+      salaryFilter,
+      value
+    );
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Anytime" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="any">Anytime</SelectItem>
+    <SelectItem value="24h">Last 24 hours</SelectItem>
+    <SelectItem value="7d">Last 7 days</SelectItem>
+    <SelectItem value="30d">Last 30 days</SelectItem>
+  </SelectContent>
+</Select>
+
             </div>
-            <Button 
-              className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
-              onClick={handleApplyFilters}
-            >
+            <Button className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white">
               Apply Filters
             </Button>
           </CardContent>
@@ -370,15 +388,18 @@ export function JobPortal() {
                     <div className="border-t border-gray-100 pt-4">
                       <p className="text-sm text-gray-600 mb-2">Requirements:</p>
                       <ul className="list-disc list-inside text-sm text-gray-700 space-y-1 mb-4">
-                        {/* ✅ FIXED: Safe requirements rendering */}
-                        {renderRequirements(job.requirements)}
+                       {(job.requirements || []).map((req, index) => (
+  <li key={index}>{req}</li>
+))}
+
                       </ul>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Clock className="w-3 h-3" />
-                        <span>Posted {job.posted}</span>
+                       <span>Posted {new Date(job.posted).toLocaleDateString()}</span>
+
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">

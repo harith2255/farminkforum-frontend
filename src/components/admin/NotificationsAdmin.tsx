@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import * as React from "react";
 
 export function NotificationsAdmin() {
-
   const API = "https://ebook-backend-lxce.onrender.com/api/admin/notifications";
 
   const [recipientType, setRecipientType] = useState("");
@@ -28,8 +27,8 @@ export function NotificationsAdmin() {
   const [loading, setLoading] = useState(true);
 
   /* ----------------------------------------------------
-    FETCH NOTIFICATION LOGS
- ---------------------------------------------------- */
+     FETCH NOTIFICATION LOGS
+  ---------------------------------------------------- */
   const loadNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -52,8 +51,8 @@ export function NotificationsAdmin() {
   }, []);
 
   /* ----------------------------------------------------
-    SEND NOTIFICATION
- ---------------------------------------------------- */
+     SEND NOTIFICATION
+  ---------------------------------------------------- */
   const handleSend = async () => {
     if (!recipientType || !notificationType || !subject || !message) {
       return toast.error("Please fill all required fields.");
@@ -90,10 +89,9 @@ export function NotificationsAdmin() {
     }
   };
 
-
   /* ----------------------------------------------------
-   SAVE DRAFT
----------------------------------------------------- */
+     SAVE DRAFT
+  ---------------------------------------------------- */
   const saveDraft = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -130,14 +128,16 @@ export function NotificationsAdmin() {
         <p className="text-sm text-gray-500">Compose and send messages to users</p>
       </div>
 
+      {/* ---------------------- COMPOSE NOTIFICATION ------------------------ */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Compose Message</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Recipient Type */}
           <div>
             <Label>Recipient Type</Label>
-            <Select>
+            <Select onValueChange={setRecipientType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select recipients" />
               </SelectTrigger>
@@ -151,38 +151,62 @@ export function NotificationsAdmin() {
             </Select>
           </div>
 
+          {/* Custom email list */}
+          {recipientType === "custom" && (
+            <div>
+              <Label>Custom Email List</Label>
+              <Textarea
+                placeholder="Enter comma-separated emails"
+                value={customList}
+                onChange={(e) => setCustomList(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Notification Type */}
           <div>
             <Label>Notification Type</Label>
-            <Select>
+            <Select onValueChange={setNotificationType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="push">Push Notification</SelectItem>
-                <SelectItem value="both">Email + Push</SelectItem>
+                <SelectItem value="website">Website Notification</SelectItem>
+                <SelectItem value="both">Email + Website</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Subject */}
           <div>
             <Label>Subject</Label>
-            <Input placeholder="Enter subject line" />
+            <Input
+              placeholder="Enter subject line"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
           </div>
 
+          {/* Message */}
           <div>
             <Label>Message</Label>
             <Textarea
               placeholder="Write your message..."
               className="min-h-[150px]"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1">
+            <Button variant="outline" className="flex-1" onClick={saveDraft}>
               Save as Draft
             </Button>
-            <Button className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white gap-2">
+            <Button
+              className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white gap-2"
+              onClick={handleSend}
+            >
               <Send className="w-4 h-4" />
               Send Notification
             </Button>
@@ -190,25 +214,29 @@ export function NotificationsAdmin() {
         </CardContent>
       </Card>
 
+      {/* ---------------------- RECENT NOTIFICATIONS ------------------------ */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Recent Notifications</CardTitle>
         </CardHeader>
+
         <CardContent>
-          <div className="space-y-3">
-            {[
-              { subject: 'New Books Added', recipients: 'All Users', sent: '2024-03-20', delivered: '12,453' },
-              { subject: 'Platform Maintenance', recipients: 'Active Subscribers', sent: '2024-03-18', delivered: '8,234' },
-              { subject: 'Special Discount Offer', recipients: 'Trial Users', sent: '2024-03-15', delivered: '1,245' },
-            ].map((notification, index) => (
-              <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-[#1d4d6a] mb-2">{notification.subject}</h4>
-                <p className="text-sm text-gray-500">
-                  Sent to {notification.recipients} • {new Date(notification.sent).toLocaleDateString()} • {notification.delivered} delivered
-                </p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            <div className="space-y-3">
+              {notifications.map((n, index) => (
+                <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="text-[#1d4d6a] mb-2">{n.subject}</h4>
+                  <p className="text-sm text-gray-500">
+                    Sent to {n.recipient_type} •{" "}
+                    {new Date(n.created_at).toLocaleDateString()} •{" "}
+                    {n.delivered_count} delivered
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

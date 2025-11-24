@@ -560,260 +560,219 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       </div>
     );
   }
-
+// UI STARTS (UNCHANGED layout-wise)
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[#1d4d6a] mb-1 text-2xl font-bold">Writing Services</h2>
-        <p className="text-sm text-gray-600">Professional academic writing assistance from expert writers</p>
+        <h2 className="text-[#1d4d6a] mb-1">Writing Services</h2>
+        <p className="text-sm text-gray-500">
+          Professional academic writing assistance from expert writers
+        </p>
       </div>
 
       <Tabs defaultValue="new-order" className="w-full">
-        <TabsList className="bg-white border border-gray-200 grid grid-cols-4">
-          <TabsTrigger value="new-order" className="data-[state=active]:bg-[#1d4d6a] data-[state=active]:text-white">
-            New Order
-          </TabsTrigger>
-          <TabsTrigger value="active" className="data-[state=active]:bg-[#1d4d6a] data-[state=active]:text-white">
+        <TabsList className="bg-white border border-gray-200">
+          <TabsTrigger value="new-order">New Order</TabsTrigger>
+          <TabsTrigger value="active">
             Active Orders ({activeOrders.length})
           </TabsTrigger>
-          <TabsTrigger value="completed" className="data-[state=active]:bg-[#1d4d6a] data-[state=active]:text-white">
-            Completed ({completedOrders.length})
-          </TabsTrigger>
-          <TabsTrigger value="services" className="data-[state=active]:bg-[#1d4d6a] data-[state=active]:text-white">
-            Services ({services.length})
-          </TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
         </TabsList>
 
-        {/* New Order Tab */}
+        {/* ----------------------- NEW ORDER ----------------------- */}
         <TabsContent value="new-order" className="mt-6">
-          <Card className="border-none shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-[#1d4d6a] to-[#2c6c8f] text-white rounded-t-lg">
-              <CardTitle className="text-white">Place a New Order</CardTitle>
-              <CardDescription className="text-blue-100">
-                Tell us about your writing needs and we'll match you with an expert
+          <Card className="border-none shadow-md">
+            <CardHeader>
+              <CardTitle className="text-[#1d4d6a]">Place a New Order</CardTitle>
+              <CardDescription>
+                Tell us about your writing needs and we'll match you with an
+                expert
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+
+            <CardContent>
               <div className="space-y-6">
-                {/* Progress Steps */}
+                {/* STEP PROGRESS */}
                 <div className="flex items-center justify-between mb-8">
                   {[1, 2, 3].map((s) => (
                     <div key={s} className="flex items-center flex-1">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-                        step >= s 
-                          ? 'bg-[#bf2026] border-[#bf2026] text-white' 
-                          : 'bg-white border-gray-300 text-gray-500'
-                      }`}>
-                        {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center 
+                        ${step >= s ? "bg-[#bf2026] text-white" : "bg-gray-200 text-gray-500"}`}
+                      >
+                        {s}
                       </div>
                       {s < 3 && (
-                        <div className={`flex-1 h-1 mx-2 ${step > s ? 'bg-[#bf2026]' : 'bg-gray-200'}`} />
+                        <div
+                          className={`flex-1 h-1 mx-2 
+                          ${step > s ? "bg-[#bf2026]" : "bg-gray-200"}`}
+                        />
                       )}
                     </div>
                   ))}
                 </div>
 
-                {/* Step 1: Basic Info */}
+                {/* ----------------------- STEP 1 ----------------------- */}
                 {step === 1 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="service-type" className="text-sm font-medium">
-                          Service Type <span className="text-[#bf2026]">*</span>
-                        </Label>
-                        <Select 
-                          value={formData.type} 
-                          onValueChange={(value) => updateForm("type", value)}
-                        >
-                          <SelectTrigger id="service-type">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Service Type */}
+                      <div>
+                        <Label>Service Type</Label>
+                        <Select onValueChange={(v) => updateForm("type", v)}>
+                          <SelectTrigger>
                             <SelectValue placeholder="Select service" />
                           </SelectTrigger>
                           <SelectContent>
-                            {SERVICE_TYPES.map((service) => (
-                              <SelectItem key={service.value} value={service.value}>
-                                {service.label}
-                              </SelectItem>
+                            {services.map((srv) => (
+                              <SelectItem key={srv.id} value={srv.name}>
+  {srv.name}
+</SelectItem>
+
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="academic-level" className="text-sm font-medium">
-                          Academic Level <span className="text-[#bf2026]">*</span>
-                        </Label>
-                        <Select 
-                          value={formData.academic_level} 
-                          onValueChange={(value) => updateForm("academic_level", value)}
+
+                      {/* Academic Level */}
+                      <div>
+                        <Label>Academic Level</Label>
+                        <Select
+                          onValueChange={(v) => updateForm("academic_level", v)}
                         >
-                          <SelectTrigger id="academic-level">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select level" />
                           </SelectTrigger>
                           <SelectContent>
-                            {ACADEMIC_LEVELS.map((level) => (
-                              <SelectItem key={level.value} value={level.value}>
-                                {level.label}
-                              </SelectItem>
-                            ))}
+                            <SelectItem value="high-school">High School</SelectItem>
+                            <SelectItem value="undergraduate">
+                              Undergraduate
+                            </SelectItem>
+                            <SelectItem value="masters">Master's</SelectItem>
+                            <SelectItem value="phd">PhD</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="title" className="text-sm font-medium">
-                        Topic/Title <span className="text-[#bf2026]">*</span>
-                      </Label>
-                      <Input 
-                        id="title"
-                        placeholder="Enter your topic or title" 
+                    {/* Title */}
+                    <div>
+                      <Label>Topic/Title</Label>
+                      <Input
+                        placeholder="Enter your topic or title"
                         value={formData.title}
                         onChange={(e) => updateForm("title", e.target.value)}
-                        className="focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subject-area" className="text-sm font-medium">
-                        Subject Area
-                      </Label>
-                      <Select 
-                        value={formData.subject_area}
-                        onValueChange={(value) => updateForm("subject_area", value)}
+                    {/* Subject Area */}
+                    <div>
+                      <Label>Subject Area</Label>
+                      <Select
+                        onValueChange={(v) => updateForm("subject_area", v)}
                       >
-                        <SelectTrigger id="subject-area">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select subject" />
                         </SelectTrigger>
                         <SelectContent>
-                          {SUBJECT_AREAS.map((subject) => (
-                            <SelectItem key={subject.value} value={subject.value}>
-                              {subject.label}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="science">Natural Sciences</SelectItem>
+                          <SelectItem value="social">Social Sciences</SelectItem>
+                          <SelectItem value="humanities">Humanities</SelectItem>
+                          <SelectItem value="engineering">Engineering</SelectItem>
+                          <SelectItem value="business">Business</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="pages" className="text-sm font-medium">
-                          Number of Pages <span className="text-[#bf2026]">*</span>
-                        </Label>
-                        <Input 
-                          id="pages"
-                          type="number" 
-                          placeholder="10" 
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Pages */}
+                      <div>
+                        <Label>Number of Pages</Label>
+                        <Input
+                          type="number"
                           value={formData.pages}
                           onChange={(e) => updateForm("pages", e.target.value)}
-                          min="1"
-                          className="focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="deadline" className="text-sm font-medium">
-                          Deadline
-                        </Label>
-                        <Input 
-                          id="deadline"
-                          type="date" 
+
+                      {/* Deadline */}
+                      <div>
+                        <Label>Deadline</Label>
+                        <Input
+                          type="date"
                           value={formData.deadline}
                           onChange={(e) => updateForm("deadline", e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
-                          className="focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
                         />
-                        {formData.deadline && (
-                          <p className="text-xs text-gray-500">
-                            {getDaysUntilDeadline(formData.deadline)} days remaining
-                          </p>
-                        )}
                       </div>
                     </div>
 
-                    <Button 
-                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white py-3 text-lg font-semibold transition-all duration-200 transform hover:scale-[1.02]"
+                    <Button
+                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
                       onClick={() => setStep(2)}
-                      disabled={!isStepValid}
                     >
                       Continue to Details
                     </Button>
                   </div>
                 )}
 
-                {/* Step 2: Requirements */}
+                {/* ----------------------- STEP 2 ----------------------- */}
                 {step === 2 && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="instructions" className="text-sm font-medium">
-                        Detailed Instructions <span className="text-[#bf2026]">*</span>
-                      </Label>
+                  <div className="space-y-4">
+                    {/* Instructions */}
+                    <div>
+                      <Label>Detailed Instructions</Label>
                       <Textarea
-                        id="instructions"
-                        placeholder="Provide detailed instructions for your assignment..."
-                        className="min-h-[200px] focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
+                        className="min-h-[150px]"
                         value={formData.instructions}
                         onChange={(e) => updateForm("instructions", e.target.value)}
                       />
-                      <p className="text-xs text-gray-500">
-                        Be specific about requirements, formatting, citations, and any special instructions.
-                      </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Additional Materials (Optional)
-                      </Label>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept=".pdf,.doc,.docx"
-                        className="hidden"
-                      />
-                      <div 
-                        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#bf2026] transition-all duration-200 cursor-pointer bg-gray-50 hover:bg-gray-100"
+  
+
+                    {/* Optional Upload */}
+                    <div>
+                      <Label>Additional Materials (Optional)</Label>
+
+                      {/* dashed box (clickable) - triggers hidden input */}
+                      <div
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#bf2026] transition-colors cursor-pointer"
                         onClick={handleUploadBoxClick}
                       >
-                        <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                        <p className="text-lg text-gray-600 mb-2">
-                          {selectedFile ? (
-                            <span className="text-[#1d4d6a] font-semibold">{selectedFile.name}</span>
-                          ) : (
-                            "Click to upload or drag and drop"
-                          )}
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-600">
+                          Click to upload or drag and drop
                         </p>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-xs text-gray-400 mt-1">
                           PDF, DOC, DOCX up to 10MB
                         </p>
-                        
-                        {uploadProgress > 0 && uploadProgress < 100 && (
-                          <div className="mt-4">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-[#bf2026] h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${uploadProgress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                              Uploading... {Math.round(uploadProgress)}%
-                            </p>
-                          </div>
+
+                        {/* show filename small, no layout change */}
+                        {selectedFile && (
+                          <p className="text-xs text-gray-600 mt-2">
+                            Selected: {selectedFile.name}
+                          </p>
                         )}
                       </div>
+
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 py-3 border-2"
-                        onClick={() => setStep(1)}
-                      >
+                    <div className="flex gap-3">
+                      <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
                         Back
                       </Button>
-                      <Button 
-                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white py-3 text-lg font-semibold transition-all duration-200 transform hover:scale-[1.02]"
+                      <Button
+                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white"
                         onClick={() => setStep(3)}
-                        disabled={!isStepValid}
                       >
                         Continue to Review
                       </Button>
@@ -821,93 +780,61 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                   </div>
                 )}
 
-                {/* Step 3: Review & Submit */}
+                {/* ----------------------- STEP 3 ----------------------- */}
                 {step === 3 && (
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 space-y-4 border border-gray-200">
-                      <h4 className="text-[#1d4d6a] font-bold text-lg border-b pb-2">Order Summary</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-gray-500 text-xs uppercase tracking-wide">Service Type</p>
-                            <p className="text-gray-900 font-semibold">{formData.type || "Not specified"}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500 text-xs uppercase tracking-wide">Academic Level</p>
-                            <p className="text-gray-900 font-semibold">{formData.academic_level || "Not specified"}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500 text-xs uppercase tracking-wide">Pages</p>
-                            <p className="text-gray-900 font-semibold">{formData.pages || "0"} pages</p>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-gray-500 text-xs uppercase tracking-wide">Deadline</p>
-                            <p className="text-gray-900 font-semibold">{formatDate(formData.deadline)}</p>
-                          </div>
-                          {formData.subject_area && (
-                            <div>
-                              <p className="text-gray-500 text-xs uppercase tracking-wide">Subject Area</p>
-                              <p className="text-gray-900 font-semibold">{formData.subject_area}</p>
-                            </div>
-                          )}
-                          {selectedFile && (
-                            <div>
-                              <p className="text-gray-500 text-xs uppercase tracking-wide">Attached File</p>
-                              <p className="text-gray-900 font-semibold truncate">{selectedFile.name}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {formData.instructions && (
-                        <div className="pt-4 border-t">
-                          <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Instructions Preview</p>
-                          <p className="text-gray-700 text-sm line-clamp-3">{formData.instructions}</p>
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-4">
+                    {/* SUMMARY BOX */}
+                    <div className="bg-gray-50 rounded-lg p-6 space-y-3">
+                      <h4 className="text-[#1d4d6a]">Order Summary</h4>
 
-                    <div className="bg-gradient-to-r from-[#bf2026] to-[#d92b2f] rounded-xl p-6 text-white">
-                      <h5 className="font-bold text-lg mb-4">Payment Summary</h5>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span>Subtotal ({formData.pages || 0} pages)</span>
-                          <span>₹{((parseInt(formData.pages) || 0) * 10).toFixed(2)}</span>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Service Type</p>
+                          <p className="text-gray-900">{formData.type}</p>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span>Service Fee</span>
-                          <span>₹20.00</span>
+                        <div>
+                          <p className="text-gray-500">Academic Level</p>
+                          <p className="text-gray-900">{formData.academic_level}</p>
                         </div>
-                        <div className="border-t border-white/30 my-3 pt-3 flex justify-between items-center text-lg font-bold">
-                          <span>Total Amount</span>
-                          <span>₹{calculatedPrice.toFixed(2)}</span>
+
+                        <div>
+                          <p className="text-gray-500">Pages</p>
+                          <p className="text-gray-900">{formData.pages} pages</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Deadline</p>
+                          <p className="text-gray-900">{formData.deadline}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 py-3 border-2"
-                        onClick={() => setStep(2)}
-                      >
-                        Back to Details
+                    <div className="bg-[#bf2026] bg-opacity-10 border border-[#bf2026] rounded-lg p-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-700">Subtotal</span>
+                        <span className="text-gray-900">₹{formData.pages * 10}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-700">Service Fee</span>
+                        <span className="text-gray-900">₹20</span>
+                      </div>
+
+                      <div className="border-t border-[#bf2026] my-3 pt-3 flex justify-between items-center">
+                        <span className="text-[#1d4d6a]">Total</span>
+                        <span className="text-[#1d4d6a]">₹{formData.pages * 10 + 20}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                        Back
                       </Button>
-                      <Button 
-                        className="flex-1 bg-[#1d4d6a] hover:bg-[#15354d] text-white py-3 text-lg font-semibold transition-all duration-200 transform hover:scale-[1.02] shadow-lg"
+
+                      <Button
+                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white"
                         onClick={handleSubmitOrder}
-                        disabled={submitting}
                       >
-                        {submitting ? (
-                          <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          "Submit Order & Pay"
-                        )}
+                        Submit Order & Pay
                       </Button>
                     </div>
                   </div>
@@ -917,296 +844,259 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
           </Card>
         </TabsContent>
 
-        {/* Active Orders Tab */}
+        {/* ----------------------- ACTIVE ORDERS ----------------------- */}
         <TabsContent value="active" className="mt-6">
           <div className="space-y-4">
-            {activeOrders.length === 0 ? (
-              <Card className="border-none shadow-lg text-center py-12">
-                <CardContent>
-                  <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No Active Orders</h3>
-                  <p className="text-gray-500 mb-4">You don't have any active orders at the moment.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              activeOrders.map((order) => (
-                <Card key={order.id} className="border-none shadow-lg hover:shadow-xl transition-all duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-3 mb-2">
-                          <FileText className="w-5 h-5 text-[#1d4d6a] mt-1 flex-shrink-0" />
-                          <div>
-                            <h3 className="text-[#1d4d6a] font-semibold text-lg mb-1">{order.title}</h3>
-                            <p className="text-gray-500 text-sm">{order.type} • {order.academic_level}</p>
-                          </div>
-                        </div>
+            {activeOrders.map((order) => (
+              <Card key={order.id} className="border-none shadow-md">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-[#1d4d6a] mb-1">{order.title}</h3>
+                      <p className="text-sm text-gray-500">{order.type}</p>
+                    </div>
+
+                    <Badge
+                      className={
+                        order.status === "In Progress"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }
+                    >
+                      {order.status}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* PROGRESS BAR */}
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Progress</span>
+                      <span>{order.progress || 0}%</span>
+                    </div>
+
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-[#bf2026] h-2 rounded-full transition-all"
+                        style={{ width: `${order.progress || 0}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <FileText className="w-4 h-4" />
+                          {order.writer_name || "Assigned Writer"}
+                        </span>
+
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          Due: {new Date(order.deadline).toLocaleDateString()}
+                        </span>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Badge className={`${getStatusBadgeVariant(order.status)} text-xs font-medium px-3 py-1`}>
-                          {order.status}
-                        </Badge>
-                        {order.total_price && (
-                          <Badge variant="outline" className="text-xs font-medium">
-                            ₹{order.total_price}
-                          </Badge>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleProvideFeedback(order)}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          Message
+                        </Button>
+
+                        {/* only allow editing when Pending (keeps parity with backend) */}
+                        {order.status === "Pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditOrder(order)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
                         )}
                       </div>
                     </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm text-gray-600 mb-2">
-                          <span>Progress</span>
-                          <span>{order.progress || 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                          <div
-                            className="bg-gradient-to-r from-[#bf2026] to-[#d92b2f] h-3 rounded-full transition-all duration-500"
-                            style={{ width: `${order.progress || 0}%` }}
-                          />
-                        </div>
+
+                    {/* show uploaded attachment if any */}
+                    {order.attachments_url && (
+                      <div className="text-sm mt-2">
+                        <a
+                          href={order.attachments_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          View your uploaded attachment
+                        </a>
                       </div>
-                      
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-2">
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1.5">
-                            <FileText className="w-4 h-4" />
-                            {order.writer_name || order.author_name || "Writer not assigned"}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <Calendar className="w-4 h-4" />
-                            Due: {formatDate(order.deadline || "")}
-                          </span>
-                          {order.deadline && (
-                            <span className={`flex items-center gap-1.5 ${
-                              getDaysUntilDeadline(order.deadline) < 3 ? 'text-[#bf2026] font-semibold' : ''
-                            }`}>
-                              <Clock className="w-4 h-4" />
-                              {getDaysUntilDeadline(order.deadline)} days left
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleProvideFeedback(order)}
-                            className="flex items-center gap-1.5"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                            Message
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEditOrder(order)}
-                            className="flex items-center gap-1.5"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Edit
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 
-        {/* Completed Orders Tab */}
+        {/* ----------------------- COMPLETED ORDERS ----------------------- */}
         <TabsContent value="completed" className="mt-6">
           <div className="space-y-4">
-            {completedOrders.length === 0 ? (
-              <Card className="border-none shadow-lg text-center py-12">
-                <CardContent>
-                  <CheckCircle2 className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No Completed Orders</h3>
-                  <p className="text-gray-500">Your completed orders will appear here.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              completedOrders.map((order) => (
-                <Card key={order.id} className="border-none shadow-lg hover:shadow-xl transition-all duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
-                            <div>
-                              <h3 className="text-[#1d4d6a] font-semibold text-lg mb-1">{order.title}</h3>
-                              <p className="text-gray-500 text-sm">
-                                {order.type} • Completed {formatDate(order.completed_date || "")}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className="bg-green-100 text-green-700">Completed</Badge>
+            {completedOrders.map((order) => (
+              <Card key={order.id} className="border-none shadow-md">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="text-[#1d4d6a] mb-1">{order.title}</h3>
+                          <p className="text-sm text-gray-500">
+                            {order.type} • Completed{" "}
+                            {new Date(order.completed_at).toLocaleDateString()}
+                          </p>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-4 mt-4">
-                          {order.grade && (
-                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg px-4 py-3 border border-green-200">
-                              <p className="text-xs text-green-600 font-medium mb-1">Grade Received</p>
-                              <p className="text-green-800 font-bold text-lg">{order.grade}</p>
-                            </div>
-                          )}
-                          {order.rating && (
-                            <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg px-4 py-3 border border-yellow-200">
-                              <p className="text-xs text-yellow-600 font-medium mb-1">Your Rating</p>
-                              <p className="text-yellow-600 font-semibold">
-                                {'★'.repeat(order.rating)}{'☆'.repeat(5 - order.rating)}
-                              </p>
-                            </div>
-                          )}
-                          {order.total_price && (
-                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg px-4 py-3 border border-blue-200">
-                              <p className="text-xs text-blue-600 font-medium mb-1">Amount Paid</p>
-                              <p className="text-blue-800 font-bold">₹{order.total_price}</p>
-                            </div>
-                          )}
-                        </div>
+
+                        <Badge className="bg-green-100 text-green-700">Completed</Badge>
                       </div>
-                      
-                      <div className="flex gap-2 lg:flex-col">
-                        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                          <FileText className="w-4 h-4" />
-                          Download
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                          <MessageSquare className="w-4 h-4" />
-                          Review
-                        </Button>
+
+                      <div className="flex items-center gap-6 text-sm">
+                        <div className="bg-gray-50 rounded-lg px-4 py-2">
+                          <p className="text-xs text-gray-500 mb-1">Grade Received</p>
+                          <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg px-4 py-2">
+                          <p className="text-xs text-gray-500 mb-1">Your Rating</p>
+                          <p className="text-yellow-500">
+                            {"⭐".repeat(order.rating || 0)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {/* Show final written text */}
+                          {order.final_text && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const blob = new Blob([order.final_text], {
+                                  type: "text/plain",
+                                });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `${order.title}-final.txt`;
+                                a.click();
+                              }}
+                            >
+                              View Text
+                            </Button>
+                          )}
+
+                          {/* Show file download button */}
+                          {order.notes_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(order.notes_url, "_blank")}
+                            >
+                              Download File
+                            </Button>
+                          )}
+
+                          {/* If both missing */}
+                          {!order.final_text && !order.notes_url && (
+                            <p className="text-xs text-gray-500">No delivered content yet</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 
-        {/* Services Tab */}
+        {/* ----------------------- SERVICES ----------------------- */}
         <TabsContent value="services" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.length === 0 ? (
-              <Card className="border-none shadow-lg col-span-3 text-center py-12">
-                <CardContent>
-                  <AlertCircle className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No Services Available</h3>
-                  <p className="text-gray-500">Services will be available soon.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {services.map((service) => (
+              <Card
+                key={service.id}
+                className="border-none shadow-md hover:shadow-lg transition-all"
+              >
+                <CardHeader>
+                  <CardTitle className="text-[#1d4d6a]">{service.name}</CardTitle>
+                  <CardDescription>{service.description}</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      <span>{service.turnaround}</span>
+                    </div>
+
+                    <div className="text-[#bf2026]">
+                      {service.price ? `₹${service.price}` : "Starting ₹49"}
+                    </div>
+                  </div>
+
+                  <Button className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white">
+                    Order Now
+                  </Button>
                 </CardContent>
               </Card>
-            ) : (
-              services.map((service) => (
-                <Card 
-                  key={service.id} 
-                  className="border-none shadow-lg hover:shadow-xl transition-all duration-300 hover:transform hover:-translate-y-1"
-                >
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-[#1d4d6a] text-lg">{service.name}</CardTitle>
-                      {service.price && (
-                        <Badge className="bg-[#bf2026] text-white">
-                          ₹{service.price}
-                        </Badge>
-                      )}
-                    </div>
-                    <CardDescription className="text-gray-600 leading-relaxed">
-                      {service.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>{service.turnaround || "Flexible deadline"}</span>
-                      </div>
-                      <div className="text-[#1d4d6a] font-semibold">
-                        {service.price ? `₹${service.price}` : "Starting ₹49"}
-                      </div>
-                    </div>
-                    <Button 
-                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white font-semibold transition-all duration-200 transform hover:scale-[1.02]"
-                      onClick={() => {
-                        updateForm("type", service.name);
-                        setStep(1);
-                        const newOrderTab = document.querySelector('[value="new-order"]') as HTMLButtonElement;
-                        if (newOrderTab) newOrderTab.click();
-                      }}
-                    >
-                      Order Now
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+            ))}
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* Edit Order Dialog */}
+      {/* ----------------------- EDIT DIALOG ----------------------- */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#1d4d6a] flex items-center gap-2">
-              <Edit className="w-5 h-5" />
-              Edit Order
-            </DialogTitle>
+            <DialogTitle className="text-[#1d4d6a]">Edit Order</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             {selectedOrder && (
               <>
-                <div className="p-4 bg-gray-50 rounded-lg border">
-                  <p className="text-sm text-gray-600 mb-1">Order Title</p>
-                  <p className="text-[#1d4d6a] font-semibold">{selectedOrder.title}</p>
-                  <p className="text-xs text-gray-500 mt-1">Current Status: {selectedOrder.status}</p>
+                <div className="p-3 bg-gray-50 rounded-lg mb-4">
+                  <p className="text-sm text-gray-600 mb-1">Order</p>
+                  <p className="text-[#1d4d6a]">{selectedOrder.title}</p>
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="edit-deadline" className="text-sm font-medium">
-                    Update Deadline
-                  </Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="deadline">Update Deadline</Label>
                   <Input
-                    id="edit-deadline"
                     type="date"
                     value={updatedDeadline}
                     onChange={(e) => setUpdatedDeadline(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="focus:ring-2 focus:ring-[#1d4d6a]"
                   />
-                  <p className="text-xs text-gray-500">
-                    Additional fees may apply for deadline changes
-                  </p>
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="additional-notes" className="text-sm font-medium">
-                    Additional Instructions
-                  </Label>
+
+                <div className="space-y-2">
+                  <Label>Additional Instructions</Label>
                   <Textarea
-                    id="additional-notes"
-                    placeholder="Add any additional instructions or changes for the writer..."
+                    placeholder="Add any additional instructions or changes..."
                     rows={4}
-                    value={additionalNotes}
-                    onChange={(e) => setAdditionalNotes(e.target.value)}
-                    className="focus:ring-2 focus:ring-[#1d4d6a] resize-none"
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
                   />
                 </div>
               </>
             )}
           </div>
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditDialogOpen(false)}
-              className="border-2"
-            >
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
+
+            <Button
+              className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
               onClick={handleSaveEdit}
-              className="bg-[#bf2026] hover:bg-[#a01c22] text-white font-semibold"
             >
               Save Changes
             </Button>
@@ -1214,61 +1104,47 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Feedback Dialog */}
+      {/* ----------------------- FEEDBACK DIALOG ----------------------- */}
       <Dialog open={isFeedbackDialogOpen} onOpenChange={setIsFeedbackDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#1d4d6a] flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Message Writer
-            </DialogTitle>
+            <DialogTitle className="text-[#1d4d6a]">Message Writer</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             {selectedOrder && (
               <>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-600 font-medium mb-1">Writer Information</p>
-                  <p className="text-[#1d4d6a] font-semibold">
-                    {selectedOrder.writer_name || selectedOrder.author_name || "Assigned Writer"}
+                <div className="p-3 bg-gray-50 rounded-lg mb-4">
+                  <p className="text-sm text-gray-600 mb-1">Writer</p>
+                  <p className="text-[#1d4d6a]">
+                    {selectedOrder.writer_name || "Assigned Writer"}
                   </p>
-                  <p className="text-xs text-blue-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     Working on: {selectedOrder.title}
                   </p>
-                  <p className="text-xs text-blue-500">
-                    Current Progress: {selectedOrder.progress || 0}%
-                  </p>
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="feedback-message" className="text-sm font-medium">
-                    Your Message <span className="text-[#bf2026]">*</span>
-                  </Label>
+
+                <div className="space-y-2">
+                  <Label>Your Message</Label>
                   <Textarea
-                    id="feedback-message"
+                    rows={6}
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Type your message to the writer... Be clear about any questions, concerns, or additional requirements."
-                    rows={6}
-                    className="focus:ring-2 focus:ring-[#1d4d6a] resize-none"
+                    placeholder="Type your message..."
                   />
-                  <p className="text-xs text-gray-500">
-                    Your message will be sent directly to the writer working on your order.
-                  </p>
                 </div>
               </>
             )}
           </div>
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsFeedbackDialogOpen(false)}
-              className="border-2"
-            >
+            <Button variant="outline" onClick={() => setIsFeedbackDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
+
+            <Button
+              className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
               onClick={handleSubmitFeedback}
-              className="bg-[#1d4d6a] hover:bg-[#15354d] text-white font-semibold"
-              disabled={!feedback.trim()}
             >
               Send Message
             </Button>

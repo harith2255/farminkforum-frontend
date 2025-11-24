@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { Avatar } from './ui/avatar';
 import { AdminDashboardHome } from './admin/AdminDashboardHome';
 import { CustomerManagement } from './admin/CustomerManagement';
-import { ContentManagement } from './admin/ContentManagement';
+import ContentManagement  from './admin/ContentManagement';
 import { DRMControls } from './admin/DRMControls';
 import { PaymentsAdmin } from './admin/PaymentsAdmin';
 import { ReportsAnalytics } from './admin/ReportsAnalytics';

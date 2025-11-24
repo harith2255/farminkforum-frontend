@@ -1,25 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { Card, CardContent, CardHeader } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import {
+  Card, CardContent, CardHeader
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "../ui/table";
 import {
   Search, Filter, Mail,
   Trash2, ShieldCheck, ShieldOff
-} from 'lucide-react';
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
+import * as React from "react";
 
 export function CustomerManagement() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
+
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [plan, setPlan] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   // Email modal
@@ -34,6 +41,7 @@ export function CustomerManagement() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+
       const token = localStorage.getItem("token");
 
       const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/customers", {
@@ -41,13 +49,10 @@ export function CustomerManagement() {
         params: { search, status, plan, page, limit: 10 },
       });
 
-      // Fixed: Check the actual API response structure
       setCustomers(res.data.data || []);
       setTotalPages(res.data.totalPages);
     } catch (err) {
       console.error("Error fetching customers:", err);
-      setCustomers([]);
-      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -55,7 +60,7 @@ export function CustomerManagement() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [page]); // Fixed: Added dependencies to refetch when filters change
+  }, [page]);
 
   const applyFilters = () => {
     setPage(1);
@@ -65,7 +70,8 @@ export function CustomerManagement() {
   // -------------------------------------
   // ACTION HANDLERS
   // -------------------------------------
-const suspendCustomer = async (id: string) => {
+
+  const suspendCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
 
     await axios.post(
@@ -89,7 +95,7 @@ const suspendCustomer = async (id: string) => {
     fetchCustomers();
   };
 
- const deleteCustomer = async (id: string) => {
+  const deleteCustomer = async (id: string) => {
     if (!confirm("Are you sure you want to delete this customer?")) return;
 
     const token = localStorage.getItem("token");
@@ -123,23 +129,23 @@ const suspendCustomer = async (id: string) => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[#1d4d6a] mb-1">Customer Management</h2>
           <p className="text-sm text-gray-500">
-            {loading ? "Loading..." : `${customers.length} customers found`}
+            {loading ? "Loading..." : `${customers.length} customers on this page`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button className="bg-[#bf2026] text-white">Export Data</Button>
-        </div>
+
+        <Button className="bg-[#bf2026] text-white">Export Data</Button>
       </div>
 
       {/* Filters */}
       <Card className="border-none shadow-md">
         <CardHeader>
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-[240px]">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 placeholder="Search by name or email..."
@@ -170,11 +176,7 @@ const suspendCustomer = async (id: string) => {
               <option value="Institutional">Institutional</option>
             </select>
 
-            <Button 
-              variant="outline" 
-              className="gap-2" 
-              onClick={applyFilters}
-            >
+            <Button variant="outline" className="gap-2" onClick={applyFilters}>
               <Filter className="w-4 h-4" />
               Apply
             </Button>
@@ -183,208 +185,179 @@ const suspendCustomer = async (id: string) => {
 
         <CardContent>
           {loading ? (
-            <p className="text-center py-6 text-gray-500">Loading customers...</p>
+            <p className="text-center py-6 text-gray-500">Loading...</p>
           ) : customers.length === 0 ? (
-            <p className="text-center py-6 text-gray-500">
-              {search || status || plan ? "No customers match your filters" : "No customers found"}
-            </p>
+            <p className="text-center py-6 text-gray-500">No customers found</p>
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Total Spent</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Customer</TableHead>
+      <TableHead>Email</TableHead>
+      <TableHead>Plan</TableHead>
+      <TableHead>Status</TableHead>
+      <TableHead>Joined</TableHead>
+      <TableHead>Total Spent</TableHead>
+      <TableHead>Actions</TableHead>
+    </TableRow>
+  </TableHeader>
 
-                <TableBody>
-                  {customers.map((c) => {
-                    const displayName =
-                      c.full_name?.trim() ||
-                      `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
-                      c.email?.split("@")[0] ||
-                      "Unnamed";
+  <TableBody>
+    {customers.map((c) => {
+      const displayName =
+        c.full_name?.trim() ||
+        `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
+        c.email?.split("@")[0] ||
+        "Unnamed";
 
-                    const initial = displayName[0]?.toUpperCase() || "U";
+      const initial = displayName[0]?.toUpperCase() || "U";
 
-                    return (
-                      <TableRow key={c.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="bg-[#1d4d6a] text-white">
-                                {initial}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-[#1d4d6a] font-medium">
-                              {displayName}
-                            </span>
-                          </div>
-                        </TableCell>
+      return (
+        <TableRow key={c.id}>
+          <TableCell>
+            <div className="flex items-center gap-3">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="bg-[#1d4d6a] text-white">
+                  {initial}
+                </AvatarFallback>
+              </Avatar>
 
-                        <TableCell>{c.email}</TableCell>
+              <span className="text-[#1d4d6a] font-medium">
+                {displayName}
+              </span>
+            </div>
+          </TableCell>
 
-                        <TableCell>
-                          <Badge variant={c.plan ? "default" : "secondary"}>
-                            {c.plan || "N/A"}
-                          </Badge>
-                        </TableCell>
+          <TableCell>{c.email}</TableCell>
 
-                        <TableCell>
-                          <Badge
-                            className={
-                              c.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : c.status === "Suspended"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-700"
-                            }
-                          >
-                            {c.status || "Unknown"}
-                          </Badge>
-                        </TableCell>
+          <TableCell>
+            <Badge>{c.plan || "N/A"}</Badge>
+          </TableCell>
 
-                        <TableCell>
-                          {c.created_at
-                            ? new Date(c.created_at).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
+          <TableCell>
+            <Badge
+              className={
+                c.status === "Active"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }
+            >
+              {c.status}
+            </Badge>
+          </TableCell>
 
-                        <TableCell>
-                          ₹{Number(c.total_spent ?? 0).toLocaleString()}
-                        </TableCell>
+          <TableCell>
+            {c.created_at
+              ? new Date(c.created_at).toLocaleDateString()
+              : "—"}
+          </TableCell>
 
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {/* Email */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedCustomer(c);
-                                setShowEmailModal(true);
-                              }}
-                              title="Send Email"
-                            >
-                              <Mail className="w-4 h-4" />
-                            </Button>
+          <TableCell>
+            ₹{Number(c.total_spent ?? 0).toLocaleString()}
+          </TableCell>
 
-                            {/* Suspend / Activate */}
-                            {c.status === "Active" ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => suspendCustomer(c.id)}
-                                title="Suspend Customer"
-                              >
-                                <ShieldOff className="w-4 h-4 text-red-500" />
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => activateCustomer(c.id)}
-                                title="Activate Customer"
-                              >
-                                <ShieldCheck className="w-4 h-4 text-green-500" />
-                              </Button>
-                            )}
+          <TableCell>
+            <div className="flex gap-2">
+              {/* Email */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedCustomer(c);
+                  setShowEmailModal(true);
+                }}
+              >
+                <Mail className="w-4 h-4" />
+              </Button>
 
-                            {/* Delete */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteCustomer(c.id)}
-                              title="Delete Customer"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-3 mt-4">
-                  <Button
-                    variant="outline"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Prev
-                  </Button>
-
-                  <span className="text-gray-600">
-                    Page {page} of {totalPages}
-                  </span>
-
-                  <Button
-                    variant="outline"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
+              {/* Suspend / Activate */}
+              {c.status === "Active" ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => suspendCustomer(c.id)}
+                >
+                  <ShieldOff className="w-4 h-4 text-red-500" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => activateCustomer(c.id)}
+                >
+                  <ShieldCheck className="w-4 h-4 text-green-500" />
+                </Button>
               )}
-            </>
+
+              {/* Delete */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => deleteCustomer(c.id)}
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </Button>
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    })}
+  </TableBody>
+</Table>
+
           )}
+
+          {/* Pagination */}
+          <div className="flex justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Prev
+            </Button>
+
+            <span className="text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       {/* EMAIL MODAL */}
       <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Send Email to {selectedCustomer?.email}
-            </DialogTitle>
+            <DialogTitle>Send Message / Email</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <Input
-              placeholder="Email subject"
-              value={emailSubject}
-              onChange={(e) => setEmailSubject(e.target.value)}
-            />
+          <Input
+            placeholder="Subject"
+            value={emailSubject}
+            onChange={(e) => setEmailSubject(e.target.value)}
+            className="mb-3"
+          />
 
-            <Textarea
-              placeholder="Write your message..."
-              value={emailMessage}
-              onChange={(e) => setEmailMessage(e.target.value)}
-              rows={6}
-            />
+          <Textarea
+            placeholder="Write your message..."
+            value={emailMessage}
+            onChange={(e) => setEmailMessage(e.target.value)}
+          />
 
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEmailModal(false);
-                  setEmailSubject("");
-                  setEmailMessage("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-[#bf2026] text-white"
-                onClick={sendNotification}
-                disabled={!emailSubject.trim() || !emailMessage.trim()}
-              >
-                Send Email
-              </Button>
-            </div>
-          </div>
+          <Button
+            className="mt-4 w-full bg-[#bf2026] text-white"
+            onClick={sendNotification}
+          >
+            Send Email
+          </Button>
         </DialogContent>
       </Dialog>
     </div>

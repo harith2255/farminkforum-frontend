@@ -13,7 +13,7 @@ export default function ReadNotePage({ onNavigate }) {
       <h2 className="text-2xl mt-4 mb-4 text-[#1d4d6a]">{title}</h2>
 
       <iframe
-        src={fileUrl ?? undefined}
+        src={fileUrl}
         className="w-full h-[80vh] border rounded-lg"
       />
     </div>

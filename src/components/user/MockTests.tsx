@@ -1,63 +1,205 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import React, { useState, useEffect,useCallback } from 'react';
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription
+} from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { Progress } from '../ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Clock, Trophy, Target, TrendingUp, Award, ChevronRight } from 'lucide-react';
-import Test from '../user/Testpage';
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
+} from '../ui/dialog';
+import {
+  Clock, Trophy, Target, Award, ChevronRight
+} from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 export function MockTests() {
-
   const [selectedTest, setSelectedTest] = useState<any | null>(null);
   const [continueTest, setContinueTest] = useState<any | null>(null);
 
-  const ongoingTests = [
-    { id: 1, title: 'Mathematics Mock Test 3', subject: 'Mathematics', questions: 50, completed: 25, duration: '2 hours', difficulty: 'Medium' },
-    { id: 2, title: 'Physics Comprehensive Exam', subject: 'Physics', questions: 75, completed: 10, duration: '3 hours', difficulty: 'Hard' },
-  ];
+  const [availableTests, setAvailableTests] = useState<any[]>([]);
+  const [ongoingTests, setOngoingTests] = useState<any[]>([]);
+  const [completedTests, setCompletedTests] = useState<any[]>([]);
+  const [stats, setStats] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  const availableTests = [
-    { id: 3, title: 'Computer Science Quiz', subject: 'Computer Science', questions: 30, duration: '1 hour', difficulty: 'Easy', participants: 1250 },
-    { id: 4, title: 'Chemistry Final Prep', subject: 'Chemistry', questions: 60, duration: '2.5 hours', difficulty: 'Hard', participants: 890 },
-    { id: 5, title: 'Biology Mock Test', subject: 'Biology', questions: 40, duration: '1.5 hours', difficulty: 'Medium', participants: 2100 },
-    { id: 6, title: 'Statistics Practice Test', subject: 'Statistics', questions: 45, duration: '2 hours', difficulty: 'Medium', participants: 670 },
-  ];
+  const API_URL = "https://ebook-backend-lxce.onrender.com/api/mock-tests";
 
-  const completedTests = [
-    { id: 7, title: 'Physics Mock Test 2', subject: 'Physics', score: 94, maxScore: 100, rank: 12, participants: 1500, date: '2024-03-15' },
-    { id: 8, title: 'Mathematics Quiz 5', subject: 'Mathematics', score: 88, maxScore: 100, rank: 45, participants: 2200, date: '2024-03-10' },
-    { id: 9, title: 'Chemistry Basics', subject: 'Chemistry', score: 76, maxScore: 100, rank: 120, participants: 980, date: '2024-03-05' },
-  ];
+  // ----- refreshAll (reusable) -----
+  const getToken = () =>
+  localStorage.getItem("token") ||
+  localStorage.getItem("access_token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("supabase_token") ||
+  null;
 
-  const stats = [
-    { label: 'Tests Taken', value: '18', icon: Target, color: 'bg-blue-500' },
-    { label: 'Average Score', value: '92%', icon: Trophy, color: 'bg-green-500' },
-    { label: 'Best Rank', value: '#8', icon: Award, color: 'bg-yellow-500' },
-    { label: 'Study Time', value: '156h', icon: Clock, color: 'bg-purple-500' },
-  ];
+const refreshAll = useCallback(async () => {
+  try {
+    const token = getToken();
+    console.log("TOKEN USED:", token);
+    if (!token) return;
 
-  const handleStartClick = (test: any) => setSelectedTest(test);
-  const handleCloseModal = () => setSelectedTest(null);
-  const handleStartTest = () => {
-    console.log('Starting test:', selectedTest);
-    setSelectedTest(null);
+    const headers = { Authorization: `Bearer ${token}` };
+console.log("Requesting APIs...");
+
+    const [
+      availableRes,
+      ongoingRes,
+      completedRes,
+      statsRes,
+      leaderboardRes
+    ] = await Promise.all([
+      axios.get(`${API_URL}`, { headers }),
+      axios.get(`${API_URL}/ongoing`, { headers }),
+      axios.get(`${API_URL}/completed`, { headers }),
+      axios.get(`${API_URL}/stats`, { headers }),
+      axios.get(`${API_URL}/leaderboard`, { headers })
+    ]);
+
+    // AVAILABLE
+    setAvailableTests(
+      (availableRes.data || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        subject: t.subject,
+        questions: t.total_questions,
+        duration: `${t.duration_minutes} mins`,
+        difficulty: t.difficulty,
+        participants: t.participants ?? 0
+      }))
+    );
+
+    // ONGOING
+    setOngoingTests(
+      (ongoingRes.data || []).map((t: any) => ({
+        attemptId: t.id,
+        testId: t.test_id,
+        title: t.mock_tests?.title,
+        subject: t.mock_tests?.subject,
+        questions: t.mock_tests?.total_questions,
+        completed: t.completed_questions,
+        duration: `${t.mock_tests?.duration_minutes} mins`,
+        difficulty: t.mock_tests?.difficulty
+      }))
+    );
+
+    // COMPLETED
+    setCompletedTests(
+      (completedRes.data || []).map((t: any) => ({
+        attemptId: t.id,
+        title: t.mock_tests?.title,
+        subject: t.mock_tests?.subject,
+        score: t.score,
+        rank: t.rank,
+        participants: t.mock_tests?.participants ?? 100,
+        maxScore: 100,
+        date: t.completed_at
+      }))
+    );
+
+    // STATS
+    const s = {
+      tests_taken: statsRes.data?.tests_taken ?? 0,
+      average_score: statsRes.data?.average_score ?? 0,
+      best_rank: statsRes.data?.best_rank ?? null,
+      total_study_time: statsRes.data?.total_study_time ?? 0
+    };
+
+    setStats([
+      { label: "Tests Taken", value: s.tests_taken, icon: Target, color: "bg-blue-500" },
+      { label: "Average Score", value: `${s.average_score}%`, icon: Trophy, color: "bg-green-500" },
+      { label: "Best Rank", value: s.best_rank ? `#${s.best_rank}` : "—", icon: Award, color: "bg-yellow-500" },
+      { label: "Study Time", value: `${s.total_study_time} min`, icon: Clock, color: "bg-purple-500" }
+    ]);
+
+    // LEADERBOARD
+  setLeaderboard(
+  (leaderboardRes.data || []).map((u: any, index: number) => ({
+    rank: index + 1,
+    name: u.display_name || `User ${index + 1}`,
+    score: u.score ?? 0,   // backend now returns `score`
+    tests: 1,              // you can update this later
+    badge:
+      index === 0 ? "🥇" :
+      index === 1 ? "🥈" :
+      index === 2 ? "🥉" : "",
+    highlight:
+      u.user_id === JSON.parse(localStorage.getItem("user") || "{}").id
+  }))
+);
+
+
+  } catch (err) {
+    console.error("❌ Fetching error:", err);
+    toast.error("Failed to load mock tests");
+  }
+}, []);
+
+  // ----- initial load -----
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
+
+  // ----- Listen for a finished-test flag set by TestPage -----
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "test_finished" && e.newValue === "yes") {
+        localStorage.removeItem("test_finished");
+        refreshAll();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // also polling fallback in case new tab/window doesn't fire storage
+    const t = setInterval(() => {
+      const finished = localStorage.getItem("test_finished");
+      if (finished === "yes") {
+        localStorage.removeItem("test_finished");
+        refreshAll();
+      }
+    }, 1500);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      clearInterval(t);
+    };
+  }, [refreshAll]);
+
+  // START TEST
+  const handleStartClick = async (test: any) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_URL}/start`,
+        { test_id: test.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const attempt = res.data.attempt;
+      localStorage.setItem("active_test_id", String(test.id));
+      localStorage.setItem("active_attempt_id", String(attempt.id));
+      window.open(`/test/${test.id}`, "_blank");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to start test");
+    }
   };
-  const handleContinueClick = (test: any) => setContinueTest(test);
-  const handleCloseContinueModal = () => setContinueTest(null);
 
+  // CONTINUE TEST
   const handleGoToOngoingTest = () => {
-    console.log("Redirecting to ongoing test:", continueTest);
-    window.location.href = `/test/${continueTest.id}`;
+    if (!continueTest) return;
+   window.location.href = `/test/${continueTest.testId}`;
+
     setContinueTest(null);
   };
-
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-[#1d4d6a] mb-1">Mock Tests & Assessments</h2>
-        <p className="text-sm text-gray-500">Test your knowledge and track your progress</p>
+        <p className="text-sm text-gray-500">
+          Test your knowledge and track your progress
+        </p>
       </div>
 
       {/* Stats */}
@@ -70,8 +212,8 @@ export function MockTests() {
                   <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
                   <h3 className="text-[#1d4d6a]">{stat.value}</h3>
                 </div>
-                <div className={`w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
+                <div className="w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center">
+                  <stat.icon className={`w-6 h-6 ${stat.color.replace("bg-", "text-")}`} />
                 </div>
               </div>
             </CardContent>
@@ -79,7 +221,7 @@ export function MockTests() {
         ))}
       </div>
 
-      {/* Tests Tabs */}
+      {/* Tabs */}
       <Tabs defaultValue="available" className="w-full">
         <TabsList className="bg-white border border-gray-200">
           <TabsTrigger value="available">Available Tests</TabsTrigger>
@@ -91,16 +233,18 @@ export function MockTests() {
         {/* Available Tests */}
         <TabsContent value="available" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {availableTests.map((test, index) => (
+            {availableTests.map((test: any) => (
               <Card key={test.id} className="border-none shadow-md hover:shadow-lg transition-all">
                 <CardHeader>
                   <div className="flex items-start justify-between mb-2">
                     <CardTitle className="text-[#1d4d6a]">{test.title}</CardTitle>
                     <Badge
                       className={
-                        test.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                        test.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+                        test.difficulty === "Easy"
+                          ? "bg-green-100 text-green-700"
+                          : test.difficulty === "Medium"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
                       }
                     >
                       {test.difficulty}
@@ -110,12 +254,12 @@ export function MockTests() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Target className="w-4 h-4" />
                       <span>{test.questions} Questions</span>
                     </div>
+
                     <div className="flex items-center gap-2 text-gray-600">
                       <Clock className="w-4 h-4" />
                       <span>{test.duration}</span>
@@ -126,30 +270,12 @@ export function MockTests() {
                     {test.participants.toLocaleString()} students participated
                   </div>
 
-                  {/* FIRST TWO → Upcoming */}
-                  {index < 2 && (
-                    <div className="w-full bg-gray-100 border border-gray-200 rounded-lg p-3 cursor-default">
-                      <div className="text-left leading-tight">
-                        <p className="font-semibold text-[#1d4d6a]">Upcoming Test</p>
-                        <p className="text-xs text-gray-600">
-                          {index === 0
-                            ? "25 Nov 2025 — 10:00 AM"
-                            : "28 Nov 2025 — 03:00 PM"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* NEXT TWO → Start Test */}
-                  {index >= 2 && index < 4 && (
-                    <Button
-                      onClick={() => handleStartClick(test)}
-                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                    >
-                      Start Test
-                    </Button>
-                  )}
-
+                  <Button
+                    className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
+                    onClick={() => handleStartClick(test)}
+                  >
+                    Start Test
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -159,39 +285,45 @@ export function MockTests() {
         {/* Ongoing Tests */}
         <TabsContent value="ongoing" className="mt-6">
           <div className="space-y-4">
-            {ongoingTests.map((test) => (
-              <Card key={test.id} className="border-none shadow-md">
+            {ongoingTests.map((test: any) => (
+              <Card key={test.attemptId} className="border-none shadow-md">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-[#1d4d6a] mb-1">{test.title}</h3>
                       <p className="text-sm text-gray-500">{test.subject}</p>
                     </div>
-                    <Badge className={test.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}>
+                    <Badge className="bg-yellow-100 text-yellow-700">
                       {test.difficulty}
                     </Badge>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span>Progress: {test.completed} of {test.questions} questions</span>
-                      <span>{Math.round((test.completed / test.questions) * 100)}%</span>
+                      <span>
+                        Progress: {test.completed} / {test.questions}
+                      </span>
+                      <span>
+                        {Math.round((test.completed / test.questions) * 100)}%
+                      </span>
                     </div>
 
-                    <Progress value={(test.completed / test.questions) * 100} className="h-2" />
+                    <Progress
+                      value={(test.completed / test.questions) * 100}
+                      className="h-2"
+                    />
 
                     <div className="flex justify-between items-center pt-2">
                       <div className="text-sm text-gray-500 flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        <span>Time remaining: {test.duration}</span>
+                        <span>Time: {test.duration}</span>
                       </div>
 
                       <Button
                         className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                        onClick={() => handleContinueClick(test)}
+                        onClick={() => setContinueTest(test)}
                       >
-                        Continue Test
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        Continue Test <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>
@@ -201,88 +333,49 @@ export function MockTests() {
           </div>
         </TabsContent>
 
-        {/* Continue Test Modal */}
-        <Dialog open={!!continueTest} onOpenChange={handleCloseContinueModal}>
-          <DialogContent className="max-w-md">
-            {continueTest && (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-[#1d4d6a]">
-                    Continue {continueTest.title}
-                  </DialogTitle>
-                  <DialogDescription>
-                    You have an ongoing test. Would you like to resume it now?
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-3 text-sm text-gray-700 mt-2">
-                  <p><span className="font-medium">📚 Subject:</span> {continueTest.subject}</p>
-                  <p><span className="font-medium">📝 Progress:</span> {continueTest.completed}/{continueTest.questions} questions completed</p>
-                  <p><span className="font-medium">🕒 Duration:</span> {continueTest.duration}</p>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-3">
-                  <Button
-                    onClick={handleCloseContinueModal}
-                    className="bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  >
-                    Cancel
-                  </Button>
-
-                  <Button
-                    onClick={handleGoToOngoingTest}
-                    className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                  >
-                    Resume Test
-                  </Button>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
-
         {/* Completed Tests */}
         <TabsContent value="completed" className="mt-6">
           <div className="space-y-4">
-            {completedTests.map((test) => (
-              <Card key={test.id} className="border-none shadow-md hover:shadow-lg transition-all">
+            {completedTests.map((test: any) => (
+              <Card key={test.attemptId} className="border-none shadow-md">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-[#1d4d6a] mb-1">{test.title}</h3>
-                          <p className="text-sm text-gray-500">{test.subject} • {new Date(test.date).toLocaleDateString()}</p>
-                        </div>
+                    <div>
+                      <h3 className="text-[#1d4d6a] mb-1">{test.title}</h3>
+                      <p className="text-sm text-gray-500">
+                        {test.subject} • {new Date(test.date).toLocaleDateString()}
+                      </p>
+                    </div>
 
-                        <Badge className={
-                          test.score >= 90 ? 'bg-green-100 text-green-700' :
-                          test.score >= 75 ? 'bg-blue-100 text-blue-700' :
-                          'bg-orange-100 text-orange-700'
-                        }>
-                          {test.score >= 90 ? 'Excellent' : test.score >= 75 ? 'Good' : 'Pass'}
-                        </Badge>
-                      </div>
+                    <Badge className={
+                      test.score >= 90
+                        ? "bg-green-100 text-green-700"
+                        : test.score >= 75
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-orange-100 text-orange-700"
+                    }>
+                      {test.score >= 90 ? "Excellent" : test.score >= 75 ? "Good" : "Pass"}
+                    </Badge>
+                  </div>
 
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-1">Score</p>
-                          <p className="text-[#1d4d6a]">{test.score}/{test.maxScore}</p>
-                        </div>
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Score</p>
+                      <p className="text-[#1d4d6a]">{test.score}/{test.maxScore}</p>
+                    </div>
 
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-1">Rank</p>
-                          <p className="text-[#1d4d6a] flex items-center gap-1">
-                            <Trophy className="w-4 h-4 text-yellow-500" />
-                            #{test.rank}
-                          </p>
-                        </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Rank</p>
+                      <p className="text-[#1d4d6a] flex items-center gap-1">
+                        <Trophy className="w-4 h-4 text-yellow-500" />#{test.rank}
+                      </p>
+                    </div>
 
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-1">Percentile</p>
-                          <p className="text-[#1d4d6a]">{Math.round((1 - test.rank / test.participants) * 100)}th</p>
-                        </div>
-                      </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Percentile</p>
+                      <p className="text-[#1d4d6a]">
+                        {Math.round((1 - test.rank / test.participants) * 100)}th
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -291,81 +384,44 @@ export function MockTests() {
           </div>
         </TabsContent>
 
-        {/* Test Modal */}
-        <Dialog open={!!selectedTest} onOpenChange={handleCloseModal}>
-          <DialogContent className="max-w-md">
-            {selectedTest && (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-[#1d4d6a]">{selectedTest.title}</DialogTitle>
-                  <DialogDescription>Review details before starting the test.</DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-3 text-sm text-gray-700 mt-2">
-                  <p><span className="font-medium">📚 Subject:</span> {selectedTest.subject}</p>
-                  <p><span className="font-medium">🕒 Duration:</span> {selectedTest.duration}</p>
-                  <p><span className="font-medium">📝 Questions:</span> {selectedTest.questions}</p>
-                  <p><span className="font-medium">⚡ Difficulty:</span> {selectedTest.difficulty}</p>
-                  <p><span className="font-medium">👥 Participants:</span> {selectedTest.participants.toLocaleString()}</p>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-3">
-                  <Button onClick={handleCloseModal} className="bg-gray-200 text-gray-700 hover:bg-gray-300">
-                    Cancel
-                  </Button>
-
-                  <Button
-                    onClick={() => { window.open('/test', '_blank', 'noopener,noreferrer'); setSelectedTest(null); }}
-                    className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                  >
-                    Start Test
-                  </Button>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
-
         {/* Leaderboard */}
         <TabsContent value="leaderboard" className="mt-6">
           <Card className="border-none shadow-md">
             <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">Top Performers - This Month</CardTitle>
-              <CardDescription>See how you rank against other students</CardDescription>
+              <CardTitle className="text-[#1d4d6a]">Top Performers</CardTitle>
+              <CardDescription>See how you rank</CardDescription>
             </CardHeader>
+
             <CardContent>
               <div className="space-y-3">
-                {[
-                  { rank: 1, name: 'Sarah Johnson', score: 98, tests: 25, badge: '🥇' },
-                  { rank: 2, name: 'Michael Chen', score: 97, tests: 28, badge: '🥈' },
-                  { rank: 3, name: 'Emily Davis', score: 96, tests: 22, badge: '🥉' },
-                  { rank: 4, name: 'David Lee', score: 95, tests: 30, badge: '' },
-                  { rank: 5, name: 'Alex Rodriguez (You)', score: 94, tests: 18, badge: '', highlight: true },
-                  { rank: 6, name: 'Jessica Wang', score: 93, tests: 24, badge: '' },
-                  { rank: 7, name: 'Chris Martin', score: 92, tests: 20, badge: '' },
-                ].map((user) => (
-                  <div
-                    key={user.rank}
-                    className={`flex items-center justify-between p-4 rounded-lg ${user.highlight
-                      ? 'bg-[#bf2026] bg-opacity-10 border-2 border-[#bf2026]'
-                      : 'bg-gray-50'
-                      }`}
-                  >
+                {leaderboard.map((user: any) => (
+  <div
+    key={user.user_id}   // 🔥 UNIQUE KEY
+    className={`flex items-center justify-between p-4 rounded-lg ${
+      user.highlight
+        ? "bg-[#bf2026] bg-opacity-10 border-2 border-[#bf2026]"
+        : "bg-gray-50"
+    }`}
+  >
+
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full ${user.highlight ? 'bg-[#bf2026]' : 'bg-[#1d4d6a]'
-                        } text-white flex items-center justify-center`}>
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${
+                          user.highlight ? "bg-[#bf2026]" : "bg-[#1d4d6a]"
+                        }`}
+                      >
                         {user.badge || user.rank}
                       </div>
                       <div>
-                        <p className={`${user.highlight ? 'text-[#bf2026]' : 'text-[#1d4d6a]'}`}>
+                        <p className={user.highlight ? "text-[#bf2026]" : "text-[#1d4d6a]"}>
                           {user.name}
                         </p>
-                        <p className="text-xs text-gray-500">{user.tests} tests taken</p>
+                        <p className="text-xs text-gray-500">{user.tests} tests</p>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <p className={`${user.highlight ? 'text-[#bf2026]' : 'text-[#1d4d6a]'}`}>
+                      <p className={user.highlight ? "text-[#bf2026]" : "text-[#1d4d6a]"}>
                         {user.score}%
                       </p>
                       <p className="text-xs text-gray-500">Avg. Score</p>
@@ -376,8 +432,41 @@ export function MockTests() {
             </CardContent>
           </Card>
         </TabsContent>
-
       </Tabs>
+
+      {/* Continue Test Modal */}
+      <Dialog open={!!continueTest} onOpenChange={() => setContinueTest(null)}>
+        <DialogContent className="max-w-md">
+          {continueTest && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-[#1d4d6a]">
+                  Continue {continueTest.title}
+                </DialogTitle>
+                <DialogDescription>
+                  You have an unfinished test. Continue now?
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 mt-2 text-sm text-gray-700">
+                <p><b>📚 Subject:</b> {continueTest.subject}</p>
+                <p><b>📝 Progress:</b> {continueTest.completed}/{continueTest.questions}</p>
+                <p><b>🕒 Duration:</b> {continueTest.duration}</p>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <Button className="bg-gray-200 text-gray-700" onClick={() => setContinueTest(null)}>Cancel</Button>
+                <Button
+                  className="bg-[#bf2026] text-white"
+                  onClick={handleGoToOngoingTest}
+                >
+                  Resume Test
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

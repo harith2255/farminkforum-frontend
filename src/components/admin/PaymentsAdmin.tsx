@@ -7,20 +7,22 @@ import { useEffect, useState } from 'react';
 import * as React from 'react';
 
 export function PaymentsAdmin() {
-  const [stats, setStats] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState<any[]>([]);          // ✅ FIXED
+  const [transactions, setTransactions] = useState<any[]>([]);  // ✅ FIXED
 
-  useEffect(() => {
+
+ useEffect(() => {
     const loadPayments = async () => {
       try {
-        const token = localStorage.getItem("token");
-        console.log("TOKEN SENT:", token);
+       const token = localStorage.getItem("token");
+console.log("TOKEN SENT:", token);
+
 
         /* ---------------------------
-                   1️⃣ Fetch Payment Stats
-                --------------------------- */
+           1️⃣ Fetch Payment Stats
+        --------------------------- */
         console.log("▶ Fetching Stats...");
-
+        
         const statsRes = await axios.get(
           "https://ebook-backend-lxce.onrender.com/api/admin/payments/stats",
           { headers: { Authorization: `Bearer ${token}` } }
@@ -29,8 +31,8 @@ export function PaymentsAdmin() {
         console.log("📊 Stats Response:", statsRes.data);
 
         /* ---------------------------
-         2️⃣ Fetch Transactions
-      --------------------------- */
+           2️⃣ Fetch Transactions
+        --------------------------- */
         console.log("▶ Fetching Transactions...");
         const txnRes = await axios.get(
           "https://ebook-backend-lxce.onrender.com/api/admin/payments/transactions",
@@ -56,16 +58,16 @@ export function PaymentsAdmin() {
         setStats(statsRes.data.stats);
         setTransactions(txnRes.data.transactions);
 
-      } catch (error: any) {
-        console.error("❌ Payment Load Error:", error);
+      }  catch (error: any) {
+  console.error("❌ Payment Load Error:", error);
 
-        if (error.response) {
-          console.error("⚠ Backend Error Response:", error.response.data);
-          console.error("⚠ Backend Status:", error.response.status);
-        } else {
-          console.error("⚠ No backend response:", error.message);
-        }
-      }
+  if (error.response) {
+    console.error("⚠ Backend Error Response:", error.response.data);
+    console.error("⚠ Backend Status:", error.response.status);
+  } else {
+    console.error("⚠ No backend response:", error.message);
+  }
+}
 
     };
 
@@ -85,6 +87,7 @@ export function PaymentsAdmin() {
         </Button>
       </div>
 
+      {/* ---------- Stats Section ---------- */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="border-none shadow-md">
@@ -95,7 +98,7 @@ export function PaymentsAdmin() {
                   <h3 className="text-[#1d4d6a] mb-1">{stat.value}</h3>
                   <p className="text-xs text-green-600">{stat.change}</p>
                 </div>
-                <div className="w-12 h-12  bg-opacity-10 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center">
                   <stat.icon className="w-6 h-6 text-[#bf2026]" />
                 </div>
               </div>
@@ -104,11 +107,13 @@ export function PaymentsAdmin() {
         ))}
       </div>
 
+      {/* ---------- Transactions Section ---------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Recent Transactions</CardTitle>
           <CardDescription>Latest payment activity</CardDescription>
         </CardHeader>
+
         <CardContent>
           <div className="space-y-3">
             {transactions.map((txn) => (
@@ -116,18 +121,25 @@ export function PaymentsAdmin() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
                     <h4 className="text-[#1d4d6a]">{txn.id}</h4>
-                    <Badge className={
-                      txn.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        txn.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                    }>
+
+                    <Badge
+                      className={
+                        txn.status === 'Completed'
+                          ? 'bg-green-100 text-green-700'
+                          : txn.status === 'Pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
+                      }
+                    >
                       {txn.status}
                     </Badge>
                   </div>
+
                   <p className="text-sm text-gray-500">
                     {txn.user} • {txn.type} • {new Date(txn.date).toLocaleDateString()}
                   </p>
                 </div>
+
                 <div className="text-right">
                   <p className="text-[#1d4d6a]">{txn.amount}</p>
                 </div>

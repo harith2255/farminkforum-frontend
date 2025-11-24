@@ -9,7 +9,7 @@ import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-
+import * as React from "react";
 
 export function ReportsAnalytics() {
   const [analytics, setAnalytics] = useState<any[]>([]);
@@ -73,26 +73,27 @@ export function ReportsAnalytics() {
   // Download Report
   // --------------------------------------------
   const downloadReport = async (id: string) => {
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-    try {
-      const res = await axios.get(
-        `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob"
-        }
-      );
+  try {
+    const res = await axios.get(
+      `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob"
+      }
+    );
 
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `report-${id}.csv`;
-      a.click();
-    } catch (err) {
-      console.error("Download error:", err);
-    }
-  };
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report-${id}.csv`;
+    a.click();
+  } catch (err) {
+    console.error("Download error:", err);
+  }
+};
+
 
   useEffect(() => {
     const load = async () => {
@@ -108,9 +109,6 @@ export function ReportsAnalytics() {
     return <p className="text-center py-6 text-gray-500">Loading reports...</p>;
   }
 
-
-
-
   return (
     <div className="space-y-6">
       <div>
@@ -118,6 +116,9 @@ export function ReportsAnalytics() {
         <p className="text-sm text-gray-500">Generate and download platform reports</p>
       </div>
 
+      {/* ---------------------------- */}
+      {/* Line Chart: Revenue vs Users */}
+      {/* ---------------------------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Revenue vs User Growth</CardTitle>
@@ -130,6 +131,7 @@ export function ReportsAnalytics() {
               <YAxis stroke="#6b7280" />
               <Tooltip />
               <Legend />
+
               <Line type="monotone" dataKey="revenue" stroke="#bf2026" strokeWidth={2} name="Revenue (₹)" />
               <Line type="monotone" dataKey="users" stroke="#1d4d6a" strokeWidth={2} name="New Users" />
             </LineChart>
@@ -137,6 +139,9 @@ export function ReportsAnalytics() {
         </CardContent>
       </Card>
 
+      {/* ---------------------------- */}
+      {/* Bar Chart: Books Sold */}
+      {/* ---------------------------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Books Sold by Month</CardTitle>
@@ -149,37 +154,56 @@ export function ReportsAnalytics() {
               <YAxis stroke="#6b7280" />
               <Tooltip />
               <Legend />
+
               <Bar dataKey="books" fill="#bf2026" name="Books Sold" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
+      {/* ---------------------------- */}
+      {/* Generated Reports Section   */}
+      {/* ---------------------------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-[#1d4d6a]">Generated Reports</CardTitle>
-            <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white">
+            <Button
+              className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
+              onClick={generateNewReport}
+            >
               Generate New Report
             </Button>
           </div>
         </CardHeader>
+
         <CardContent>
           <div className="space-y-3">
-            {reports.map((report, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            {reports.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+              >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12  bg-opacity-10 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center">
                     <FileText className="w-6 h-6 text-[#bf2026]" />
                   </div>
+
                   <div>
-                    <h4 className="text-[#1d4d6a] mb-1">{report.name}</h4>
+                    <h4 className="text-[#1d4d6a] mb-1">{r.name}</h4>
                     <p className="text-sm text-gray-500">
-                      {report.description} • {report.format} • Generated {new Date(report.lastGenerated).toLocaleDateString()}
+                      {r.description} • {r.format} • Generated{" "}
+                      {new Date(r.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2">
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => downloadReport(r.id)}
+                >
                   <Download className="w-4 h-4" />
                   Download
                 </Button>

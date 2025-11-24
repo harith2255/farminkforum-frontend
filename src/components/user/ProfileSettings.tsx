@@ -1,5 +1,5 @@
 // ProfileSettings.tsx
-import { useEffect, useRef, useState } from "react";
+import  { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -69,6 +69,7 @@ type SessionItem = {
 
 export const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notifications, setNotifications] = useState<NotificationsShape>({});
   const [security, setSecurity] = useState<SecurityShape>({});
@@ -85,13 +86,52 @@ export const ProfileSettings: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   // helper to add Authorization header
-  const getValidToken = () => {
-    // try Supabase session first
-    const session = JSON.parse(localStorage.getItem("session") || "{}");
-    return session?.access_token || localStorage.getItem("token");
-  };
+// Always fetch fresh token from Supabase session or fallback "token"
+const getValidToken = () => {
+  try {
+    const sessionRaw = localStorage.getItem("session");
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw);
+      if (session?.access_token) return session.access_token;
+    }
+  } catch (err) {}
 
-  const token = getValidToken();
+  return localStorage.getItem("token");
+};
+
+const token = getValidToken(); // required — fixes "token is not defined"
+
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res: AxiosResponse<any> = await axios.get(API, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Backend expected structure: { profile, notifications, security }
+        const serverProfile: Profile = res.data.profile || null;
+        const serverNotifications: NotificationsShape = res.data.notifications || {};
+        const serverSecurity: SecurityShape = res.data.security || {};
+
+        setProfile(serverProfile);
+        setNotifications(serverNotifications);
+        setSecurity(serverSecurity);
+
+        // load sessions
+        await loadSessions();
+      } catch (err: any) {
+        console.error("Profile load error:", err);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* -------------------------
      SESSIONS
@@ -223,6 +263,8 @@ export const ProfileSettings: React.FC = () => {
 
   /* -------------------------
      NOTIFICATIONS (Auto-save)
+     We send an object to backend: { email_notifications, push_notifications }
+     Backend must accept JSON in those fields (supabase jsonb or text)
   ------------------------- */
   const updateNotifSettings = async (payload: NotificationsShape) => {
     try {
@@ -296,45 +338,6 @@ export const ProfileSettings: React.FC = () => {
   };
 
   /* -------------------------
-     Load profile data
-  ------------------------- */
-  const loadProfileFromServer = async () => {
-    try {
-      const res: AxiosResponse<any> = await axios.get(API, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const serverProfile: Profile = res.data.profile || null;
-      const serverNotifications: NotificationsShape = res.data.notifications || {};
-      const serverSecurity: SecurityShape = res.data.security || {};
-
-      setProfile(serverProfile);
-      setNotifications(serverNotifications);
-      setSecurity(serverSecurity);
-    } catch (err) {
-      console.error("Reload profile failed", err);
-    }
-  };
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        await loadProfileFromServer();
-        await loadSessions();
-      } catch (err: any) {
-        console.error("Profile load error:", err);
-        setError("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* -------------------------
      UI helpers
   ------------------------- */
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,10 +350,6 @@ export const ProfileSettings: React.FC = () => {
   /* -------------------------
      RENDER
   ------------------------- */
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -358,17 +357,8 @@ export const ProfileSettings: React.FC = () => {
         <p className="text-sm text-gray-500">Manage your account settings and preferences</p>
       </div>
 
-      {/* Status Messages */}
-      {message && (
-        <div className="p-3 bg-green-100 text-green-700 rounded-lg">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
+      {message && <div className="text-green-600">{message}</div>}
+      {error && <div className="text-red-600">{error}</div>}
 
       <Tabs defaultValue="personal" className="w-full">
         <TabsList className="bg-white border border-gray-200">
@@ -397,6 +387,7 @@ export const ProfileSettings: React.FC = () => {
                     </AvatarFallback>
                   )}
                 </Avatar>
+
                 <div>
                   <input
                     ref={avatarInputRef}
@@ -449,7 +440,7 @@ export const ProfileSettings: React.FC = () => {
                   <Label>Date of Birth</Label>
                   <Input
                     type="date"
-                    value={profile?.dob ?? ""}
+                    value={profile?.dob ?? "1998-05-15"}
                     onChange={(e) => updateProfileField("dob", e.target.value)}
                   />
                 </div>
@@ -458,7 +449,7 @@ export const ProfileSettings: React.FC = () => {
               <div>
                 <Label>Institution</Label>
                 <Input
-                  value={profile?.institution ?? ""}
+                  value={profile?.institution ?? "Massachusetts Institute of Technology"}
                   onChange={(e) => updateProfileField("institution", e.target.value)}
                 />
               </div>
@@ -467,14 +458,14 @@ export const ProfileSettings: React.FC = () => {
                 <div>
                   <Label>Field of Study</Label>
                   <Input
-                    value={profile?.field_of_study ?? ""}
+                    value={profile?.field_of_study ?? "Computer Science"}
                     onChange={(e) => updateProfileField("field_of_study", e.target.value)}
-                />
+                  />
                 </div>
                 <div>
                   <Label>Academic Level</Label>
                   <Input
-                    value={profile?.academic_level ?? ""}
+                    value={profile?.academic_level ?? "Graduate"}
                     onChange={(e) => updateProfileField("academic_level", e.target.value)}
                   />
                 </div>
@@ -484,13 +475,16 @@ export const ProfileSettings: React.FC = () => {
                 <Label>Bio</Label>
                 <textarea
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent min-h-[100px]"
-                  value={profile?.bio ?? ""}
+                  value={profile?.bio ?? "Graduate student studying machine learning and artificial intelligence."}
                   onChange={(e) => updateProfileField("bio", e.target.value)}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <Button variant="outline" onClick={loadProfileFromServer}>
+                <Button variant="outline" onClick={() => {
+                  // reset to last saved profile (reload)
+                  if (profile?.id) loadProfileFromServer(profile.id);
+                }}>
                   Cancel
                 </Button>
                 <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white" onClick={updatePersonalInfo}>
@@ -639,7 +633,7 @@ export const ProfileSettings: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* <Card className="border-none shadow-md mt-4">
+          <Card className="border-none shadow-md mt-4">
             <CardHeader>
               <CardTitle className="text-[#1d4d6a]">Language & Region</CardTitle>
               <CardDescription>Set your language and timezone preferences</CardDescription>
@@ -672,7 +666,7 @@ export const ProfileSettings: React.FC = () => {
                 </select>
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
         </TabsContent>
 
         {/* Notifications */}
@@ -749,6 +743,22 @@ export const ProfileSettings: React.FC = () => {
       </Tabs>
     </div>
   );
+
+  /* -------------------------
+     Local helper: reload a single profile from server (used by Cancel)
+  ------------------------- */
+  async function loadProfileFromServer(profileId?: string) {
+    if (!profileId) return;
+    try {
+      const res = await axios.get(API, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const serverProfile: Profile = res.data.profile || null;
+      setProfile(serverProfile);
+    } catch (err) {
+      console.error("Reload profile failed", err);
+    }
+  }
 };
 
 export default ProfileSettings;

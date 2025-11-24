@@ -6,6 +6,7 @@ import axios from "axios";
 export default function CartPage({ onNavigate, items }: any) {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
   const token = localStorage.getItem("token");
 
   /* --------------------------------------------------------
@@ -17,7 +18,6 @@ export default function CartPage({ onNavigate, items }: any) {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCartItems(Array.isArray(res.data.items) ? res.data.items : []);
-
     } catch (err) {
       console.error("Failed to fetch cart:", err);
     } finally {
@@ -39,6 +39,7 @@ export default function CartPage({ onNavigate, items }: any) {
 
     return () => window.removeEventListener("cart:changed", handler);
   }, []);
+
   /* --------------------------------------------------------
      🗑 2. REMOVE ITEM FROM CART
   -------------------------------------------------------- */
@@ -98,9 +99,7 @@ export default function CartPage({ onNavigate, items }: any) {
         <p className="text-gray-500 text-lg">Your cart is empty.</p>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
-          {/* --------------------------------------
-              LEFT SIDE – ITEM LIST
-          --------------------------------------- */}
+          {/* ITEM LIST */}
           <div className="md:col-span-2 space-y-4">
             {cartItems.map((item) => {
               const product = item.book || item.note;
@@ -159,9 +158,7 @@ export default function CartPage({ onNavigate, items }: any) {
             })}
           </div>
 
-          {/* --------------------------------------
-              RIGHT SIDE – SUMMARY
-          --------------------------------------- */}
+          {/* SUMMARY */}
           <div className="bg-white rounded-2xl shadow p-5 h-fit">
             <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
 
@@ -181,7 +178,8 @@ export default function CartPage({ onNavigate, items }: any) {
                 localStorage.setItem("purchaseType", "cart");
                 localStorage.setItem("cartItems", JSON.stringify(cartItems));
                 onNavigate("purchase"); // ✅ FIXED
-              }}            >
+              }}
+            >
               Proceed to Checkout
             </Button>
           </div>
