@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { Avatar } from './ui/avatar';
 import { AdminDashboardHome } from './admin/AdminDashboardHome';
 import { CustomerManagement } from './admin/CustomerManagement';
-import ContentManagement  from './admin/ContentManagement';
+import ContentManagement from './admin/ContentManagement';
 import { DRMControls } from './admin/DRMControls';
 import { PaymentsAdmin } from './admin/PaymentsAdmin';
 import { ReportsAnalytics } from './admin/ReportsAnalytics';
@@ -54,6 +54,8 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [avataropen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement | null>(null);
+  const [writingNotification, setWritingNotification] = useState(false);
+
 
   const menuItems = [
     { id: 'dashboard' as AdminSection, icon: LayoutDashboard, label: 'Dashboard' },
@@ -143,8 +145,6 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
 
         </div>
 
-
-
         <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent">
           <nav className="p-4">
             {menuItems.map((item) => (
@@ -153,6 +153,11 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
                 onClick={() => {
                   setActiveSection(item.id);
                   window.history.pushState({}, "", `/admin-dashboard/${item.id}`);
+
+                  // When admin opens Writing Services, remove notification
+                  if (item.id === "writing") {
+                    setWritingNotification(false);
+                  }
                 }}
                 className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'} rounded-lg mb-1 transition-all group ${activeSection === item.id
                   ? 'bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20'
@@ -160,9 +165,18 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
                   }`}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                <item.icon
-                  className={`transition-all duration-200 ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}`}
-                />
+                <div className="relative">
+                  <item.icon
+                    className={`transition-all duration-200 
+            ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} 
+            ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}`}
+                  />
+
+                  {/* 🔴 BLINKING NOTIFICATION DOT */}
+                  {item.id === "writing" && writingNotification && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping" />
+                  )}
+                </div>
                 {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
               </button>
             ))}

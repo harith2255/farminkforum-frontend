@@ -18,6 +18,7 @@ import {
   Settings,
   Navigation,
   ShoppingCart,
+  PenIcon
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -248,7 +249,7 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
     { id: "library", icon: BookOpen, label: "My Library" },
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
-    { id: "writing", icon: FileText, label: "Writing Services" },
+    { id: "writing", icon: PenIcon, label: "Writing Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
     { id: "payments", icon: CreditCard, label: "Payments" },
     { id: "profile", icon: User, label: "Profile" },
@@ -650,10 +651,10 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
 
 const API_URL = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
 
-export default function DashboardHome({ onOpenBook }) {
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) => void }) {
+  const [dashboardData, setDashboardData] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
   // Fetch dashboard with Bearer token
   useEffect(() => {
@@ -778,7 +779,7 @@ export default function DashboardHome({ onOpenBook }) {
             </p>
           )}
 
-          {recentBooks.map((entry, index) => {
+          {recentBooks.map((entry: any, index: number) => {
             const book = entry.ebooks; // 👈 FIXED
             if (!book) return null;
 

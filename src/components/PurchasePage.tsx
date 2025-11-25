@@ -60,13 +60,13 @@ export default function PurchasePage({ onNavigate }: any) {
               try {
                 if (c.book_id) {
                   const res = await axios.get(
-                    `https://ebook-backend-lxce.onrender.com/api/ebooks/${c.book_id}`
+                    `http://localhost:5000/api/ebooks/${c.book_id}`
                   );
                   return { ...c, book: res.data };
                 }
                 if (c.note_id) {
                   const res = await axios.get(
-                    `https://ebook-backend-lxce.onrender.com/api/notes/${c.note_id}`
+                    `http://localhost:5000/api/notes/${c.note_id}`
                   );
                   return { ...c, note: res.data };
                 }
@@ -90,7 +90,7 @@ export default function PurchasePage({ onNavigate }: any) {
         // ───────────────────────────────────────────────
         if (purchaseType === "book") {
           const res = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/content?type=books"
+            "http://localhost:5000/api/content?type=books"
           );
           const found = res.data.contents?.find(
             (b: any) => String(b.id) === String(purchaseId)
@@ -107,7 +107,7 @@ export default function PurchasePage({ onNavigate }: any) {
         // ───────────────────────────────────────────────
         if (purchaseType === "note") {
           const res = await axios.get(
-            `https://ebook-backend-lxce.onrender.com/api/notes/${purchaseId}`
+            `http://localhost:5000/api/notes/${purchaseId}`
           );
           if (!res.data) throw new Error("Note not found");
 
@@ -121,7 +121,7 @@ export default function PurchasePage({ onNavigate }: any) {
         // ───────────────────────────────────────────────
         if (purchaseType === "subscription") {
           const res = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/subscriptions/plans"
+            "http://localhost:5000/api/subscriptions/plans"
           );
           const found = res.data?.find(
             (p: any) => String(p.id) === String(purchaseId)
@@ -138,7 +138,7 @@ export default function PurchasePage({ onNavigate }: any) {
         // ───────────────────────────────────────────────
         if (purchaseType === "writing") {
           const res = await axios.get(
-            `https://ebook-backend-lxce.onrender.com/api/writing/order/${purchaseId}`,
+            `http://localhost:5000/api/writing/order/${purchaseId}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -176,7 +176,7 @@ export default function PurchasePage({ onNavigate }: any) {
       // BOOK
       if (item.type === "book") {
         await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/purchase",
+          "http://localhost:5000/api/purchase",
           { bookId: item.id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -185,7 +185,7 @@ export default function PurchasePage({ onNavigate }: any) {
       // NOTE
       if (item.type === "note") {
         await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/notes/purchase",
+          "http://localhost:5000/api/notes/purchase",
           { noteId: item.id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -194,7 +194,7 @@ export default function PurchasePage({ onNavigate }: any) {
       // SUBSCRIPTION
       if (item.type === "subscription") {
         await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
+          "http://localhost:5000/api/subscriptions/upgrade",
           { planId: item.id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -203,7 +203,7 @@ export default function PurchasePage({ onNavigate }: any) {
       // WRITING ORDER
       if (item.type === "writing") {
         await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/writing/checkout",
+          "http://localhost:5000/api/writing/checkout",
           { orderId: item.id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -216,7 +216,7 @@ export default function PurchasePage({ onNavigate }: any) {
             if (entry.book_id || entry.book?.id) {
               const bookId = entry.book_id || entry.book?.id;
               await axios.post(
-                "https://ebook-backend-lxce.onrender.com/api/purchase",
+                "http://localhost:5000/api/purchase",
                 { bookId },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
@@ -225,7 +225,7 @@ export default function PurchasePage({ onNavigate }: any) {
             if (entry.note_id || entry.note?.id) {
               const noteId = entry.note_id || entry.note?.id;
               await axios.post(
-                "https://ebook-backend-lxce.onrender.com/api/notes/purchase",
+                "http://localhost:5000/api/notes/purchase",
                 { noteId },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
@@ -233,7 +233,7 @@ export default function PurchasePage({ onNavigate }: any) {
 
             if (entry.id) {
               await axios.delete(
-                `https://ebook-backend-lxce.onrender.com/api/cart/${entry.id}`,
+                `http://localhost:5000/api/cart/${entry.id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
               );
             }

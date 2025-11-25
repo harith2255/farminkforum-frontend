@@ -230,13 +230,13 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const calculatePrice = useCallback((): number => {
     const pages = parseInt(formData.pages) || 0;
     const selectedService = services.find(s => s.name === formData.type);
-    
+
     if (selectedService) {
       const basePrice = selectedService.base_price || 20;
       const pricePerPage = selectedService.price_per_page || 10;
       return basePrice + (pages * pricePerPage);
     }
-    
+
     return pages * 10 + 20; // Default pricing
   }, [formData.pages, formData.type, services]);
 
@@ -252,28 +252,28 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
     const maxSize = 10 * 1024 * 1024; // 10MB
-    
+
     if (!validTypes.includes(file.type)) {
       return "Please upload PDF, DOC, or DOCX files only";
     }
-    
+
     if (file.size > maxSize) {
       return "File size must be less than 10MB";
     }
-    
+
     return null;
   }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const error = validateFile(file);
     if (error) {
       toast.error(error);
       return;
     }
-    
+
     setSelectedFile(file);
     setUploadProgress(0);
   }, [validateFile]);
@@ -335,7 +335,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       formData.append("file", file);
 
       const xhr = new XMLHttpRequest();
-      
+
       return new Promise((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
@@ -377,7 +377,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     }
 
     setSubmitting(true);
-    
+
     try {
       // Upload file if selected
       let attachments_url = null;
@@ -441,14 +441,14 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       setSubmitting(false);
     }
   }, [
-    formData, 
-    selectedFile, 
-    calculatePrice, 
-    getJsonHeaders, 
-    fetchActiveOrders, 
-    onNavigate, 
-    handleApiError, 
-    uploadFile, 
+    formData,
+    selectedFile,
+    calculatePrice,
+    getJsonHeaders,
+    fetchActiveOrders,
+    onNavigate,
+    handleApiError,
+    uploadFile,
     validateStep
   ]);
 
@@ -560,7 +560,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       </div>
     );
   }
-// UI STARTS (UNCHANGED layout-wise)
+  // UI STARTS (UNCHANGED layout-wise)
   return (
     <div className="space-y-6">
       <div>
@@ -616,20 +616,25 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                 {/* ----------------------- STEP 1 ----------------------- */}
                 {step === 1 && (
                   <div className="space-y-4">
+
+                    {/* Service Type + Academic Level */}
                     <div className="grid grid-cols-2 gap-4">
                       {/* Service Type */}
                       <div>
-                        <Label>Service Type</Label>
-                        <Select onValueChange={(v) => updateForm("type", v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select service" />
+                        <Label>Type of Service<span className="text-red-500">*</span></Label>
+                        <Select
+                          value={formData.type}
+                          onValueChange={(value) => updateForm("type", value)}
+                          required 
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select Service Type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {services.map((srv) => (
-                              <SelectItem key={srv.id} value={srv.name}>
-  {srv.name}
-</SelectItem>
-
+                            {SERVICE_TYPES.map((service) => (
+                              <SelectItem key={service.value} value={service.value}>
+                                {service.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -637,20 +642,21 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
                       {/* Academic Level */}
                       <div>
-                        <Label>Academic Level</Label>
+                        <Label>Academic Level<span className="text-red-500">*</span></Label>
                         <Select
-                          onValueChange={(v) => updateForm("academic_level", v)}
+                          value={formData.academic_level}
+                          onValueChange={(value) => updateForm("academic_level", value)}
+                          required 
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select level" />
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select Academic Level" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="high-school">High School</SelectItem>
-                            <SelectItem value="undergraduate">
-                              Undergraduate
-                            </SelectItem>
-                            <SelectItem value="masters">Master's</SelectItem>
-                            <SelectItem value="phd">PhD</SelectItem>
+                            {ACADEMIC_LEVELS.map((lvl) => (
+                              <SelectItem key={lvl.value} value={lvl.value}>
+                                {lvl.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -658,78 +664,107 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
                     {/* Title */}
                     <div>
-                      <Label>Topic/Title</Label>
+                      <Label>Title<span className="text-red-500">*</span></Label>
                       <Input
-                        placeholder="Enter your topic or title"
+                        className="mt-1"
+                        placeholder="Enter Title"
                         value={formData.title}
                         onChange={(e) => updateForm("title", e.target.value)}
+                        required 
                       />
                     </div>
 
-                    {/* Subject Area */}
-                    <div>
-                      <Label>Subject Area</Label>
-                      <Select
-                        onValueChange={(v) => updateForm("subject_area", v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subject" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="science">Natural Sciences</SelectItem>
-                          <SelectItem value="social">Social Sciences</SelectItem>
-                          <SelectItem value="humanities">Humanities</SelectItem>
-                          <SelectItem value="engineering">Engineering</SelectItem>
-                          <SelectItem value="business">Business</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+                    {/* Subject Area + Pages */}
                     <div className="grid grid-cols-2 gap-4">
+                      {/* Subject Area */}
+                      <div>
+                        <Label>Subject Area<span className="text-red-500">*</span></Label>
+                        <Select
+                          value={formData.subject_area}
+                          onValueChange={(value) => updateForm("subject_area", value)}
+                          required
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select Subject Area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SUBJECT_AREAS.map((subject) => (
+                              <SelectItem key={subject.value} value={subject.value}>
+                                {subject.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* Pages */}
                       <div>
-                        <Label>Number of Pages</Label>
+                        <Label>Pages Required<span className="text-red-500">*</span></Label>
                         <Input
                           type="number"
+                          min="1"
+                          className="mt-1"
+                          placeholder="e.g., 4"
                           value={formData.pages}
                           onChange={(e) => updateForm("pages", e.target.value)}
-                        />
-                      </div>
-
-                      {/* Deadline */}
-                      <div>
-                        <Label>Deadline</Label>
-                        <Input
-                          type="date"
-                          value={formData.deadline}
-                          onChange={(e) => updateForm("deadline", e.target.value)}
+                          required
                         />
                       </div>
                     </div>
 
-                    <Button
-                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                      onClick={() => setStep(2)}
-                    >
-                      Continue to Details
-                    </Button>
+                    {/* Deadline */}
+                    <div>
+                      <Label>Deadline<span className="text-red-500">*</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          className="mt-1"
+                          value={formData.deadline}
+                          onChange={(e) => updateForm("deadline", e.target.value)}
+                          required
+                        />
+                        <Calendar className="text-gray-500" size={18} />
+                      </div>
+                    </div>
+                                        <Button
+      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
+      onClick={() => {
+        if (
+          !formData.type ||
+          !formData.academic_level ||
+          !formData.title ||
+          !formData.subject_area ||
+          !formData.pages ||
+          !formData.deadline
+        ) {
+          alert("Please fill all fields before continuing.");
+          return;
+        }
+        setStep(2);
+      }}
+    >
+      Continue to Details
+    </Button>
+
                   </div>
                 )}
+
 
                 {/* ----------------------- STEP 2 ----------------------- */}
                 {step === 2 && (
                   <div className="space-y-4">
                     {/* Instructions */}
                     <div>
-                      <Label>Detailed Instructions</Label>
+                      <Label>Detailed Instructions<span className="text-red-500">*</span></Label>
                       <Textarea
                         className="min-h-[150px]"
                         value={formData.instructions}
                         onChange={(e) => updateForm("instructions", e.target.value)}
+                        required
                       />
                     </div>
 
-  
+
 
                     {/* Optional Upload */}
                     <div>
@@ -773,6 +808,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                       <Button
                         className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white"
                         onClick={() => setStep(3)}
+                        disabled={!isStepValid}
                       >
                         Continue to Review
                       </Button>
@@ -1151,6 +1187,6 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }
