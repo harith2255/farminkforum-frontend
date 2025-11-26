@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Button } from "../ui/button";
 import { Carousel } from "./Carousel";
 
@@ -34,7 +35,7 @@ export function Hero({ onNavigate, onOpenBook }: HeroProps) {
       </p>
       <Button
         className="bg-[#bf2026] hover:bg-[#a01c22] text-white px-6 py-3 rounded-lg text-lg transition-all"
-        onClick={() => onNavigate("login")}
+        onClick={() => navigate("login")}
       >
         Start Reading
       </Button>

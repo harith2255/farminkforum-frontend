@@ -45,11 +45,19 @@ export default function NotesRepository({ onNavigate }: any) {
      - Sets mode to note purchase
      - Navigates to purchase page
   ---------------------------------------- */
-  const buyNow = (noteId: number) => {
-    localStorage.setItem("purchaseType", "note");
-    localStorage.setItem("purchaseId", noteId.toString());
-    onNavigate(`purchase/${noteId}`);
-  };
+ const buyNow = (noteId: number) => {
+  localStorage.setItem("purchaseType", "note");
+  localStorage.setItem("purchaseId", noteId.toString());
+
+  // Mark previous page so purchase page can go back
+  localStorage.setItem("previousSection", "notes");
+
+  // Navigate using your manual routing
+  onNavigate("purchase");
+
+  // Update URL to show dynamic ID (visual only)
+  window.history.pushState({}, "", `/purchase/${noteId}`);
+};
 
   /* ----------------------------------------
      Fetch Notes + Downloaded Notes

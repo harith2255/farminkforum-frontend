@@ -41,8 +41,14 @@ export default function BookCard({ book, onNavigate }: BookCardProps) {
     console.error("Add to cart error:", err);
     toast.error("Failed to add to cart");
   }
-};
+};console.log("BOOK CARD DATA:", book);
 
+
+const cover =
+  book.cover_url ||
+  book.cover ||
+  book.image ||
+  "https://placehold.co/300x400?text=No+Cover";
 
   const handleBuyNow = () => {
     const token = localStorage.getItem("token");
@@ -53,17 +59,20 @@ export default function BookCard({ book, onNavigate }: BookCardProps) {
     }
   };
 
-  const handleViewDetails = () => onNavigate(`book/${book.id}`);
-
+  const handleViewDetails = () => {
+    onNavigate?.(`reader`); // or your detail route
+  };
 
   return (
     <Card className="border-none shadow-md hover:shadow-xl transition-all group overflow-hidden">
       <div className="relative h-64 overflow-hidden">
         <ImageWithFallback
-          src={book.cover || book.cover_url || book.image}
-          alt={book.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
+  src={cover}
+  alt={book.title}
+  
+  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+/>
+
 
         {book.bestseller && (
           <Badge className="absolute top-3 left-3 bg-[#bf2026] text-white flex items-center">

@@ -18,7 +18,10 @@ import {
   Settings,
   Navigation,
   ShoppingCart,
-  PenIcon
+  PenIcon,
+  Crown,
+  PenTool,
+  ShoppingBag
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -27,7 +30,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { toast } from "sonner";
 
 import Explore from "./user/Explore";
-import { MyLibrary } from "./user/MyLibrary";
+import MyLibrary  from "./user/MyLibrary";
 import { MockTests } from "./user/MockTests";
 import NotesRepository from "./user/NotesRepository";
 import { WritingServices } from "./user/WritingServices";
@@ -39,7 +42,7 @@ import CartPage from "./user/Cartpage";
 import axios from "axios";
 import * as React from "react";
 import { Progress } from "./ui/progress";
-import PurchasePage from "./PurchasePage";
+import UniversalPurchasePage from "./PurchasePage";
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
@@ -81,7 +84,7 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-
+  
   // ✅ FIX: Load Profile CLEANLY here
   useEffect(() => {
     async function loadProfile() {
@@ -113,41 +116,7 @@ useEffect(() => {
   }
 }, []);
 
-useEffect(() => {
-  const onPop = () => {
-    const path = window.location.pathname;
-
-    if (path.startsWith("/user-dashboard/")) {
-      const sub = path.replace("/user-dashboard/", "").trim();
-      if (sub) {
-        setActiveSection(sub as UserSection);
-        return;
-      }
-    }
-
-    // default section
-    setActiveSection("dashboard");
-  };
-
-  window.addEventListener("popstate", onPop);
-  return () => window.removeEventListener("popstate", onPop);
-}, []);
-
-
-  useEffect(() => {
-  const handler = (e: any) => {
-    const section = e.detail;
-    if (section) {
-      setActiveSection(section);
-    }
-  };
-
-  window.addEventListener("restore-user-section", handler);
-  return () => window.removeEventListener("restore-user-section", handler);
-}, []);
-
-
-  // Dashboard fetch
+ // Dashboard fetch
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -281,6 +250,61 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", sidebarCollapsed.toString());
   }, [sidebarCollapsed]);
+
+   // 🚀 MASTER URL ⟶ SECTION SYNC (replace all old ones)
+useEffect(() => {
+  const syncFromURL = () => {
+    let path = window.location.pathname;
+
+    if (!path.startsWith("/user-dashboard")) {
+      setActiveSection("dashboard");
+      return;
+    }
+
+    let sub = path.replace("/user-dashboard/", "").trim();
+
+    // normalize weird patterns
+    if (sub === "" || sub === "/") sub = "dashboard";
+    if (sub.startsWith("purchase")) sub = "purchase";
+    if (sub.startsWith("cart")) sub = "cartpage";
+
+    const valid: UserSection[] = [
+      "dashboard","explore","library","tests","notes","writing","jobs",
+      "payments","profile","notifications","cartpage","purchase"
+    ];
+
+    if (valid.includes(sub as UserSection)) {
+      setActiveSection(sub as UserSection);
+    } else {
+      setActiveSection("dashboard");
+    }
+  };
+
+  // Run immediately (first load)
+  syncFromURL();
+
+  // Browser back/forward
+  window.addEventListener("popstate", syncFromURL);
+
+  // restore-user-section support
+  const restore = (e: any) => {
+    if (e.detail) {
+      setActiveSection(e.detail as UserSection);
+    } else {
+      syncFromURL();
+    }
+  };
+  window.addEventListener("restore-user-section", restore);
+
+  // safety retry
+  const retry = setTimeout(syncFromURL, 50);
+
+  return () => {
+    window.removeEventListener("popstate", syncFromURL);
+    window.removeEventListener("restore-user-section", restore);
+    clearTimeout(retry);
+  };
+}, []);
 
   const handleLogoutClick = () => {
     toast.success("Logged out successfully");
@@ -621,19 +645,23 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
             )}
 
             {activeSection === "cartpage" && (
-              <CartPage
-                items={cartItems}
-                onNavigate={(page) => setActiveSection(page)}
-              />
+  <CartPage
+    items={cartItems}
+    onNavigate={(page) => {
+      setActiveSection(page as UserSection);
+      window.history.pushState({}, "", `/user-dashboard/${page}`);
+    }}
+  />  
             )}
 
-            {activeSection === "purchase" && (
-              <PurchasePage onNavigate={onNavigate} />
-            )}
-
-            {activeSection === "purchase/cart" && (
-              <PurchasePage onNavigate={onNavigate} />
-            )}
+{activeSection === "purchase" && (
+  <UniversalPurchasePage
+    onNavigate={(page) => {
+      setActiveSection(page as UserSection);
+      window.history.pushState({}, "", `/user-dashboard/${page}`);
+    }}
+  />
+)}
           </Suspense>
         </main>
       </div>
@@ -656,41 +684,59 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
-  // Fetch dashboard with Bearer token
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        setLoading(true);
+ // Extracted fetch so other effects / events can call it
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("You are not logged in.");
-          setLoading(false);
-          return;
-        }
-
-        const res = await fetch(`${API_URL}/api/dashboard`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error(`Dashboard load failed: ${res.status}`);
-        }
-
-        const data = await res.json();
-        console.log("📌 DASHBOARD DATA:", data);
-        setDashboardData(data);
-      } catch (err) {
-        console.error("Dashboard Fetch Error:", err);
-        setError("Failed to load dashboard");
-      } finally {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("You are not logged in.");
         setLoading(false);
+        return;
       }
-    };
 
+      const res = await fetch(`${API_URL}/api/dashboard`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Dashboard load failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Dashboard Fetch Error:", err);
+      setError("Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
     fetchDashboard();
+  }, []);
+
+   // Global dashboard update listeners (fired from BookReader, MockTests, etc.)
+  useEffect(() => {
+    const refresh = () => fetchDashboard();
+    const events = [
+      "dashboard:update",
+      "dashboard:update.tests",
+      "dashboard:update.study",
+      "dashboard:update.streak",
+      "dashboard:update.library",
+      "dashboard:update.notifications",
+      "dashboard:update.cart",
+    ];
+
+    events.forEach((ev) => window.addEventListener(ev, refresh));
+    return () => events.forEach((ev) => window.removeEventListener(ev, refresh));
   }, []);
 
   if (loading)
@@ -712,7 +758,7 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
             <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <TrendingUp className="w-3 h-3" />
-              <span>+2 this month</span>
+              <span>+{stats.booksThisMonth ?? 0}</span>
             </div>
           </div>
           <BookOpen className="w-6 h-6 text-[#bf2026]" />
@@ -742,7 +788,7 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
             <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <Clock className="w-3 h-3" />
-              <span>Good progress</span>
+              <span>+{stats.weeklyHours ?? 0}h this week</span>
             </div>
           </div>
           <TrendingUp className="w-6 h-6 text-[#bf2026]" />
@@ -780,30 +826,27 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
           )}
 
           {recentBooks.map((entry: any, index: number) => {
-            const book = entry.ebooks; // 👈 FIXED
+            const book = entry.ebooks; 
             if (!book) return null;
 
             return (
               <div
                 key={index}
                 className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  console.log("📘 OPENING BOOK:", book);
-                  onOpenBook(book);
-                }}
+                onClick={() =>
+                  onOpenBook({
+                    ...book,
+                    id: entry.book_id || book.id,
+                    last_page: entry.last_page,
+                    progress: entry.progress,
+                  })
+                }
               >
-                <img
-                  src={book.cover_url}
-                  className="w-14 h-20 object-cover rounded-md shadow"
-                />
+<img src={book.cover_url} className="w-14 h-20 object-cover rounded-md shadow" />
 
                 <div className="flex-1">
-                  <h4 className="text-[#1d4d6a] font-medium mb-1">
-                    {book.title}
-                  </h4>
-                  <p className="text-sm text-gray-500 mb-2">
-                    {book.author}
-                  </p>
+                  <h4 className="text-[#1d4d6a] font-medium mb-1">{book.title}</h4>
+                  <p className="text-sm text-gray-500 mb-2">{book.author}</p>
                   <Progress value={entry.progress || 0} className="h-2" />
                 </div>
 

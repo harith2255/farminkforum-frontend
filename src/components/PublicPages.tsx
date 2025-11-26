@@ -187,7 +187,7 @@ export default function RegisterPage({ onNavigate }: { onNavigate: (page: string
 
 
       alert("✅ Account created successfully!");
-      onNavigate("login");
+      onNavigate("login");;
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.error || "Registration failed");

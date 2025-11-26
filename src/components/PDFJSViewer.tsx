@@ -1,10 +1,14 @@
 // src/components/PDFJSViewer.tsx
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+
 import * as React from "react";
 
-// Use worker from public/
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+// CORRECT WORKER — VERSION ALWAYS MATCHES
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.js",
+  import.meta.url
+).toString();
 
 export default function PDFJSViewer({
   url,
@@ -22,10 +26,8 @@ export default function PDFJSViewer({
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [pdfInstance, setPdfInstance] = useState<any>(null);
 
-  // NEW — Track current render task to cancel duplicates
   const currentRenderTask = useRef<any>(null);
 
-  // Drag highlight state
   const dragState = useRef<{
     startX: number;
     startY: number;
@@ -44,7 +46,8 @@ export default function PDFJSViewer({
       if (!url) return;
 
       try {
-        const loadingTask = pdfjsLib.getDocument(url);
+       const loadingTask = pdfjsLib.getDocument(url);
+
         const pdf = await loadingTask.promise;
 
         loadedPdf = pdf;
@@ -53,7 +56,6 @@ export default function PDFJSViewer({
         setPdfInstance(pdf);
         onTotalPages?.(pdf.numPages);
 
-       
       } catch (err) {
         console.error("PDF load error:", err);
       }
@@ -77,18 +79,16 @@ export default function PDFJSViewer({
   /* ------------------------------
       Re-render on changes
   ------------------------------ */
-useEffect(() => {
-  if (!pdfInstance) return;
-  renderPage(pdfInstance, page, scale);
-}, [pdfInstance, page, scale]);
-
+  useEffect(() => {
+    if (!pdfInstance) return;
+    renderPage(pdfInstance, page, scale);
+  }, [pdfInstance, page, scale]);
 
   /* ------------------------------
       Render a page safely
   ------------------------------ */
   async function renderPage(pdf: any, pageNum: number, scaleVal: number) {
     try {
-      // STOP previous render
       if (currentRenderTask.current) {
         currentRenderTask.current.cancel();
         currentRenderTask.current = null;
@@ -106,7 +106,6 @@ useEffect(() => {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Start new render
       const renderTask = pdfPage.render({
         canvasContext: ctx,
         viewport
@@ -118,7 +117,6 @@ useEffect(() => {
 
       currentRenderTask.current = null;
 
-      // Resize overlay
       const overlay = overlayRef.current!;
       overlay.style.width = `${canvas.width}px`;
       overlay.style.height = `${canvas.height}px`;
@@ -128,7 +126,6 @@ useEffect(() => {
       onPageChange?.(pageNum);
     } catch (err: any) {
       if (err?.name === "RenderingCancelledException") {
-        console.log("Render cancelled — OK.");
         return;
       }
       console.error("renderPage error:", err);
@@ -174,7 +171,7 @@ useEffect(() => {
   }
 
   /* ------------------------------
-      Drag-to-create highlight
+      Drag highlight
   ------------------------------ */
   useEffect(() => {
     const overlay = overlayRef.current!;
@@ -271,14 +268,13 @@ useEffect(() => {
       window.removeEventListener("mouseup", onMouseUp);
     };
   }, [highlightMode, onAddHighlight, page, highlights]);
-  // redraw highlight boxes without re-rendering the PDF
-useEffect(() => {
-  const canvas = canvasRef.current;
-  if (!canvas) return;
 
-  drawHighlights(canvas.width, canvas.height);
-}, [highlights, page]);
-
+  // Re-draw highlights
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    drawHighlights(canvas.width, canvas.height);
+  }, [highlights, page]);
 
   return (
     <div style={{ position: "relative" }}>

@@ -3,14 +3,14 @@ import { Button } from "../ui/button";
 import { ShoppingCart } from "lucide-react";
 import axios from "axios";
 
-export default function CartPage({ onNavigate, items }: any) {
-  const [cartItems, setCartItems] = useState<any[]>([]);
+export default function CartPage({ onNavigate }) {
+  const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
 
   /* --------------------------------------------------------
-     🔥 1. LOAD CART FROM BACKEND
+    LOAD CART 
   -------------------------------------------------------- */
   const fetchCart = async () => {
     try {
@@ -31,52 +31,63 @@ export default function CartPage({ onNavigate, items }: any) {
 
   // 🔥 Listen for cart updates globally
   useEffect(() => {
-    const handler = () => {
-      fetchCart(); // refresh cart automatically
-    };
+    const listener = () => fetchCart();
+    window.addEventListener("cart:changed", listener);
+    return () => window.removeEventListener("cart:changed", listener);
 
-    window.addEventListener("cart:changed", handler);
-
-    return () => window.removeEventListener("cart:changed", handler);
   }, []);
 
   /* --------------------------------------------------------
-     🗑 2. REMOVE ITEM FROM CART
+    REMOVE ITEM 
   -------------------------------------------------------- */
-  const removeFromCart = async (id: number) => {
+  const removeFromCart = async (id) => {
     try {
       await axios.delete(`https://ebook-backend-lxce.onrender.com/api/cart/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setCartItems((prev) => prev.filter((item) => item.id !== id));
+      setCartItems((prev) => prev.filter((i) => i.id !== id));
+
+      const cached = JSON.parse(localStorage.getItem("cartItems") || "[]");
+      localStorage.setItem(
+        "cartItems",
+        JSON.stringify(cached.filter((i) => i.id !== id))
+      );
+
+      window.dispatchEvent(new Event("cart:changed"));
     } catch (err) {
       console.error("Remove failed:", err);
-      alert("Failed to remove item");
     }
   };
 
-  /* --------------------------------------------------------
-     💳 3. BUY NOW (go to purchase page)
-  -------------------------------------------------------- */
-  const handleBuyNow = (item: any) => {
-    if (item.book_id) {
-      localStorage.setItem("purchaseType", "book");
-      localStorage.setItem("purchaseId", String(item.book_id));
-    } else if (item.note_id) {
-      localStorage.setItem("purchaseType", "note");
-      localStorage.setItem("purchaseId", String(item.note_id));
-    }
+  // --------------------------------------------------------
+  // BUY NOW (single item)
+  // --------------------------------------------------------
+  const handleBuyNow = (item) => {
+    const product = item.book || item.note;
+    const type = item.book_id ? "book" : "note";
+
+    localStorage.setItem("purchaseType", type);
+
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([
+        {
+          id: product.id,
+          product,
+        },
+      ])
+    );
 
     onNavigate("purchase");
   };
 
-  /* --------------------------------------------------------
-     🧮 4. TOTALS
-  -------------------------------------------------------- */
+  // --------------------------------------------------------
+  // TOTAL (no quantity)
+  // --------------------------------------------------------
   const subtotal = cartItems.reduce((acc, item) => {
-    const price = item.book?.price || item.note?.price || 0;
-    return acc + Number(price);
+    const product = item.book || item.note;
+    return acc + Number(product?.price || 0);
   }, 0);
 
   const total = subtotal.toFixed(2);
@@ -113,9 +124,7 @@ export default function CartPage({ onNavigate, items }: any) {
                   <div className="flex items-center gap-4">
                     <img
                       src={
-                        product?.file_url?.endsWith(".png") ||
-                        product?.file_url?.endsWith(".jpg") ||
-                        product?.file_url?.endsWith(".jpeg")
+                        product?.file_url?.match(/\.(png|jpg|jpeg)$/i)
                           ? product.file_url
                           : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
                       }
@@ -127,9 +136,7 @@ export default function CartPage({ onNavigate, items }: any) {
                         {product?.title}
                       </h2>
                       <p className="text-gray-600 text-sm">
-                        {isBook
-                          ? `by ${product?.author}`
-                          : product?.author || "—"}
+                        {isBook ? `by ${product?.author}` : product?.author || "—"}
                       </p>
 
                       <p className="text-[#bf2026] font-medium mt-1">
@@ -176,8 +183,17 @@ export default function CartPage({ onNavigate, items }: any) {
               className="w-full mt-5 bg-[#bf2026] hover:bg-[#a01c22] text-white py-2 rounded-md text-lg"
               onClick={() => {
                 localStorage.setItem("purchaseType", "cart");
-                localStorage.setItem("cartItems", JSON.stringify(cartItems));
-                onNavigate("purchase"); // ✅ FIXED
+                localStorage.setItem(
+                  "purchaseItems",
+                  JSON.stringify(
+                    cartItems.map((item) => ({
+                      id: item.id,
+                      product: item.book || item.note,
+                    }))
+                  )
+                );
+
+                onNavigate("purchase");
               }}
             >
               Proceed to Checkout

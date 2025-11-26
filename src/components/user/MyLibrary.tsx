@@ -1,3 +1,5 @@
+// ---------------------- MyLibrary.tsx ----------------------
+
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -11,6 +13,7 @@ import { BookOpen, Grid3x3, List, Search, Filter, FolderPlus } from 'lucide-reac
 import { toast } from 'sonner';
 import axios from "axios";
 import * as React from 'react';
+
 
 interface MyLibraryProps {
   onOpenBook: (book: any) => void;
@@ -27,22 +30,55 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   const [collections, setCollections] = useState<any[]>([]);
   const [loadingCollections, setLoadingCollections] = useState(true);
 
-  // keep ref to avoid re-creating handler
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editCollectionName, setEditCollectionName] = useState("");
+  const [editingCollection, setEditingCollection] = useState<any>(null);
+
+  const [openCollectionView, setOpenCollectionView] = useState(null);
+const [collectionBooks, setCollectionBooks] = useState([]);
+const [loadingCollectionBooks, setLoadingCollectionBooks] = useState(false);
+
+
   const booksRef = useRef(books);
   useEffect(() => { booksRef.current = books; }, [books]);
 
   // ---------------------------------------------------
-  // Helper: get token header
+  // FIXED TOKEN READER (mandatory fix)
   // ---------------------------------------------------
   const getAuthHeaders = () => {
-    const session = JSON.parse(localStorage.getItem("session") || "{}");
-    const token = session?.access_token || localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token") ||
+      JSON.parse(localStorage.getItem("session") || "{}")?.access_token ||
+      JSON.parse(localStorage.getItem("supabase.auth.token") || "{}")?.currentSession?.access_token;
+
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
   // ---------------------------------------------------
   // Load Collections
   // ---------------------------------------------------
+
+  const loadCollectionBooks = async (collection) => {
+  try {
+    setLoadingCollectionBooks(true);
+    setOpenCollectionView(collection);
+
+    const headers = getAuthHeaders();
+
+    const res = await axios.get(
+      `https://ebook-backend-lxce.onrender.com/api/library/collections/${collection.id}/books`,
+      { headers }
+    );
+
+    setCollectionBooks(res.data || []);
+  } catch (err) {
+    toast.error("Failed to load collection books");
+  } finally {
+    setLoadingCollectionBooks(false);
+  }
+};
+
+
   useEffect(() => {
     const fetchCollections = async () => {
       try {
@@ -68,6 +104,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   useEffect(() => {
     const fetchLibrary = async () => {
       setLoading(true);
+
       try {
         const headers = getAuthHeaders();
         if (!headers.Authorization) {
@@ -77,26 +114,31 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
         }
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/library", { headers });
-        // Normalize / format response
+
         const formattedBooks = (res.data || []).map((entry: any) => {
-          const e = entry.ebooks || entry; // adapt to your shape
+          const e = entry.ebooks || entry;
+
           return {
             id: e.id,
             title: e.title,
             author: e.author,
             category: e.category,
             description: e.description,
-            cover_url: e.file_url,
+
+            // CORRECT FIX (not file_url)
+          cover_url: entry.cover_url || e.cover_url || e.cover || e.image || "https://placehold.co/300x400",
+
+
             file_url: e.file_url,
             pages: e.pages,
             price: e.price,
             progress: Number(entry.progress ?? 0),
             purchased: entry.added_at ?? null,
-            // any other fields...
           };
         });
 
         setBooks(formattedBooks);
+
       } catch (err) {
         console.error("Library error:", err);
         setError("Failed to load library");
@@ -114,39 +156,33 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   // ---------------------------------------------------
   const readingBooks = books.filter(b => b.progress > 0 && b.progress < 100);
   const completedBooks = books.filter(b => b.progress >= 100);
-  const recentBooks = [...books].sort((a, b) => {
-    const da = a.purchased ? new Date(a.purchased).getTime() : 0;
-    const db = b.purchased ? new Date(b.purchased).getTime() : 0;
-    return db - da;
-  }).slice(0, 10);
+  const recentBooks = [...books]
+    .sort((a, b) => (new Date(b.purchased).getTime()) - (new Date(a.purchased).getTime()))
+    .slice(0, 10);
+
+  const openCollection = async (collectionId: string) => {
+    const headers = getAuthHeaders();
+    const res = await axios.get(`https://ebook-backend-lxce.onrender.com/api/library/collections/${collectionId}`, { headers });
+
+    console.log("Collection books:", res.data);
+  };
 
   // ---------------------------------------------------
-  // Listen for reader events (open + progress)
-  // BookReader should emit:
-  //  - window.dispatchEvent(new CustomEvent('reader:open', { detail: book }))
-  //  - window.dispatchEvent(new CustomEvent('reader:progress', { detail: { id, progress } }))
+  // Reader event listeners
   // ---------------------------------------------------
   useEffect(() => {
     const onOpen = (e: any) => {
       const book = e.detail;
       if (!book) return;
-      // ensure UI shows reading state
-      setBooks(prev => {
-        const found = prev.find(p => p.id === book.id);
-        if (found) return prev;
-        // if not present, optionally push
-        return prev;
-      });
 
-      // notify backend that user started reading (optimistic)
+      setBooks(prev => prev);
+
       (async () => {
         try {
           const headers = getAuthHeaders();
           if (!headers.Authorization) return;
           await axios.post("https://ebook-backend-lxce.onrender.com/api/library/read/start", { book_id: book.id }, { headers });
-        } catch (err) {
-          console.warn("start read failed", err);
-        }
+        } catch (err) {}
       })();
     };
 
@@ -154,94 +190,76 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       const { id, progress } = e.detail || {};
       if (!id || typeof progress !== "number") return;
 
-      // Optimistic update in UI
-      setBooks(prev => prev.map(b => (b.id === id ? { ...b, progress: Math.min(100, Math.round(progress)) } : b)));
+      setBooks(prev => prev.map(b => (b.id === id ? { ...b, progress: Math.round(progress) } : b)));
 
-      // Patch backend (debounce not implemented here - backend should handle idempotent updates)
       (async () => {
         try {
           const headers = getAuthHeaders();
-          if (!headers.Authorization) return;
-          await axios.patch(`https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`, { progress: Math.min(100, Math.round(progress)) }, { headers });
+          await axios.put(`https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`, { progress: Math.round(progress) }, { headers });
 
           if (progress >= 100) {
-            // mark completed
-            await axios.patch(`https://ebook-backend-lxce.onrender.com/api/library/complete/${id}`, { completed_at: new Date().toISOString() }, { headers });
+            await axios.put(`https://ebook-backend-lxce.onrender.com/api/library/complete/${id}`, { completed_at: new Date().toISOString() }, { headers });
           }
-        } catch (err) {
-          console.warn("progress update failed", err);
-        }
+        } catch (err) {}
       })();
     };
 
-    window.addEventListener('reader:open', onOpen);
-    window.addEventListener('reader:progress', onProgress);
+    window.addEventListener("reader:open", onOpen);
+    window.addEventListener("reader:progress", onProgress);
+
     return () => {
-      window.removeEventListener('reader:open', onOpen);
-      window.removeEventListener('reader:progress', onProgress);
+      window.removeEventListener("reader:open", onOpen);
+      window.removeEventListener("reader:progress", onProgress);
     };
   }, []);
 
-  
+  // ---------------------------------------------------
+  // Search System (unchanged)
+  // ---------------------------------------------------
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ---------------------------------------------------
-  // Search System
-  // ---------------------------------------------------
-  const searchTimeoutRef = useRef<number | null>(null);
-  const handleSearch = async (query: string) => {
-    try {
-      const headers = getAuthHeaders();
-      const res = await axios.get(`https://ebook-backend-lxce.onrender.com/api/library/search?query=${encodeURIComponent(query)}`, { headers });
-      const formatted = (res.data || []).map((entry: any) => {
-        const e = entry.ebooks || entry;
-        return {
-          id: e.id,
-          title: e.title,
-          author: e.author,
-          category: e.category,
-          cover_url: e.file_url,
-          pages: e.pages,
-          price: e.price,
-          progress: Number(entry.progress ?? 0),
-          purchased: entry.added_at,
-        };
-      });
-      setBooks(formatted);
-    } catch (err) {
-      toast.error("Search failed");
+  const handleSearch = (query: string) => {
+    if (!query.trim()) {
+      setBooks([]);
+      return;
     }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const headers = getAuthHeaders();
+        const res = await axios.get(
+          `https://ebook-backend-lxce.onrender.com/api/library/search?query=${encodeURIComponent(query)}`,
+          { headers }
+        );
+
+        const formatted = (res.data || []).map((entry: any) => {
+          const e = entry.ebooks || entry;
+          return {
+            id: e.id,
+            title: e.title,
+            author: e.author,
+            category: e.category,
+           cover_url: entry.cover_url || e.cover_url || e.cover || e.image || "https://placehold.co/300x400",
+
+            pages: e.pages,
+            price: e.price,
+            progress: Number(entry.progress ?? 0),
+            purchased: entry.added_at,
+          };
+        });
+
+        setBooks(formatted);
+      } catch (err) {
+        toast.error("Search failed");
+      }
+    }, 400);
   };
 
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current);
-    const value = e.target.value.trim();
-    searchTimeoutRef.current = window.setTimeout(() => {
-      if (value.length > 0) {
-        handleSearch(value);
-      } else {
-        // Reload full library
-        const headers = getAuthHeaders();
-        axios.get("https://ebook-backend-lxce.onrender.com/api/library", { headers })
-          .then((res) => {
-            const formattedBooks = (res.data || []).map((entry: any) => {
-              const e = entry.ebooks || entry;
-              return {
-                id: e.id,
-                title: e.title,
-                author: e.author,
-                category: e.category,
-                cover_url: e.file_url,
-                pages: e.pages,
-                price: e.price,
-                progress: Number(entry.progress ?? 0),
-                purchased: entry.added_at,
-              };
-            });
-            setBooks(formattedBooks);
-          })
-          .catch(() => toast.error("Failed to reload library"));
-      }
-    }, 400);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    handleSearch(e.target.value);
   };
 
   // ---------------------------------------------------
@@ -251,8 +269,9 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.delete(`https://ebook-backend-lxce.onrender.com/api/library/remove/${bookId}`, { headers });
+
       toast.success("Book removed");
-      setBooks((prev) => prev.filter((b) => b.id !== bookId));
+      setBooks(prev => prev.filter(b => b.id !== bookId));
     } catch (err) {
       toast.error("Failed to remove");
     }
@@ -267,6 +286,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.post("https://ebook-backend-lxce.onrender.com/api/library/collections", { name: collectionName }, { headers });
+
       toast.success("Collection created");
       setCollectionName("");
       setIsCollectionDialogOpen(false);
@@ -276,29 +296,170 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   };
 
   // ---------------------------------------------------
-  // When user clicks read (UI -> open reader + start backend)
+  // Delete Collection
   // ---------------------------------------------------
-  const handleReadClick = async (book: any) => {
-    // Dispatch open event that BookReader listens to or App will handle
-    window.dispatchEvent(new CustomEvent('reader:open', { detail: book }));
+  const handleDeleteCollection = async (id: string) => {
+    if (!confirm("Are you sure?")) return;
 
-    // open in UI (parent will open actual reader)
-    onOpenBook(book);
-
-    // also call backend start if not already started
     try {
       const headers = getAuthHeaders();
-      if (!headers.Authorization) return;
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/library/read/start", { book_id: book.id }, { headers });
-      // update UI progress if currently zero -> set to 1% to indicate started
-      setBooks(prev => prev.map(b => b.id === book.id ? { ...b, progress: b.progress > 0 ? b.progress : 1 } : b));
+      await axios.delete(`https://ebook-backend-lxce.onrender.com/api/library/collections/${id}`, { headers });
+
+      toast.success("Collection deleted");
+      setCollections(prev => prev.filter(c => c.id !== id));
     } catch (err) {
-      console.warn("start read failed", err);
+      toast.error("Failed");
     }
   };
 
   // ---------------------------------------------------
-  // UI Rendering (unchanged structure)
+  // Edit Collection
+  // ---------------------------------------------------
+  const handleEditCollection = (collection: any) => {
+    setEditingCollection(collection);
+    setEditCollectionName(collection.name);
+    setIsEditDialogOpen(true);
+  };
+
+  const saveEditedCollection = async () => {
+    try {
+      const headers = getAuthHeaders();
+
+      await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/library/collections/${editingCollection.id}`,
+        { name: editCollectionName },
+        { headers }
+      );
+
+      toast.success("Collection renamed");
+
+      setCollections(prev =>
+        prev.map(c => (c.id === editingCollection.id ? { ...c, name: editCollectionName } : c))
+      );
+
+      setIsEditDialogOpen(false);
+    } catch (err) {
+      toast.error("Rename failed");
+    }
+  };
+
+  // ---------------------------------------------------
+  // Read Button → open reader
+  // ---------------------------------------------------
+  const handleReadClick = async (book: any) => {
+    window.dispatchEvent(new CustomEvent("reader:open", { detail: book }));
+    onOpenBook(book);
+
+    try {
+      const headers = getAuthHeaders();
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/library/read/start", { book_id: book.id }, { headers });
+
+      setBooks(prev =>
+        prev.map(b => (b.id === book.id ? { ...b, progress: b.progress > 0 ? b.progress : 1 } : b))
+      );
+    } catch {}
+  };
+const renderCollectionGrid = (booksList) => {
+  if (!booksList.length)
+    return <p className="text-center py-10 text-gray-500">No books in this collection.</p>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {booksList.map((book) => (
+        <Card key={book.id} className="shadow-md">
+          <CardContent className="p-0">
+            <div className="relative h-48 overflow-hidden rounded-t-lg">
+              <img src={book.cover_url} className="w-full h-full object-cover" />
+            </div>
+
+            <div className="p-4">
+              <Badge className="bg-blue-100 text-blue-700 mb-2">
+                {book.category}
+              </Badge>
+
+              <h3 className="text-[#1d4d6a]">{book.title}</h3>
+              <p className="text-sm text-gray-500 mb-3">{book.author}</p>
+
+              <Button
+                className="bg-[#bf2026] text-white w-full"
+                onClick={() => handleReadClick(book)}
+              >
+                Read Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+
+
+
+  if (openCollectionView) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[#1d4d6a] mb-1">
+          Collection – {openCollectionView.name}
+        </h2>
+
+        <Button
+          variant="outline"
+          onClick={() => {
+            setOpenCollectionView(null);
+            setCollectionBooks([]);
+          }}
+        >
+          Back
+        </Button>
+      </div>
+
+      <Tabs defaultValue="all">
+        <TabsList className="bg-white border border-gray-200">
+          <TabsTrigger value="all">All Books</TabsTrigger>
+          <TabsTrigger value="reading">Reading</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="recent">Recent</TabsTrigger>
+        </TabsList>
+
+        {/* ALL BOOKS */}
+        <TabsContent value="all" className="mt-6">
+          {renderCollectionGrid(collectionBooks)}
+        </TabsContent>
+
+        {/* READING */}
+        <TabsContent value="reading" className="mt-6">
+          {renderCollectionGrid(
+            collectionBooks.filter(b => b.progress > 0 && b.progress < 100)
+          )}
+        </TabsContent>
+
+        {/* COMPLETED */}
+        <TabsContent value="completed" className="mt-6">
+          {renderCollectionGrid(
+            collectionBooks.filter(b => b.progress >= 100)
+          )}
+        </TabsContent>
+
+        {/* RECENT */}
+        <TabsContent value="recent" className="mt-6">
+          {renderCollectionGrid(
+            [...collectionBooks].sort(
+              (a, b) =>
+                new Date(b.purchased).getTime() -
+                new Date(a.purchased).getTime()
+            )
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+  // ---------------------------------------------------
+  // UI
   // ---------------------------------------------------
   return (
     <div className="space-y-6">
@@ -310,29 +471,30 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button onClick={() => setIsCollectionDialogOpen(true)} className="bg-[#bf2026] hover:bg-[#a01c22] text-white gap-2">
+          <Button onClick={() => setIsCollectionDialogOpen(true)} className="bg-[#bf2026] text-white">
             <FolderPlus className="w-4 h-4" />
             New Collection
           </Button>
 
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input type="text" placeholder="Search library..." onChange={handleSearchInput}
-              className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026]" />
+            <input
+              type="text"
+              placeholder="Search library..."
+              onChange={handleSearchInput}
+              className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg"
+            />
           </div>
 
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
+          <Button variant="outline">
+            <Filter className="w-4 h-4" /> Filter
           </Button>
 
-          {/* View Mode */}
           <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}>
+            <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}>
               <Grid3x3 className="w-4 h-4" />
             </button>
-
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}>
+            <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-white shadow-sm" : ""}`}>
               <List className="w-4 h-4" />
             </button>
           </div>
@@ -340,7 +502,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       </div>
 
       {/* TABS */}
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs defaultValue="all">
         <TabsList className="bg-white border border-gray-200">
           <TabsTrigger value="all">All Books</TabsTrigger>
           <TabsTrigger value="reading">Currently Reading</TabsTrigger>
@@ -351,41 +513,39 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
 
         {/* ALL BOOKS */}
         <TabsContent value="all" className="mt-6">
-          {viewMode === 'grid' ? (
+          {viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {books.map((book) => (
-                <Card key={book.id} className="border-none shadow-md hover:shadow-xl transition-all group">
+              {books.map(book => (
+                <Card key={book.id} className="shadow-md group">
                   <CardContent className="p-0">
-                    {/* COVER */}
-                    <div className="relative bg-gradient-to-br from-[#1d4d6a] to-[#2a5f7f] h-48 flex items-center justify-center rounded-t-lg overflow-hidden">
+                    <div className="relative h-48 overflow-hidden rounded-t-lg">
                       <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
 
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
-                        <Button onClick={() => handleReadClick(book)} className="bg-[#bf2026] hover:bg-[#a01c22] text-white opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition">
+                        <Button onClick={() => handleReadClick(book)} className="opacity-0 group-hover:opacity-100 transition">
                           <BookOpen className="w-4 h-4 mr-2" /> Read Now
                         </Button>
                       </div>
                     </div>
 
-                    {/* CONTENT */}
                     <div className="p-4">
                       <Badge className="bg-blue-100 text-blue-700 mb-2">{book.category}</Badge>
-                      <h3 className="text-[#1d4d6a] mb-1 line-clamp-1">{book.title}</h3>
+                      <h3 className="text-[#1d4d6a] mb-1">{book.title}</h3>
                       <p className="text-sm text-gray-500 mb-3">{book.author}</p>
 
                       <div className="space-y-2">
-                        <div className="flex justify-between text-xs text-gray-600">
+                        <div className="flex justify-between text-xs">
                           <span>Progress</span>
                           <span>{book.progress}%</span>
                         </div>
 
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-[#bf2026] h-2 rounded-full transition-all" style={{ width: `${book.progress}%` }} />
+                        <div className="w-full bg-gray-200 h-2 rounded-full">
+                          <div className="bg-[#bf2026] h-2 rounded-full" style={{ width: `${book.progress}%` }} />
                         </div>
 
                         <div className="flex justify-between text-xs text-gray-500 pt-1">
                           <span>{book.pages} pages</span>
-                          <span>{book.purchased ? `Added ${new Date(book.purchased).toLocaleDateString()}` : ''}</span>
+                          <span>{book.purchased ? `Added ${new Date(book.purchased).toLocaleDateString()}` : ""}</span>
                         </div>
                       </div>
                     </div>
@@ -394,42 +554,38 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
               ))}
             </div>
           ) : (
-            // LIST VIEW
             <div className="space-y-3">
-              {books.map((book) => (
-                <Card key={book.id} className="border-none shadow-md hover:shadow-lg transition-all">
+              {books.map(book => (
+                <Card key={book.id} className="shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      {/* COVER */}
+                    <div className="flex gap-4">
                       <div className="w-16 h-20 rounded overflow-hidden bg-gray-200">
                         <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
                       </div>
 
-                      {/* CONTENT */}
                       <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
+                        <div className="flex justify-between">
                           <div>
-                            <h3 className="text-[#1d4d6a] mb-1">{book.title}</h3>
+                            <h3 className="text-[#1d4d6a]">{book.title}</h3>
                             <p className="text-sm text-gray-500">{book.author}</p>
                           </div>
                           <Badge className="bg-blue-100 text-blue-700">{book.category}</Badge>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 mt-2">
                           <div className="flex-1">
-                            <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <div className="flex justify-between text-xs">
                               <span>Progress</span>
                               <span>{book.progress}%</span>
                             </div>
 
-                            <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="w-full bg-gray-200 h-2 rounded-full">
                               <div className="bg-[#bf2026] h-2 rounded-full" style={{ width: `${book.progress}%` }} />
                             </div>
                           </div>
 
-                          <Button onClick={() => handleReadClick(book)} className="bg-[#bf2026] hover:bg-[#a01c22] text-white">
-                            <BookOpen className="w-4 h-4 mr-2" />
-                            Read
+                          <Button onClick={() => handleReadClick(book)} className="bg-[#bf2026] text-white">
+                            <BookOpen className="w-4 h-4 mr-2" /> Read
                           </Button>
                         </div>
                       </div>
@@ -447,22 +603,25 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
             <div className="text-center py-12 text-gray-500">No current reading items.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {readingBooks.map(b => (
-                <Card key={b.id} className="border-none shadow-md hover:shadow-xl transition-all group">
+              {readingBooks.map(book => (
+                <Card key={book.id} className="shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex gap-4">
                       <div className="w-20 h-28 overflow-hidden rounded">
-                        <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
                       </div>
+
                       <div className="flex-1">
-                        <h3 className="text-[#1d4d6a]">{b.title}</h3>
-                        <p className="text-sm text-gray-500 mb-2">{b.author}</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div className="bg-[#bf2026] h-2 rounded-full" style={{ width: `${b.progress}%` }} />
+                        <h3 className="text-[#1d4d6a]">{book.title}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{book.author}</p>
+
+                        <div className="bg-gray-200 h-2 rounded-full mb-2">
+                          <div className="bg-[#bf2026] h-2 rounded-full" style={{ width: `${book.progress}%` }} />
                         </div>
+
                         <div className="flex gap-2">
-                          <Button onClick={() => handleReadClick(b)} className="bg-[#bf2026] text-white">Resume</Button>
-                          <Button onClick={() => handleRemoveBook(b.id)} variant="outline">Remove</Button>
+                          <Button onClick={() => handleReadClick(book)} className="bg-[#bf2026] text-white">Resume</Button>
+                          <Button onClick={() => handleRemoveBook(book.id)} variant="outline">Remove</Button>
                         </div>
                       </div>
                     </div>
@@ -479,20 +638,23 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
             <div className="text-center py-12 text-gray-500">No completed books yet.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {completedBooks.map(b => (
-                <Card key={b.id} className="border-none shadow-md hover:shadow-xl transition-all group">
+              {completedBooks.map(book => (
+                <Card key={book.id} className="shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex gap-4">
                       <div className="w-20 h-28 overflow-hidden rounded">
-                        <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
                       </div>
+
                       <div className="flex-1">
-                        <h3 className="text-[#1d4d6a]">{b.title}</h3>
-                        <p className="text-sm text-gray-500 mb-2">{b.author}</p>
+                        <h3 className="text-[#1d4d6a]">{book.title}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{book.author}</p>
+
                         <div className="text-xs text-gray-600 mb-2">Completed</div>
+
                         <div className="flex gap-2">
-                          <Button onClick={() => handleReadClick(b)} className="bg-[#bf2026] text-white">Reopen</Button>
-                          <Button onClick={() => handleRemoveBook(b.id)} variant="outline">Remove</Button>
+                          <Button onClick={() => handleReadClick(book)} className="bg-[#bf2026] text-white">Reopen</Button>
+                          <Button onClick={() => handleRemoveBook(book.id)} variant="outline">Remove</Button>
                         </div>
                       </div>
                     </div>
@@ -506,43 +668,95 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
         {/* RECENT */}
         <TabsContent value="recent" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentBooks.map((book) => (
-              <Card key={book.id} className="border-none shadow-md hover:shadow-xl transition-all group">
+            {recentBooks.map(book => (
+              <Card key={book.id} className="shadow-md">
                 <CardContent className="p-0">
-                  <div className="relative h-48 rounded-t-lg overflow-hidden">
+                  <div className="relative h-48 overflow-hidden rounded-t-lg">
                     <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition">
                       <Button onClick={() => handleReadClick(book)}>Read Now</Button>
                     </div>
                   </div>
 
                   <div className="p-4">
                     <Badge className="bg-blue-100 text-blue-700 mb-2">{book.category}</Badge>
-                    <h3 className="text-[#1d4d6a] mb-1">{book.title}</h3>
-                    <p className="text-sm text-gray-500 mb-3">{book.author}</p>
+                    <h3 className="text-[#1d4d6a]">{book.title}</h3>
+                    <p className="text-sm text-gray-500">{book.author}</p>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
+
+        {/* COLLECTION TAB */}
+        <TabsContent value="collection" className="mt-6">
+          {collections.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">No collections yet.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {collections.map(c => (
+                <Card 
+  key={c.id} 
+  className="shadow-md p-4 group cursor-pointer"
+  onClick={() => loadCollectionBooks(c)}
+>
+
+                  <CardContent className="p-0">
+                    <div className="flex justify-between mb-2">
+                      <h3 className="text-[#1d4d6a]">{c.name}</h3>
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCollection(c);
+                          }}
+                        >
+                          Edit
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCollection(c.id);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-gray-500">Tap to view books</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
       </Tabs>
 
-      {/* COLLECTIONS DIALOG */}
-      <Dialog open={isCollectionDialogOpen} onOpenChange={setIsCollectionDialogOpen}>
+      {/* EDIT DIALOG */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#1d4d6a]">Create New Collection</DialogTitle>
+            <DialogTitle>Edit Collection Name</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3 py-3">
-            <Label>Collection Name</Label>
-            <Input value={collectionName} onChange={(e) => setCollectionName(e.target.value)} placeholder="e.g., Favorite Books" />
+          <div className="py-3">
+            <Label>New Name</Label>
+            <Input value={editCollectionName} onChange={(e) => setEditCollectionName(e.target.value)} />
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCollectionDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateCollection} className="bg-[#bf2026] hover:bg-[#a01c22] text-white">Create</Button>
+            <Button onClick={() => setIsEditDialogOpen(false)} variant="outline">Cancel</Button>
+            <Button onClick={saveEditedCollection} className="bg-[#bf2026] text-white">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

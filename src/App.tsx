@@ -6,8 +6,21 @@ import { PublicPages } from "./components/PublicPages";
 import { BookReader } from "./components/BookReader";
 import { Toaster } from "./components/ui/sonner";
 import TestPage from "./components/user/Testpage";
-import PurchasePage from "./components/PurchasePage";
+import UniversalPurchasePage from "./components/PurchasePage";
 import * as React from "react";
+
+import axios from "axios";
+
+axios.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response && err.response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(err);
+  }
+);
 
 type Page =
   | "home"
@@ -22,7 +35,8 @@ type Page =
   | "reader"
   | "purchase"
   | "test"
-  | "cart";
+  | "cart"
+  | "test";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
@@ -32,96 +46,87 @@ export default function App() {
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ----------------------------------------------------
-     ⭐ INITIAL PAGE DETECTION
-  ---------------------------------------------------- */
-  useEffect(() => {
+   /* --------------------------------------------------
+     URL → PAGE MAPPER (we will reuse it)
+  -------------------------------------------------- */
+  const resolveRoute = () => {
     const path = window.location.pathname;
 
-    if (path === "/cart" || path === "/cart/") {
-      setCurrentPage("user-dashboard");
-      setTimeout(() => {
-        window.history.replaceState({}, "", "/user-dashboard");
-        window.dispatchEvent(new CustomEvent("open-cart-page"));
-      }, 20);
-      return;
-    }
+    if (path.startsWith("/purchase")) return "purchase";
+    if (path.startsWith("/reader")) return "reader";
+    if (path.startsWith("/test")) return "test";
+    if (path.startsWith("/user-dashboard")) return "user-dashboard";
+    if (path.startsWith("/admin-dashboard")) return "admin-dashboard";
 
-    if (path.startsWith("/purchase/")) {
-      const id = path.split("/purchase/")[1];
-      setSelectedPurchaseId(id);
-      setCurrentPage("purchase");
-      return;
-    }
+    const staticPages = ["/explore", "/pricing", "/about", "/contact", "/login", "/register"];
+    if (staticPages.includes(path)) return path.replace("/", "") as Page;
 
-    if (path.startsWith("/reader")) {
-      setCurrentPage("reader");
-      return;
-    }
+    return "home";
+  };
 
-    if (path.startsWith("/test")) {
-      setCurrentPage("test");
-      return;
-    }
-
-    // 🔥 FIX: Handle ALL user-dashboard sub-routes
-    if (path.startsWith("/user-dashboard")) {
-      setCurrentPage("user-dashboard");
-      return;
-    }
-
-    if (path === "/admin-dashboard") {
-      setCurrentPage("admin-dashboard");
-    } else if (
-      ["/explore", "/pricing", "/about", "/contact", "/login", "/register"].includes(path)
-    ) {
-      setCurrentPage(path.replace("/", "") as Page);
-    } else {
-      setCurrentPage("home");
-    }
+  /* --------------------------------------------------
+     INITIAL ROUTE DETECTION
+  -------------------------------------------------- */
+  useEffect(() => {
+    setCurrentPage(resolveRoute());
   }, []);
 
-  /* ----------------------------------------------------
-     ⭐ RESTORE SESSION
-  ---------------------------------------------------- */
+  /* --------------------------------------------------
+     HANDLE BROWSER BACK/FORWARD
+  -------------------------------------------------- */
+  useEffect(() => {
+    const handler = () => {
+      const nextPage = resolveRoute();
+      setCurrentPage(nextPage);
+
+      // Handle restoring dashboard subsection
+      if (nextPage === "user-dashboard") {
+        const section = window.location.pathname.replace("/user-dashboard/", "").trim();
+        if (section.length > 0) {
+          window.dispatchEvent(new CustomEvent("restore-user-section", { detail: section }));
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+
+  /* --------------------------------------------------
+     RESTORE SESSION
+  -------------------------------------------------- */
   useEffect(() => {
     const path = window.location.pathname;
 
-    const loggedIn = localStorage.getItem("isLoggedIn");
+    const logged = localStorage.getItem("isLoggedIn");
     const role = localStorage.getItem("role");
 
-    if (!loggedIn || !role) {
+    if (!logged || !role) {
       setLoading(false);
       return;
     }
 
     setUserRole(role as "user" | "admin");
 
-    // Admin dashboard restore
-    if (path.startsWith("/admin-dashboard")) {
-      setCurrentPage("admin-dashboard");
-      setLoading(false);
-      return;
-    }
-
-    // User dashboard restore + restore section
     if (path.startsWith("/user-dashboard")) {
       setCurrentPage("user-dashboard");
 
-      const sub = path.replace("/user-dashboard/", "").trim();
-
-      if (sub && sub.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("restore-user-section", { detail: sub })
-        );
+      const section = path.replace("/user-dashboard/", "").trim();
+      if (section.length > 0) {
+        window.dispatchEvent(new CustomEvent("restore-user-section", { detail: section }));
       }
 
       setLoading(false);
       return;
     }
 
-    // Default redirect (only if user at "/")
-    if (path === "/" || path === "") {
+    if (path.startsWith("/admin-dashboard")) {
+      setCurrentPage("admin-dashboard");
+      setLoading(false);
+      return;
+    }
+
+    if (path === "/") {
       if (role === "admin") {
         setCurrentPage("admin-dashboard");
         window.history.replaceState({}, "", "/admin-dashboard");
@@ -133,6 +138,7 @@ export default function App() {
 
     setLoading(false);
   }, []);
+
 
   /* ----------------------------------------------------
      ⭐ SCROLL TO TOP
@@ -244,7 +250,7 @@ export default function App() {
       )}
 
       {currentPage === "purchase" && (
-        <PurchasePage
+        <UniversalPurchasePage
           bookId={selectedPurchaseId}
           noteId={selectedPurchaseId}
           onNavigate={handleNavigate}
