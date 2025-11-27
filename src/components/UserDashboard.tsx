@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import Explore from "./user/Explore";
 import MyLibrary  from "./user/MyLibrary";
 import { MockTests } from "./user/MockTests";
+import Exams from "./user/Exams";
 import NotesRepository from "./user/NotesRepository";
 import { WritingServices } from "./user/WritingServices";
 import { JobPortal } from "./user/JobPortal";
@@ -55,6 +56,7 @@ type UserSection =
   | "explore"
   | "library"
   | "tests"
+  |"exams"
   | "notes"
   | "writing"
   | "jobs"
@@ -217,6 +219,7 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
     { id: "explore", icon: Navigation, label: "Explore" },
     { id: "library", icon: BookOpen, label: "My Library" },
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
+    { id: "exams", icon: Crown, label: "Exams" },
     { id: "notes", icon: FileText, label: "Notes" },
     { id: "writing", icon: PenIcon, label: "Writing Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
@@ -625,6 +628,7 @@ useEffect(() => {
             {activeSection === "notes" && (
               <NotesRepository onNavigate={onNavigate} />
             )}
+            {activeSection === "exams" && <Exams />}
 
             {activeSection === "writing" && (
               <WritingServices onNavigate={onNavigate} />
