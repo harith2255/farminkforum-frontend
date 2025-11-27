@@ -109,22 +109,22 @@ export function CustomerManagement() {
   };
 
   const sendNotification = async () => {
-  const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-  await axios.post(
-    `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/notify`,
-    {
-      title: emailSubject,
-      message: emailMessage,
-      link: "dashboard", // optional navigation link
-    },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+    await axios.post(
+      `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/notify`,
+      {
+        title: emailSubject,
+        message: emailMessage,
+        link: "dashboard", // optional navigation link
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-  setShowEmailModal(false);
-  setEmailSubject("");
-  setEmailMessage("");
-};
+    setShowEmailModal(false);
+    setEmailSubject("");
+    setEmailMessage("");
+  };
 
 
   return (
@@ -134,7 +134,7 @@ export function CustomerManagement() {
         <div>
           <h2 className="text-[#1d4d6a] mb-1">Customer Management</h2>
           <p className="text-sm text-gray-500">
-            {loading ? "Loading..." : `${customers.length} customers on this page`}
+            {loading ? "Loading..." : `${customers.length} customers`}
           </p>
         </div>
 
@@ -190,120 +190,120 @@ export function CustomerManagement() {
             <p className="text-center py-6 text-gray-500">No customers found</p>
           ) : (
             <Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>Customer</TableHead>
-      <TableHead>Email</TableHead>
-      <TableHead>Plan</TableHead>
-      <TableHead>Status</TableHead>
-      <TableHead>Joined</TableHead>
-      <TableHead>Total Spent</TableHead>
-      <TableHead>Actions</TableHead>
-    </TableRow>
-  </TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>Total Spent</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
 
-  <TableBody>
-    {customers.map((c) => {
-      const displayName =
-        c.full_name?.trim() ||
-        `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
-        c.email?.split("@")[0] ||
-        "Unnamed";
+              <TableBody>
+                {customers.map((c) => {
+                  const displayName =
+                    c.full_name?.trim() ||
+                    `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
+                    c.email?.split("@")[0] ||
+                    "Unnamed";
 
-      const initial = displayName[0]?.toUpperCase() || "U";
+                  const initial = displayName[0]?.toUpperCase() || "U";
 
-      return (
-        <TableRow key={c.id}>
-          <TableCell>
-            <div className="flex items-center gap-3">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-[#1d4d6a] text-white">
-                  {initial}
-                </AvatarFallback>
-              </Avatar>
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-[#1d4d6a] text-white">
+                              {initial}
+                            </AvatarFallback>
+                          </Avatar>
 
-              <span className="text-[#1d4d6a] font-medium">
-                {displayName}
-              </span>
-            </div>
-          </TableCell>
+                          <span className="text-[#1d4d6a] font-medium">
+                            {displayName}
+                          </span>
+                        </div>
+                      </TableCell>
 
-          <TableCell>{c.email}</TableCell>
+                      <TableCell>{c.email}</TableCell>
 
-          <TableCell>
-            <Badge>{c.plan || "N/A"}</Badge>
-          </TableCell>
+                      <TableCell>
+                        <Badge>{c.plan || "N/A"}</Badge>
+                      </TableCell>
 
-          <TableCell>
-            <Badge
-              className={
-                c.status === "Active"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }
-            >
-              {c.status}
-            </Badge>
-          </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            c.status === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }
+                        >
+                          {c.status}
+                        </Badge>
+                      </TableCell>
 
-          <TableCell>
-            {c.created_at
-              ? new Date(c.created_at).toLocaleDateString()
-              : "—"}
-          </TableCell>
+                      <TableCell>
+                        {c.created_at
+                          ? new Date(c.created_at).toLocaleDateString()
+                          : "—"}
+                      </TableCell>
 
-          <TableCell>
-            ₹{Number(c.total_spent ?? 0).toLocaleString()}
-          </TableCell>
+                      <TableCell>
+                        ₹{Number(c.total_spent ?? 0).toLocaleString()}
+                      </TableCell>
 
-          <TableCell>
-            <div className="flex gap-2">
-              {/* Email */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedCustomer(c);
-                  setShowEmailModal(true);
-                }}
-              >
-                <Mail className="w-4 h-4" />
-              </Button>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {/* Email */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedCustomer(c);
+                              setShowEmailModal(true);
+                            }}
+                          >
+                            <Mail className="w-4 h-4" />
+                          </Button>
 
-              {/* Suspend / Activate */}
-              {c.status === "Active" ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => suspendCustomer(c.id)}
-                >
-                  <ShieldOff className="w-4 h-4 text-red-500" />
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => activateCustomer(c.id)}
-                >
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                </Button>
-              )}
+                          {/* Suspend / Activate */}
+                          {c.status === "Active" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => suspendCustomer(c.id)}
+                            >
+                              <ShieldOff className="w-4 h-4 text-red-500" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => activateCustomer(c.id)}
+                            >
+                              <ShieldCheck className="w-4 h-4 text-green-500" />
+                            </Button>
+                          )}
 
-              {/* Delete */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => deleteCustomer(c.id)}
-              >
-                <Trash2 className="w-4 h-4 text-red-600" />
-              </Button>
-            </div>
-          </TableCell>
-        </TableRow>
-      );
-    })}
-  </TableBody>
-</Table>
+                          {/* Delete */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteCustomer(c.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
 
           )}
 

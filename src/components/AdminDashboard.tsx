@@ -12,12 +12,14 @@ import {
   LogOut,
   Search,
   Menu,
+  Crown,
   Briefcase,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar } from './ui/avatar';
 import { AdminDashboardHome } from './admin/AdminDashboardHome';
 import { CustomerManagement } from './admin/CustomerManagement';
+import Exams from './admin/Exams';
 import ContentManagement from './admin/ContentManagement';
 import { DRMControls } from './admin/DRMControls';
 import { PaymentsAdmin } from './admin/PaymentsAdmin';
@@ -37,6 +39,7 @@ type AdminSection =
   | 'dashboard'
   | 'customers'
   | 'content'
+  | 'exams'
   | 'drm'
   | 'writing'
   | 'payments'
@@ -61,6 +64,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 'dashboard' as AdminSection, icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'customers' as AdminSection, icon: Users, label: 'Customers' },
     { id: 'content' as AdminSection, icon: BookOpen, label: 'Content' },
+    { id: 'exams' as AdminSection, icon: Crown, label: 'Exams' },
     { id: 'drm' as AdminSection, icon: Shield, label: 'DRM Controls' },
     { id: 'writing' as AdminSection, icon: FileText, label: 'Writing Services' },
     { id: 'payments' as AdminSection, icon: CreditCard, label: 'Payments' },
@@ -71,11 +75,6 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 'settings' as AdminSection, icon: Settings, label: 'Settings' },
   ];
 
-  const notifications = [
-    { id: 1, message: 'New user registered: Jane Doe', time: '2 mins ago' },
-    { id: 2, message: 'Subscription renewed: John Smith', time: '10 mins ago' },
-    { id: 3, message: 'New content uploaded: "Advanced Mathematics"', time: '1 hour ago' },
-  ];
 
   const getInitialSection = (): AdminSection => {
     const path = window.location.pathname;
@@ -85,6 +84,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
       "dashboard",
       "customers",
       "content",
+      "exams",
       "drm",
       "writing",
       "payments",
@@ -316,6 +316,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
           {activeSection === 'dashboard' && <AdminDashboardHome />}
           {activeSection === 'customers' && <CustomerManagement />}
           {activeSection === 'content' && <ContentManagement />}
+          {activeSection === 'exams' && <Exams />}
           {activeSection === 'drm' && <DRMControls />}
           {activeSection === 'writing' && <WritingService />}
           {activeSection === 'payments' && <PaymentsAdmin />}

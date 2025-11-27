@@ -272,7 +272,7 @@ useEffect(() => {
     if (sub.startsWith("cart")) sub = "cartpage";
 
     const valid: UserSection[] = [
-      "dashboard","explore","library","tests","notes","writing","jobs",
+      "dashboard","explore","library","exams","tests","notes","writing","jobs",
       "payments","profile","notifications","cartpage","purchase"
     ];
 
