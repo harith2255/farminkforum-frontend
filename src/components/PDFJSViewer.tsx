@@ -1,10 +1,8 @@
 // src/components/PDFJSViewer.tsx
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-
 import * as React from "react";
 
-// CORRECT WORKER — VERSION ALWAYS MATCHES
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.js",
   import.meta.url
@@ -16,24 +14,17 @@ export default function PDFJSViewer({
   scale = 1,
   onTotalPages,
   onPageChange,
-  bookId,
   highlightMode = false,
   highlights = [],
   onAddHighlight,
-  onDeleteHighlight
+  onDeleteHighlight,
 }: any) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [pdfInstance, setPdfInstance] = useState<any>(null);
 
   const currentRenderTask = useRef<any>(null);
-
-  const dragState = useRef<{
-    startX: number;
-    startY: number;
-    active: boolean;
-    rectEl?: HTMLDivElement;
-  } | null>(null);
+  const dragState = useRef<any>(null);
 
   /* ------------------------------
       Load PDF
@@ -44,18 +35,13 @@ export default function PDFJSViewer({
 
     async function loadPdf() {
       if (!url) return;
-
       try {
-       const loadingTask = pdfjsLib.getDocument(url);
-
+        const loadingTask = pdfjsLib.getDocument(url);
         const pdf = await loadingTask.promise;
-
         loadedPdf = pdf;
         if (!mounted) return;
-
         setPdfInstance(pdf);
         onTotalPages?.(pdf.numPages);
-
       } catch (err) {
         console.error("PDF load error:", err);
       }
@@ -65,34 +51,88 @@ export default function PDFJSViewer({
 
     return () => {
       mounted = false;
-
       if (currentRenderTask.current) {
         currentRenderTask.current.cancel();
       }
-
       if (loadedPdf?.destroy) loadedPdf.destroy();
-
       setPdfInstance(null);
     };
   }, [url]);
 
   /* ------------------------------
-      Re-render on changes
+      DRM Protection: Overlay watermark + Screenshot blur
+  ------------------------------ */
+  useEffect(() => {
+    const pdfCanvas = document.getElementById("pdf-canvas") as HTMLCanvasElement;
+    const protectLayer = document.getElementById("pdf-protect-layer") as HTMLDivElement;
+
+    if (!pdfCanvas || !protectLayer) return;
+
+    const userEmail = localStorage.getItem("email") || "User";
+
+    // Create clean watermark
+    const createWatermark = () => {
+      protectLayer.innerHTML = "";
+      const wm = document.createElement("div");
+      wm.id = "drm-overlay-watermark";
+      wm.innerText = `${userEmail} • ${new Date().toLocaleString()}`;
+      wm.style.position = "absolute";
+      wm.style.top = "50%";
+      wm.style.left = "50%";
+      wm.style.transform = "translate(-50%, -50%) rotate(-25deg)";
+      wm.style.fontSize = "28px";
+      wm.style.opacity = "0.18";
+      wm.style.color = "#000";
+      wm.style.pointerEvents = "none";
+      wm.style.userSelect = "none";
+      wm.style.mixBlendMode = "multiply";
+      protectLayer.appendChild(wm);
+    };
+
+    createWatermark();
+
+    // Re-add watermark if removed
+    const obs = new MutationObserver(() => {
+      if (!document.getElementById("drm-overlay-watermark")) createWatermark();
+    });
+    obs.observe(protectLayer, { childList: true, subtree: true });
+
+    // Screenshot blur
+    const blurOnScreenshot = () => {
+      pdfCanvas.style.filter = "blur(28px)";
+      protectLayer.style.backdropFilter = "blur(12px)";
+
+      setTimeout(() => {
+        pdfCanvas.style.filter = "";
+        protectLayer.style.backdropFilter = "";
+      }, 1400);
+    };
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (["PrintScreen", "Snapshot", "F13"].includes(e.key)) {
+        blurOnScreenshot();
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      obs.disconnect();
+    };
+  }, [url]);
+
+  /* ------------------------------
+      Render the page
   ------------------------------ */
   useEffect(() => {
     if (!pdfInstance) return;
     renderPage(pdfInstance, page, scale);
   }, [pdfInstance, page, scale]);
 
-  /* ------------------------------
-      Render a page safely
-  ------------------------------ */
   async function renderPage(pdf: any, pageNum: number, scaleVal: number) {
     try {
-      if (currentRenderTask.current) {
-        currentRenderTask.current.cancel();
-        currentRenderTask.current = null;
-      }
+      if (currentRenderTask.current) currentRenderTask.current.cancel();
 
       const pdfPage = await pdf.getPage(pageNum);
       const viewport = pdfPage.getViewport({ scale: scaleVal });
@@ -103,31 +143,22 @@ export default function PDFJSViewer({
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
 
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       const renderTask = pdfPage.render({
         canvasContext: ctx,
-        viewport
+        viewport,
       });
 
       currentRenderTask.current = renderTask;
-
       await renderTask.promise;
-
-      currentRenderTask.current = null;
 
       const overlay = overlayRef.current!;
       overlay.style.width = `${canvas.width}px`;
       overlay.style.height = `${canvas.height}px`;
-
       drawHighlights(canvas.width, canvas.height);
 
       onPageChange?.(pageNum);
-    } catch (err: any) {
-      if (err?.name === "RenderingCancelledException") {
-        return;
-      }
+    } catch (err) {
+      if (err.name === "RenderingCancelledException") return;
       console.error("renderPage error:", err);
     }
   }
@@ -140,159 +171,66 @@ export default function PDFJSViewer({
     overlay.innerHTML = "";
 
     (highlights || [])
-      .filter((h: any) => Number(h.page) === Number(page))
-      .forEach((h: any) => {
-        const left = (h.xPct ?? h.x) * canvasW;
-        const top = (h.yPct ?? h.y) * canvasH;
-        const w = Math.max(2, (h.wPct ?? h.width) * canvasW);
-        const hgt = Math.max(2, (h.hPct ?? h.height) * canvasH);
+      .filter((h) => Number(h.page) === Number(page))
+      .forEach((h) => {
+        const left = h.xPct * canvasW;
+        const top = h.yPct * canvasH;
+        const w = h.wPct * canvasW;
+        const hgt = h.hPct * canvasH;
 
         const el = document.createElement("div");
-        el.className = "pdf-highlight";
         el.style.position = "absolute";
         el.style.left = `${left}px`;
         el.style.top = `${top}px`;
         el.style.width = `${w}px`;
         el.style.height = `${hgt}px`;
-        el.style.background = h.color || "rgba(255,255,0,0.35)";
-        el.style.pointerEvents = "auto";
-        el.style.opacity = "0.6";
+        el.style.background = "rgba(255,255,0,0.35)";
         el.style.borderRadius = "2px";
+        el.style.cursor = "pointer";
 
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (confirm("Delete this highlight?")) {
-            onDeleteHighlight?.(h.id);
-          }
-        });
+        el.onclick = () => {
+          if (confirm("Delete highlight?")) onDeleteHighlight?.(h.id);
+        };
 
         overlay.appendChild(el);
       });
   }
 
-  /* ------------------------------
-      Drag highlight
-  ------------------------------ */
-  useEffect(() => {
-    const overlay = overlayRef.current!;
-    if (!overlay) return;
-
-    function onMouseDown(e: MouseEvent) {
-      if (!highlightMode) return;
-
-      const rect = overlay.getBoundingClientRect();
-      const startX = e.clientX - rect.left;
-      const startY = e.clientY - rect.top;
-
-      const rectEl = document.createElement("div");
-      rectEl.style.position = "absolute";
-      rectEl.style.left = `${startX}px`;
-      rectEl.style.top = `${startY}px`;
-      rectEl.style.width = "0px";
-      rectEl.style.height = "0px";
-      rectEl.style.background = "rgba(255,255,0,0.3)";
-      rectEl.style.border = "1px dashed rgba(0,0,0,0.2)";
-      rectEl.style.pointerEvents = "none";
-
-      overlay.appendChild(rectEl);
-
-      dragState.current = { startX, startY, active: true, rectEl };
-    }
-
-    function onMouseMove(e: MouseEvent) {
-      const ds = dragState.current;
-      if (!ds || !ds.active) return;
-
-      const rect = overlay.getBoundingClientRect();
-      const curX = e.clientX - rect.left;
-      const curY = e.clientY - rect.top;
-
-      const x = Math.min(ds.startX, curX);
-      const y = Math.min(ds.startY, curY);
-      const w = Math.abs(curX - ds.startX);
-      const h = Math.abs(curY - ds.startY);
-
-      if (ds.rectEl) {
-        ds.rectEl.style.left = `${x}px`;
-        ds.rectEl.style.top = `${y}px`;
-        ds.rectEl.style.width = `${w}px`;
-        ds.rectEl.style.height = `${h}px`;
-      }
-    }
-
-    function onMouseUp() {
-      const ds = dragState.current;
-      if (!ds || !ds.active) return;
-
-      const canvas = canvasRef.current!;
-      const canvasW = canvas.width;
-      const canvasH = canvas.height;
-
-      const rectEl = ds.rectEl!;
-      rectEl.remove();
-
-      const leftPx = parseFloat(rectEl.style.left);
-      const topPx = parseFloat(rectEl.style.top);
-      const wPx = parseFloat(rectEl.style.width);
-      const hPx = parseFloat(rectEl.style.height);
-
-      if (wPx < 5 || hPx < 5) {
-        dragState.current = null;
-        return;
-      }
-
-      const xPct = leftPx / canvasW;
-      const yPct = topPx / canvasH;
-      const wPct = wPx / canvasW;
-      const hPct = hPx / canvasH;
-
-      onAddHighlight?.({
-        page,
-        xPct,
-        yPct,
-        wPct,
-        hPct,
-        color: "rgba(255,255,0,0.35)"
-      });
-
-      dragState.current = null;
-    }
-
-    overlay.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    return () => {
-      overlay.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [highlightMode, onAddHighlight, page, highlights]);
-
-  // Re-draw highlights
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    drawHighlights(canvas.width, canvas.height);
-  }, [highlights, page]);
-
   return (
-    <div style={{ position: "relative" }}>
+    <div id="pdf-container" style={{ position: "relative" }}>
       <canvas
         ref={canvasRef}
+        id="pdf-canvas"
         style={{
           display: "block",
           margin: "auto",
-          maxWidth: "100%"
+          maxWidth: "100%",
+          zIndex: 1,
         }}
       />
+
       <div
         ref={overlayRef}
+        id="pdf-overlay"
         style={{
           position: "absolute",
           left: 0,
           top: 0,
-          pointerEvents: "auto"
+          pointerEvents: "auto",
+          zIndex: 2,
+        }}
+      />
+
+      <div
+        id="pdf-protect-layer"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 3,
         }}
       />
     </div>

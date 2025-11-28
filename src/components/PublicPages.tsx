@@ -11,7 +11,7 @@ import PricingPage from './pricing/PricingPage';
 import AboutPage from './about/AboutPage';
 import ContactPage from './contact/ContactPage';
 import PurchasePage from "./PurchasePage";
-import ReadNotePage from './ReadNotePage';
+import ReadNotePage from './NotesReader';
 import * as React from 'react';
 
 interface PublicPagesProps {
@@ -74,7 +74,7 @@ export function LoginPage({
 
       const { user, access_token } = res.data;
 
-      localStorage.setItem("token", access_token); // FIXED
+      
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("role", user.role);
 

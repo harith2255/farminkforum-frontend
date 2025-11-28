@@ -40,6 +40,7 @@ import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
 import CartPage from "./user/Cartpage";
+import ReadNotePage from "./ReadNotePage";
 import axios from "axios";
 import * as React from "react";
 import { Progress } from "./ui/progress";
@@ -65,7 +66,8 @@ type UserSection =
   | "notifications"
   | "cartpage"
   | "purchase"
-  | "purchase/cart";
+  | "purchase/cart"
+  |"reader-note";
 
 export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboardProps) {
   const [activeSection, setActiveSection] = useState<UserSection>("dashboard");
@@ -271,10 +273,10 @@ useEffect(() => {
     if (sub.startsWith("purchase")) sub = "purchase";
     if (sub.startsWith("cart")) sub = "cartpage";
 
-    const valid: UserSection[] = [
-      "dashboard","explore","library","exams","tests","notes","writing","jobs",
-      "payments","profile","notifications","cartpage","purchase"
-    ];
+ const valid: UserSection[] = [
+  "dashboard","explore","library","tests","notes","writing","jobs",
+  "payments","profile","notifications","cartpage","purchase","reader-note"
+];
 
     if (valid.includes(sub as UserSection)) {
       setActiveSection(sub as UserSection);
@@ -662,6 +664,15 @@ useEffect(() => {
   <UniversalPurchasePage
     onNavigate={(page) => {
       setActiveSection(page as UserSection);
+      window.history.pushState({}, "", `/${page}`);
+
+    }}
+  />
+)}
+{activeSection === "reader-note" && (
+  <ReadNotePage
+    onNavigate={(page) => {
+      setActiveSection(page as UserSection);
       window.history.pushState({}, "", `/user-dashboard/${page}`);
     }}
   />
@@ -681,7 +692,7 @@ useEffect(() => {
 // src/components/DashboardHome.tsx
 
 
-const API_URL = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
+const API_URL = (import.meta.env.VITE_API_URL as string) || "https://ebook-backend-lxce.onrender.com";
 
 export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) => void }) {
   const [dashboardData, setDashboardData] = useState<any | null>(null);

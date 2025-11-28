@@ -1,15 +1,114 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
-import { Shield, Eye, Download, Copy } from 'lucide-react';
+import { Shield, Download, Copy, Eye } from 'lucide-react';
+
+type DRMSettings = {
+  copy_protection: boolean;
+  watermarking: boolean;
+  device_limit: number;
+  screenshot_prevention: boolean;
+};
 
 export function DRMControls() {
-  const accessLogs = [
-    { user: 'Alex Rodriguez', book: 'Advanced Calculus', action: 'Read', device: 'MacBook Pro', time: '5 min ago', ip: '192.168.1.1' },
-    { user: 'Sarah Johnson', book: 'Quantum Physics', action: 'Download', device: 'iPhone 14', time: '15 min ago', ip: '192.168.1.5' },
-    { user: 'Michael Chen', book: 'Machine Learning', action: 'Read', device: 'iPad Air', time: '1 hour ago', ip: '192.168.1.12' },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<DRMSettings>({
+    copy_protection: true,
+    watermarking: true,
+    device_limit: 3,
+    screenshot_prevention: false,
+  });
+
+  const [accessLogs, setAccessLogs] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/settings", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const logs = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/access-logs?limit=50", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const lic = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/licenses", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setSettings(s.data.settings);
+        setAccessLogs(logs.data.logs);
+        setLicenses(lic.data.licenses);
+        setLoading(false);
+      } catch (err) {
+        console.error("DRM load error:", err);
+      }
+    })();
+  }, []);
+
+  const saveSettings = async (newSet: Partial<DRMSettings>) => {
+  const updated = { ...settings, ...newSet };
+  setSettings(updated);
+
+  setSaving(true);
+  await axios.put(
+    "https://ebook-backend-lxce.onrender.com/api/admin/drm/settings",
+    { settings: updated },  // <-- FIXED
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  setSaving(false);
+};
+
+
+  const changeDeviceLimit = (d: number) =>
+    saveSettings({ device_limit: Math.max(1, settings.device_limit + d) });
+
+  const addWatermark = async () => {
+    setSaving(true);
+    const r = await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/drm/watermark",
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert(r.data.message);
+    setSaving(false);
+  };
+
+  const downloadReport = async () => {
+    const res = await axios.get(
+      "https://ebook-backend-lxce.onrender.com/api/admin/drm/report",
+      { responseType: "blob", headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `access-report-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const revokeUserAccess = async () => {
+    const uid = prompt("Enter user id:");
+    if (!uid) return;
+
+    const r = await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/drm/revoke",
+      { user_id: uid.trim() },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert(r.data.message);
+  };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="space-y-6">

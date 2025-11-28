@@ -1,92 +1,93 @@
-// src/components/explore/Explore.tsx
-import { useEffect, useState } from "react";
+// src/components/user/Explore.tsx
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import CategoryFilter from "../explore/CategorySection";
-import BooksGrid from "../explore/BooksGrid";
+import DashboardBooksGrid from "../DashboardBooksGrid";
 import * as React from "react";
-import {toast} from "sonner"
-function Explore({
-  onOpenBook,
-  onNavigate
-}: {
-  onOpenBook: (book: any) => void;
-  onNavigate: (page: string) => void;
-}) {
-  const [books, setBooks] = useState<any[]>([]);
+
+function Explore({ onOpenBook, onNavigate }) {
+  const [books, setBooks] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  const handleAddToCart = async (bookId: number) => {
-  const token = localStorage.getItem("token");
+  const isLoggedIn = () => {
+    const token = localStorage.getItem("token");
+    return token && token.length > 10;
+  };
 
-  if (!token) {
-    onNavigate("login");
-    return;
-  }
+  // ✅ MAKE fetchBooks stable and available everywhere
+  const fetchBooks = useCallback(async () => {
+    try {
+      setLoading(true);
 
-  try {
-    await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/cart/add",
-      { book_id: bookId, quantity: 1 },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+      // 1️⃣ Fetch all books
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/content?type=books");
+      let list = res.data?.contents || [];
 
-    toast.success("Added to cart ✓");
+      // 2️⃣ Fetch purchased book IDs
+      let purchasedIds = [];
+      const token = localStorage.getItem("token");
 
-    // Let the dashboard cart refresh automatically
-    window.dispatchEvent(new CustomEvent("cart:changed"));
-  } catch (err) {
-    console.error("Add to cart failed:", err);
-    toast.error("Failed to add to cart");
-  }
-};
-
-  useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        setLoading(true);
-
-        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/content?type=books");
-        let payload = res.data?.contents ?? [];
-
-        const token = localStorage.getItem("token");
-
-        if (token) {
-          payload = await Promise.all(
-            payload.map(async (book: any) => {
-              const check = await axios.get(
-                "https://ebook-backend-lxce.onrender.com/api/purchase/check",
-                {
-                  params: { bookId: book.id },
-                  headers: { Authorization: `Bearer ${token}` },
-                }
-              );
-              return { ...book, purchased: check.data.purchased };
-            })
+      if (token) {
+        try {
+          const pres = await axios.get(
+            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
+            { headers: { Authorization: `Bearer ${token}` } }
           );
+          purchasedIds = pres.data || [];
+        } catch (err) {
+          console.log("⚠️ Could not fetch purchased IDs", err);
         }
-
-        setBooks(payload);
-      } catch (err) {
-        console.error("Error fetching books:", err);
-      } finally {
-        setLoading(false);
       }
-    };
+console.log("🔥 purchasedIds =", purchasedIds);
+console.log("📚 allBooks =", list);
 
-    fetchBooks();
+      // 3️⃣ Merge purchased flag
+      const merged = list.map((b) => ({
+        ...b,
+        purchased: purchasedIds.includes(b.id),
+      }));
+
+      console.log("📘 MERGED BOOKS = ", merged);
+
+      setBooks(merged);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // 1️⃣ Load books initially
+  useEffect(() => {
+    fetchBooks();
+  }, [fetchBooks]);
+
+  // 2️⃣ Refresh Explore after payment success
+  useEffect(() => {
+    const refresh = () => fetchBooks();
+    window.addEventListener("refresh-library", refresh);
+
+    return () => window.removeEventListener("refresh-library", refresh);
+  }, [fetchBooks]);
+
+  // 3️⃣ (Optional) Some pages emit refresh-explore
+  useEffect(() => {
+    const refresh = () => fetchBooks();
+    window.addEventListener("refresh-explore", refresh);
+
+    return () => window.removeEventListener("refresh-explore", refresh);
+  }, [fetchBooks]);
 
   const categories = [
     "All",
-    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean)))
+    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean))),
   ];
 
   const filteredBooks =
     selectedCategory === "All"
       ? books
       : books.filter((b) => b.category === selectedCategory);
-
   return (
     <div className="space-y-6">
       <h2 className="text-[#1d4d6a] mb-1">Explore Books</h2>
@@ -100,51 +101,14 @@ function Explore({
         layout="user"
       />
 
-      {loading ? (
-        <p className="text-gray-500 text-center">Loading books...</p>
+{loading ? (
+        <p className="text-center text-gray-500">Loading books...</p>
       ) : (
-       <BooksGrid
-  books={filteredBooks.map(book => ({
-    ...book,
-
-    onBuy: () => {
-      localStorage.setItem("purchaseType", "book");
-      localStorage.setItem("purchaseId", book.id.toString());
-      onNavigate("purchase");
-    },
-
-    onAddToCart: async () => {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        onNavigate("login");
-        return;
-      }
-
-      try {
-        await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/cart/add",
-          { book_id: book.id, quantity: 1 },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        window.dispatchEvent(new CustomEvent("cart:changed"));
-        alert("Added to cart ✓");
-
-      } catch (err) {
-        console.error("Add to cart error:", err);
-        alert("Failed to add to cart");
-      }
-    }
-
-  }))}
-
-  onOpenBook={onOpenBook}
-  onNavigate={onNavigate}
-/>
-
-
-
+        <DashboardBooksGrid
+          books={filteredBooks}
+          onOpenBook={onOpenBook}
+          onNavigate={onNavigate}
+        />
       )}
     </div>
   );

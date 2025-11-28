@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import HeroSection from "./HeroSection";
 import CategoryFilter from "./CategorySection";
-import BooksGrid from "./BooksGrid";
 import * as React from "react";
+import PublicBooksGrid from "./publicBookGrid";
 
 function ExplorePage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -33,7 +33,7 @@ function ExplorePage() {
 
   const categories = [
     "All",
-    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean)))
+    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean))),
   ];
 
   const filteredBooks = books.filter(
@@ -43,18 +43,15 @@ function ExplorePage() {
         book.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // 🚫 ALWAYS redirect to LOGIN for public Explore
   const forceLogin = () => {
-    window.history.pushState({}, "", "/login");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    window.location.href = "/login";
+    window.location.href = "/login"; // 🔥 public page → always login
   };
 
   return (
     <div>
-      <HeroSection
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
+     {/* HERO BANNER */}
+      <HeroSection searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         <CategoryFilter
@@ -63,15 +60,15 @@ function ExplorePage() {
           setSelectedCategory={setSelectedCategory}
         />
 
-        <BooksGrid
-          books={filteredBooks.map((b) => ({
-            ...b,
-            purchased: false, // just to avoid undefined
-            onBuy: forceLogin
-          }))}
-          onOpenBook={forceLogin}
-          onNavigate={forceLogin}   // ⬅️ REQUIRED so "Buy Now" triggers login
-        />
+        {/* PUBLIC BOOK GRID */}
+        {loading ? (
+          <p className="text-center text-gray-500 mt-10">Loading books...</p>
+        ) : (
+          <PublicBooksGrid
+            books={filteredBooks}
+            onNavigate={forceLogin}
+          />
+        )}
       </div>
     </div>
   );

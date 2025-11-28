@@ -9,16 +9,14 @@ import { Slider } from "./ui/slider";
 import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
-export function BookReader({ book, onClose }: any) {
+export function BookReader({ book, drm, onClose }: any) {
   const [theme, setTheme] = useState("light");
   const [zoom, setZoom] = useState(1.2);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // study session timer
   const [sessionStart, setSessionStart] = useState<number | null>(null);
 
-  // highlights
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlights, setHighlights] = useState<any[]>([]);
 
@@ -37,7 +35,21 @@ export function BookReader({ book, onClose }: any) {
       try {
         if (!token) return;
 
-        // load highlights
+        // Log read event (DRM / analytics)
+        try {
+          await fetch("https://ebook-backend-lxce.onrender.com/api/books/read", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ book_id: book.id }),
+          });
+        } catch (err) {
+          // don't block reader if logging fails
+          console.warn("logBookRead failed", err);
+        }
+
         const hres = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/library/highlights/${book.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -67,6 +79,7 @@ export function BookReader({ book, onClose }: any) {
   -----------------------------------------------------*/
   useEffect(() => {
     if (!book) return;
+
     const t = setTimeout(async () => {
       try {
         if (!token) return;
@@ -91,42 +104,37 @@ export function BookReader({ book, onClose }: any) {
 
   /* --------------------------------------------------
       Update Reading Progress (auto)
-      progress = (current_page / total_pages) * 100
   -----------------------------------------------------*/
- /* -------------------------------------------
-    Update Reading Progress (auto)
---------------------------------------------*/
 useEffect(() => {
-  if (!book || !currentPage || !totalPages) return;
+    if (!book || !currentPage || !totalPages) return;
 
   const t = setTimeout(async () => {
     try {
       if (!token) return;
+        const progress = Math.round((currentPage / totalPages) * 100);
 
-      const progress = Math.round((currentPage / totalPages) * 100);
+        await fetch(
+          `https://ebook-backend-lxce.onrender.com/api/library/progress/${book.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ progress }),
+          }
+        );
+      } catch (err) {
+        console.warn("progress update failed", err);
+      }
+    }, 500);
 
-      await fetch(
-        `https://ebook-backend-lxce.onrender.com/api/library/progress/${book.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ progress }), // ✅ FIXED
-        }
-      );
-    } catch (err) {
-      console.warn("progress update failed", err);
-    }
-  }, 500);
-
-  return () => clearTimeout(t);
-}, [currentPage, totalPages, book]);
+    return () => clearTimeout(t);
+  }, [currentPage, totalPages, book]);
 
 
   /* --------------------------------------------------
-      Add Highlight
+       Highlight add/delete
   -----------------------------------------------------*/
   const handleAddHighlight = async (h: any) => {
     try {
@@ -159,9 +167,6 @@ useEffect(() => {
     }
   };
 
-  /* --------------------------------------------------
-      Delete Highlight
-  -----------------------------------------------------*/
   const handleDeleteHighlight = async (highlightId: number) => {
     try {
       if (!token) return;
@@ -209,6 +214,9 @@ useEffect(() => {
     onClose();
   };
 
+  /* --------------------------------------------------
+      Render UI (No changes)
+  -----------------------------------------------------*/
   return (
     <div
       className={`fixed inset-0 z-50 ${
@@ -243,7 +251,7 @@ useEffect(() => {
           {/* Tools */}
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+              onClick={() => setZoom((z) => Math.max(0.5, z - 1*0.1))}
               variant="ghost"
             >
               <ZoomOut />
@@ -276,8 +284,7 @@ useEffect(() => {
         </div>
       </header>
 
-      {/* PDF Viewer */}
-      <div className="flex justify-center py-6 h-[calc(100vh-220px)] overflow-auto">
+      <div className="flex justify-center  h-[calc(100vh-220px)] overflow-auto">
         <PDFJSViewer
           url={book.file_url}
           page={currentPage}
@@ -285,6 +292,7 @@ useEffect(() => {
           onTotalPages={setTotalPages}
           onPageChange={setCurrentPage}
           bookId={book.id}
+          drm={drm}
           highlightMode={highlightMode}
           highlights={highlights}
           onAddHighlight={handleAddHighlight}
@@ -294,13 +302,13 @@ useEffect(() => {
 
       {/* Pagination */}
       <div
-        className={`fixed bottom-0 left-0 right-0 border-t ${
+        className={`fixed left-0 right-0 border-t mt-8 ${
           theme === "dark"
             ? "border-gray-800 bg-black"
             : "border-gray-200 bg-white"
         }`}
       >
-        <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
             <ChevronLeft /> Prev
           </Button>
@@ -316,7 +324,8 @@ useEffect(() => {
           </Button>
         </div>
 
-        <Slider
+        <Slider 
+        className="px-4 pb-0 pt-0"
           value={[currentPage]}
           min={1}
           max={totalPages}
