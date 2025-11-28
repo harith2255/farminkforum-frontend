@@ -100,10 +100,10 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
      const url =
   type === "book"
-    ? `http://localhost:5000/api/books/${productId}`
+    ? `https://ebook-backend-lxce.onrender.com/api/books/${productId}`
 
           : type === "note"
-          ? `http://localhost:5000/api/notes/${productId}`
+          ? `https://ebook-backend-lxce.onrender.com/api/notes/${productId}`
           : null;
 
       if (!url) {
@@ -150,13 +150,13 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
               if (entry.book_id) {
                 const res = await axios.get(
-                  `http://localhost:5000/api/ebooks/${entry.book_id}`
+                  `https://ebook-backend-lxce.onrender.com/api/ebooks/${entry.book_id}`
                 );
                 return { ...entry, book: res.data };
               }
               if (entry.note_id) {
                 const res = await axios.get(
-                  `http://localhost:5000/api/notes/${entry.note_id}`
+                  `https://ebook-backend-lxce.onrender.com/api/notes/${entry.note_id}`
                 );
                 return { ...entry, note: res.data };
               }
@@ -247,7 +247,7 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      await axios.post("http://localhost:5000/api/purchase/unified", purchaseData, {
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/purchase/unified", purchaseData, {
         headers,
       });
 

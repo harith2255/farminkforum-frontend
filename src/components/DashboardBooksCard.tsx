@@ -32,7 +32,7 @@ export default function DashboardBookCard({
 
     try {
       await axios.post(
-        "http://localhost:5000/api/cart/add",
+        "https://ebook-backend-lxce.onrender.com/api/cart/add",
         { book_id: book.id, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );

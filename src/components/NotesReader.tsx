@@ -101,13 +101,13 @@ export default function NotesReader({ note, drm, onClose }: any) {
         if (!token) return;
 
         const hres = await fetch(
-          `http://localhost:5000/api/notes/highlights/${note.id}`,
+          `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (hres.ok) setHighlights(await hres.json());
 
         const pres = await fetch(
-          `http://localhost:5000/api/notes/lastpage/${note.id}`,
+          `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (pres.ok) {
@@ -129,7 +129,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
       if (!token) return;
       try {
         await fetch(
-          `http://localhost:5000/api/notes/lastpage/${note.id}`,
+          `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
           {
             method: "PUT",
             headers: {
@@ -152,7 +152,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
     try {
       if (!token) return;
 
-      const res = await fetch("http://localhost:5000/api/notes/highlights", {
+      const res = await fetch("https://ebook-backend-lxce.onrender.com/api/notes/highlights", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -183,7 +183,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
       if (!token) return;
 
       const res = await fetch(
-        `http://localhost:5000/api/notes/highlights/${highlightId}`,
+        `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${highlightId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
