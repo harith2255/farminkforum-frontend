@@ -22,7 +22,6 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
       try {
         const token = localStorage.getItem("token");
-
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -50,7 +49,6 @@ export default function NotificationsPage() {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem("token");
-
       await axios.patch(
         "https://ebook-backend-lxce.onrender.com/api/notifications/read-all",
         {},
@@ -67,7 +65,6 @@ export default function NotificationsPage() {
   const handleNotificationClick = async (id: number) => {
     try {
       const token = localStorage.getItem("token");
-
       await axios.patch(
         `https://ebook-backend-lxce.onrender.com/api/notifications/read/${id}`,
         {},

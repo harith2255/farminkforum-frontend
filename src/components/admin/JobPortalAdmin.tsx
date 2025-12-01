@@ -47,8 +47,7 @@ useEffect(() => {
 
 const fetchJobs = async () => {
   try {
-    const token = localStorage.getItem("token");
-    const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/jobs", {
+    const token = localStorage.getItem("token");    const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/jobs", {
       headers: { Authorization: `Bearer ${token}` },
     });
     setJobs(res.data.jobs || []);
@@ -72,8 +71,7 @@ const handleAddJob = async () => {
   }
 
   try {
-    const token = localStorage.getItem("token");
-    await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/jobs", formData, {
+    const token = localStorage.getItem("token");    await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/jobs", formData, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job posted successfully!");
@@ -91,8 +89,7 @@ const handleAddJob = async () => {
   if (!editingJob) return;
 
   try {
-    const token = localStorage.getItem("token");
-    await axios.put(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${editingJob.id}`, formData, {
+    const token = localStorage.getItem("token");    await axios.put(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${editingJob.id}`, formData, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job updated successfully!");
@@ -110,8 +107,7 @@ const handleAddJob = async () => {
   if (!window.confirm("Are you sure you want to delete this job?")) return;
 
   try {
-    const token = localStorage.getItem("token");
-    await axios.delete(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${id}`, {
+    const token = localStorage.getItem("token");    await axios.delete(`https://ebook-backend-lxce.onrender.com/api/admin/jobs/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job deleted successfully!");

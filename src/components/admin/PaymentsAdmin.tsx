@@ -14,8 +14,7 @@ export function PaymentsAdmin() {
  useEffect(() => {
     const loadPayments = async () => {
       try {
-       const token = localStorage.getItem("token");
-console.log("TOKEN SENT:", token);
+       const token = localStorage.getItem("token");console.log("TOKEN SENT:", token);
 
 
         /* ---------------------------

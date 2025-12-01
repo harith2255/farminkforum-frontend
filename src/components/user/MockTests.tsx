@@ -170,8 +170,7 @@ console.log("Requesting APIs...");
   // START TEST
   const handleStartClick = async (test: any) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
+      const token = localStorage.getItem("token");      const res = await axios.post(
         `${API_URL}/start`,
         { test_id: test.id },
         { headers: { Authorization: `Bearer ${token}` } }

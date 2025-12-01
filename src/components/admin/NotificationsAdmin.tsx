@@ -32,7 +32,6 @@ export function NotificationsAdmin() {
   const loadNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-
       const res = await fetch(`${API}/logs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -60,7 +59,6 @@ export function NotificationsAdmin() {
 
     try {
       const token = localStorage.getItem("token");
-
       const res = await fetch(`${API}/send`, {
         method: "POST",
         headers: {
@@ -95,7 +93,6 @@ export function NotificationsAdmin() {
   const saveDraft = async () => {
     try {
       const token = localStorage.getItem("token");
-
       const res = await fetch(`${API}/draft`, {
         method: "POST",
         headers: {

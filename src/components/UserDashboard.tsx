@@ -95,7 +95,6 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
       try {
         const session = JSON.parse(localStorage.getItem("session") || "{}");
         const token = session?.access_token || localStorage.getItem("token");
-
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -127,8 +126,7 @@ useEffect(() => {
         setLoading(true);
         setError("");
 
-        const token = localStorage.getItem("token");
-        if (!token) {
+        const token = localStorage.getItem("token");        if (!token) {
           setError("You are not logged in.");
           setLoading(false);
           return;
@@ -162,8 +160,7 @@ useEffect(() => {
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        const token = localStorage.getItem("token");        if (!token) return;
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/cart", {
           headers: { Authorization: `Bearer ${token}` },
@@ -185,8 +182,7 @@ useEffect(() => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        const token = localStorage.getItem("token");        if (!token) return;
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
@@ -423,8 +419,7 @@ useEffect(() => {
                           className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
                           onClick={async () => {
                             try {
-                              const token = localStorage.getItem("token");
-                              await axios.patch(
+                              const token = localStorage.getItem("token");                              await axios.patch(
                                 `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
                                 {},
                                 { headers: { Authorization: `Bearer ${token}` } }
@@ -705,8 +700,7 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
-      if (!token) {
+      const token = localStorage.getItem("token");      if (!token) {
         setError("You are not logged in.");
         setLoading(false);
         return;

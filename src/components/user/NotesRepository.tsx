@@ -19,7 +19,6 @@ export default function NotesRepository({ onNavigate }: any) {
   const [searchText, setSearchText] = useState("");
 
   const token = localStorage.getItem("token");
-
   /* ----------------------------------------
      ⭐ ADD TO CART FOR NOTES
   ---------------------------------------- */

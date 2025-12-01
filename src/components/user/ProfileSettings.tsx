@@ -96,8 +96,7 @@ const getValidToken = () => {
     }
   } catch (err) {}
 
-  return localStorage.getItem("token");
-};
+  return localStorage.getItem("token");};
 
 const token = getValidToken(); // required — fixes "token is not defined"
 

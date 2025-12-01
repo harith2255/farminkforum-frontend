@@ -17,7 +17,6 @@ export function ReportsAnalytics() {
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
-
   // --------------------------------------------
   // Fetch Analytics (Revenue, Users, Books)
   // --------------------------------------------
@@ -74,7 +73,6 @@ export function ReportsAnalytics() {
   // --------------------------------------------
   const downloadReport = async (id: string) => {
   const token = localStorage.getItem("token");
-
   try {
     const res = await axios.get(
       `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,

@@ -18,7 +18,6 @@
 // export default function BookCard({ book, onNavigate }: BookCardProps) {
 //   const handleAddToCart = async () => {
 //   const token = localStorage.getItem("token");
-
 //   if (!token) {
 //     onNavigate("login");
 //     return;
@@ -51,8 +50,7 @@
 //   "https://placehold.co/300x400?text=No+Cover";
 
 //   const handleBuyNow = () => {
-//     const token = localStorage.getItem("token");
-//     if (!token) {
+//     const token = localStorage.getItem("token");//     if (!token) {
 //       onNavigate("login");
 //     } else {
 //       onNavigate(`purchase/${book.id}`);

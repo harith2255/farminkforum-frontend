@@ -10,14 +10,12 @@ import { toast } from "sonner";
 export default function PublicBooksGrid({ books, onNavigate }) {
 
   const isLoggedIn = () => !!localStorage.getItem("token");
-
   const redirectToLogin = () => onNavigate?.("login");
 
   const addToCart = async (bookId: number) => {
     if (!isLoggedIn()) return redirectToLogin();
 
     const token = localStorage.getItem("token");
-
     try {
       await axios.post(
         "https://ebook-backend-lxce.onrender.com/api/cart/add",

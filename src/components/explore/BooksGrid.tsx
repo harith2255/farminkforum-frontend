@@ -23,8 +23,7 @@
 //   };
 
 //   const addToCart = async (bookId: number) => {
-//     const token = localStorage.getItem("token");
-//     if (!token) {
+//     const token = localStorage.getItem("token");//     if (!token) {
 //       onNavigate?.("login");
 //       return;
 //     }
@@ -160,8 +159,7 @@
 //                   {!book.purchased ? (
 //                     <Button
 //                       onClick={() => {
-//                         const token = localStorage.getItem("token");
-//                         if (!token) {
+//                         const token = localStorage.getItem("token");//                         if (!token) {
 //                           onNavigate?.("login");
 //                           return;
 //                         }

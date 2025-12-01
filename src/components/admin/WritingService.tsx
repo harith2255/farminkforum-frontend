@@ -54,8 +54,7 @@ export default function AdminWritingDashboard() {
   const [adminReply, setAdminReply] = useState("");
   const [listening, setListening] = useState(false);
 
-  const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const token = localStorage.getItem("token");  const headers = { Authorization: `Bearer ${token}` };
 
   const realtimeChannelRef = useRef<any>(null);
 

@@ -24,8 +24,7 @@ const API = import.meta.env.VITE_API_BASE || "https://ebook-backend-lxce.onrende
 
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const token = localStorage.getItem("token");  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function ContentManagementGrid() {
@@ -160,7 +159,6 @@ console.log("Deleting:", deleteTarget);
 
   try {
     const token = localStorage.getItem("token");
-
     await axios.delete(`${API}/admin/content/${mappedType}/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });

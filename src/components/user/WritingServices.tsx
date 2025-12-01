@@ -194,16 +194,14 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
   // API Headers
   const getJsonHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");
-    return {
+    const token = localStorage.getItem("token");    return {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
   }, []);
 
   const getAuthHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");
-    return {
+    const token = localStorage.getItem("token");    return {
       Authorization: `Bearer ${token}`,
     };
   }, []);
@@ -358,8 +356,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
         });
 
         xhr.open('POST', `${API_BASE_URL}/upload`);
-        const token = localStorage.getItem("token");
-        if (token) {
+        const token = localStorage.getItem("token");        if (token) {
           xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }
         xhr.send(formData);

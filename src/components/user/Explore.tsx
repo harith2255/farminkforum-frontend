@@ -11,8 +11,7 @@ function Explore({ onOpenBook, onNavigate }) {
   const [loading, setLoading] = useState(true);
 
   const isLoggedIn = () => {
-    const token = localStorage.getItem("token");
-    return token && token.length > 10;
+    const token = localStorage.getItem("token");    return token && token.length > 10;
   };
 
   // ✅ MAKE fetchBooks stable and available everywhere
@@ -27,7 +26,6 @@ function Explore({ onOpenBook, onNavigate }) {
       // 2️⃣ Fetch purchased book IDs
       let purchasedIds = [];
       const token = localStorage.getItem("token");
-
       if (token) {
         try {
           const pres = await axios.get(

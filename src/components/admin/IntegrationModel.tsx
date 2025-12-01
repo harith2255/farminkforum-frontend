@@ -33,7 +33,6 @@ export function IntegrationModal({ open, onClose, integration, refresh }: Integr
       setMsg("");
 
       const token = localStorage.getItem("token");
-
       await axios.put(
         `https://ebook-backend-lxce.onrender.com/api/admin/settings/integrations/${integration.id}`,
         form,

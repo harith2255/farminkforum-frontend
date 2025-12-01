@@ -8,7 +8,6 @@ export default function CartPage({ onNavigate }) {
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
-
   /* --------------------------------------------------------
     LOAD CART 
   -------------------------------------------------------- */

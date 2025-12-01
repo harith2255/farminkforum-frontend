@@ -4,8 +4,7 @@ import axios from "axios";
 const BASE = "https://ebook-backend-lxce.onrender.com/api/cart";
 
 function authHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const token = localStorage.getItem("token");  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export async function fetchCart() {

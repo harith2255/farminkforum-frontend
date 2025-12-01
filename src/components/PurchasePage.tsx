@@ -42,8 +42,7 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem("session") || "{}");
-    return session.access_token || localStorage.getItem("token");
-  };
+    return session.access_token || localStorage.getItem("token");  };
 
   // ---------------- ICON MAP ----------------
   const IconForType = ({ t }: { t: PurchaseType }) => {

@@ -17,9 +17,7 @@ export default function DashboardBookCard({
   onNavigate: (page: string, param?: string) => void;
 }) {
   const isLoggedIn = () => !!localStorage.getItem("token");
-
   const token = localStorage.getItem("token");
-
   const cover =
     book.cover_url ||
     book.cover ||

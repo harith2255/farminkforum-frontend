@@ -43,7 +43,6 @@ export function CustomerManagement() {
       setLoading(true);
 
       const token = localStorage.getItem("token");
-
       const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/customers", {
         headers: { Authorization: `Bearer ${token}` },
         params: { search, status, plan, page, limit: 10 },
@@ -73,7 +72,6 @@ export function CustomerManagement() {
 
   const suspendCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
-
     await axios.post(
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/suspend`,
       {},
@@ -85,7 +83,6 @@ export function CustomerManagement() {
 
   const activateCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
-
     await axios.post(
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}/activate`,
       {},
@@ -99,7 +96,6 @@ export function CustomerManagement() {
     if (!confirm("Are you sure you want to delete this customer?")) return;
 
     const token = localStorage.getItem("token");
-
     await axios.delete(
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
       { headers: { Authorization: `Bearer ${token}` } }
@@ -110,7 +106,6 @@ export function CustomerManagement() {
 
   const sendNotification = async () => {
     const token = localStorage.getItem("token");
-
     await axios.post(
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${selectedCustomer.id}/notify`,
       {

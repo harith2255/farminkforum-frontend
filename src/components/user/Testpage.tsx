@@ -27,8 +27,7 @@ const testId = pathParts[1];
 
 
   const attemptId = localStorage.getItem("active_attempt_id");
-  const token = localStorage.getItem("token");
-console.log("Submitting with attemptId:", attemptId);
+  const token = localStorage.getItem("token");console.log("Submitting with attemptId:", attemptId);
 
   /* ---------------------------------------------------
      1️⃣ Fetch Questions from Backend

@@ -21,7 +21,6 @@ export function SystemSettings() {
   const loadData = async () => {
     try {
       const token = localStorage.getItem("token");
-
       const settingsRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/settings", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -50,7 +49,6 @@ export function SystemSettings() {
   ----------------------------- */
   const saveSettings = async () => {
     const token = localStorage.getItem("token");
-
     await axios.put(
       "https://ebook-backend-lxce.onrender.com/api/admin/settings",
       settings,
@@ -65,7 +63,6 @@ export function SystemSettings() {
   ----------------------------- */
   const createBackup = async () => {
     const token = localStorage.getItem("token");
-
     const res = await axios.post(
       "https://ebook-backend-lxce.onrender.com/api/admin/settings/backup",
       {},

@@ -34,50 +34,50 @@ export function AdminDashboardHome() {
 
 
   function formatActivity(activity: any) {
-  const { user_name, action_type, meta } = activity;
+    const { user_name, action_type, meta } = activity;
 
-  switch (action_type) {
-    case "upload_book":
-      return `${user_name} uploaded a book "${meta?.title}"`;
+    switch (action_type) {
+      case "upload_book":
+        return `${user_name} uploaded a book "${meta?.title}"`;
 
-    case "subscribe":
-      return `${user_name} subscribed to a ${meta?.plan}`;
+      case "subscribe":
+        return `${user_name} subscribed to a ${meta?.plan}`;
 
-    case "subscription_activate":
-      return `${user_name} activated a ${meta?.plan}`;
+      case "subscription_activate":
+        return `${user_name} activated a ${meta?.plan}`;
 
-    case "renew_subscription":
-      return `${user_name} renewed their ${meta?.plan}`;
+      case "renew_subscription":
+        return `${user_name} renewed their ${meta?.plan}`;
 
-    case "purchase_book":
-      return `${user_name} purchased the book "${meta?.title}"`;
+      case "purchase_book":
+        return `${user_name} purchased the book "${meta?.title}"`;
 
-    case "publish_notes":
-      return `${user_name} published study notes for "${meta?.subject}"`;
+      case "publish_notes":
+        return `${user_name} published study notes for "${meta?.subject}"`;
 
-    case "update_content":
-      return `${user_name} updated content in category "${meta?.category}"`;
+      case "update_content":
+        return `${user_name} updated content in category "${meta?.category}"`;
 
-    case "checkout_resource":
-      return `${user_name} checked out a resource from ${meta?.category}`;
+      case "checkout_resource":
+        return `${user_name} checked out a resource from ${meta?.category}`;
 
-    case "login":
-      return `${user_name} logged in`;
+      case "login":
+        return `${user_name} logged in`;
 
-    case "signin":
-      return `${user_name} signed in`;
+      case "signin":
+        return `${user_name} signed in`;
 
-    default:
-      return `${user_name} performed an action`;
+      default:
+        return `${user_name} performed an action`;
+    }
   }
-}
 
 
 
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem("token");
-
+      console.log("Fetching analytics with token:", token);
       const res = await axios.get(
         "https://ebook-backend-lxce.onrender.com/api/admin/dashboard",
         {
@@ -104,35 +104,35 @@ export function AdminDashboardHome() {
   }
 
   const kpiData = [
-  {
-    label: "Total Users",
-    value: kpis.totalUsers,
-    change: kpis.userGrowthPercent,
-    icon: Users,
-    color: "text-blue-500",
-  },
-  {
-    label: "Active Subscriptions",
-    value: kpis.activeSubs,
-    change: kpis.subsGrowthPercent,
-    icon: TrendingUp,
-    color: "text-green-500",
-  },
-  {
-    label: "Books Sold",
-    value: kpis.booksSold,
-    change: kpis.booksGrowthPercent,
-    icon: BookOpen,
-    color: "text-purple-500",
-  },
-  {
-    label: "Revenue (MTD)",
-    value: `₹${kpis.revenueMTD}`,
-    change: kpis.revenueGrowthPercent,
-    icon: IndianRupee,
-    color: "text-red-500",
-  },
-];
+    {
+      label: "Total Users",
+      value: kpis.totalUsers,
+      change: kpis.userGrowthPercent,
+      icon: Users,
+      color: "text-blue-500",
+    },
+    {
+      label: "Active Subscriptions",
+      value: kpis.activeSubs,
+      change: kpis.subsGrowthPercent,
+      icon: TrendingUp,
+      color: "text-green-500",
+    },
+    {
+      label: "Books Sold",
+      value: kpis.booksSold,
+      change: kpis.booksGrowthPercent,
+      icon: BookOpen,
+      color: "text-purple-500",
+    },
+    {
+      label: "Revenue (MTD)",
+      value: `₹${kpis.revenueMTD}`,
+      change: kpis.revenueGrowthPercent,
+      icon: IndianRupee,
+      color: "text-red-500",
+    },
+  ];
 
 
 
@@ -149,18 +149,17 @@ export function AdminDashboardHome() {
                   <p className="text-sm text-gray-500 mb-1">{kpi.label}</p>
                   <h3 className="text-[#1d4d6a] mb-2">{kpi.value}</h3>
 
-                 <div
-  className={`flex items-center gap-1 text-xs ${
-    kpi.change >= 0 ? "text-green-600" : "text-red-600"
-  }`}
->
-  {kpi.change >= 0 ? (
-    <ArrowUp className="w-3 h-3" />
-  ) : (
-    <ArrowDown className="w-3 h-3" />
-  )}
-  <span>{Math.abs(kpi.change)}%</span>
-</div>
+                  <div
+                    className={`flex items-center gap-1 text-xs ${kpi.change >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                  >
+                    {kpi.change >= 0 ? (
+                      <ArrowUp className="w-3 h-3" />
+                    ) : (
+                      <ArrowDown className="w-3 h-3" />
+                    )}
+                    <span>{Math.abs(kpi.change)}%</span>
+                  </div>
 
                 </div>
 
@@ -223,30 +222,29 @@ export function AdminDashboardHome() {
             {recentActivity.map((activity, index) => (
               <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
                 <div
-                  className={`w-2 h-2 rounded-full mt-2 ${
-                    activity.type === "subscription"
+                  className={`w-2 h-2 rounded-full mt-2 ${activity.type === "subscription"
                       ? "bg-green-500"
                       : activity.type === "activity"
-                      ? "bg-blue-500"
-                      : activity.type === "content"
-                      ? "bg-purple-500"
-                      : activity.type === "service"
-                      ? "bg-orange-500"
-                      : "bg-gray-500"
-                  }`}
+                        ? "bg-blue-500"
+                        : activity.type === "content"
+                          ? "bg-purple-500"
+                          : activity.type === "service"
+                            ? "bg-orange-500"
+                            : "bg-gray-500"
+                    }`}
                 />
                 <div className="flex-1">
-  <p className="text-sm text-[#1d4d6a]">
-    <span>{activity.user_name}</span> {activity.action}
-  </p>
+                  <p className="text-sm text-[#1d4d6a]">
+                    <span>{activity.user_name}</span> {activity.action}
+                  </p>
 
- <p className="text-xs text-gray-500">
-  {new Date(activity.created_at).toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-  })}
-</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(activity.created_at).toLocaleString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                    })}
+                  </p>
 
-</div>
+                </div>
 
 
               </div>

@@ -27,7 +27,6 @@ export function DRMControls() {
   const [saving, setSaving] = useState(false);
 
   const token = localStorage.getItem("token");
-
   useEffect(() => {
     (async () => {
       try {

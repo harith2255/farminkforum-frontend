@@ -28,8 +28,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlights, setHighlights] = useState<any[]>([]);
 
-  const token = localStorage.getItem("token");
-  const userEmail = localStorage.getItem("email") || "User";
+  const token = localStorage.getItem("token");  const userEmail = localStorage.getItem("email") || "User";
 
   /* ============================
      DRM: BLOCK COPY / SELECT / RIGHT-CLICK

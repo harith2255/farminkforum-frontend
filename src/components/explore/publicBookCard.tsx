@@ -11,7 +11,6 @@ import { toast } from "sonner";
 
 export default function PublicBookCard({ book, onNavigate }) {
   const isLoggedIn = () => !!localStorage.getItem("token");
-
   const cover =
     book.cover_url ||
     book.cover ||
@@ -26,7 +25,6 @@ export default function PublicBookCard({ book, onNavigate }) {
 
     try {
       const token = localStorage.getItem("token");
-
       await axios.post(
         "https://ebook-backend-lxce.onrender.com/api/cart/add",
         { book_id: book.id, quantity: 1 },
