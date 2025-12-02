@@ -14,7 +14,7 @@ const getToken = () => {
     }
   } catch {}
 
-  return localStorage.getItem("app_token") || null;
+  return localStorage.getItem("token") || null;
 };
 
 export default function UserStudyResources() {
