@@ -1,15 +1,22 @@
 // src/components/BookReader.tsx
 import { useState, useEffect } from "react";
 import {
-  X, Sun, Moon, ZoomIn, ZoomOut,
-  Menu, ChevronLeft, ChevronRight
+  X, Sun, Moon, ZoomIn, ZoomOut, Menu,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
-export function BookReader({ book, drm, onClose }: any) {
+export function BookReader({ bookId, drm, onClose }: any) {
+  /* --------------------------------------------------
+        ALL HOOKS MUST BE FIRST — ALWAYS!
+  -----------------------------------------------------*/
+  const [book, setBook] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [theme, setTheme] = useState("light");
   const [zoom, setZoom] = useState(1.2);
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,7 +31,42 @@ export function BookReader({ book, drm, onClose }: any) {
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   /* --------------------------------------------------
-      Load highlights + lastPage AND start study timer
+      1️⃣ Fetch Book Metadata
+  -----------------------------------------------------*/
+  useEffect(() => {
+    if (!bookId) {
+      setError("Invalid book ID.");
+      setLoading(false);
+      return;
+    }
+
+    async function loadBook() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(`https://ebook-backend-lxce.onrender.com/api/books/${bookId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Book not found.");
+
+        const data = await res.json();
+        if (!data.book) throw new Error("Book data missing.");
+
+        setBook(data.book);
+      } catch (err: any) {
+        setError(err.message || "Failed to load book.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBook();
+  }, [bookId]);
+
+  /* --------------------------------------------------
+      2️⃣ Load highlights + last page once book exists
   -----------------------------------------------------*/
   useEffect(() => {
     if (!book) return;
@@ -35,20 +77,14 @@ export function BookReader({ book, drm, onClose }: any) {
       try {
         if (!token) return;
 
-        // Log read event (DRM / analytics)
-        try {
-          await fetch("https://ebook-backend-lxce.onrender.com/api/books/read", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ book_id: book.id }),
-          });
-        } catch (err) {
-          // don't block reader if logging fails
-          console.warn("logBookRead failed", err);
-        }
+        await fetch("https://ebook-backend-lxce.onrender.com/api/books/read", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ book_id: book.id }),
+        });
 
         const hres = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/library/highlights/${book.id}`,
@@ -56,7 +92,6 @@ export function BookReader({ book, drm, onClose }: any) {
         );
         if (hres.ok) setHighlights(await hres.json());
 
-        // load last page
         const pres = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -66,16 +101,15 @@ export function BookReader({ book, drm, onClose }: any) {
           if (data?.last_page) setCurrentPage(Number(data.last_page));
         }
 
-        // start study tracking timer
         setSessionStart(Date.now());
       } catch (err) {
-        console.warn("Failed loading reader data", err);
+        console.warn("Reader load error", err);
       }
     })();
   }, [book]);
 
   /* --------------------------------------------------
-      Save Last Page (Debounced)
+      3️⃣ Save last page (debounced)
   -----------------------------------------------------*/
   useEffect(() => {
     if (!book) return;
@@ -83,19 +117,16 @@ export function BookReader({ book, drm, onClose }: any) {
     const t = setTimeout(async () => {
       try {
         if (!token) return;
-        await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ last_page: currentPage }),
-          }
-        );
+        await fetch(`https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ last_page: currentPage }),
+        });
       } catch (err) {
-        console.warn("save last page failed", err);
+        console.warn("Failed saving last page", err);
       }
     }, 500);
 
@@ -103,119 +134,59 @@ export function BookReader({ book, drm, onClose }: any) {
   }, [currentPage, book]);
 
   /* --------------------------------------------------
-      Update Reading Progress (auto)
+      4️⃣ Save study session on close
   -----------------------------------------------------*/
-useEffect(() => {
-    if (!book || !currentPage || !totalPages) return;
+  const handleClose = async () => {
+    if (sessionStart) {
+      const hours = (Date.now() - sessionStart) / (1000 * 60 * 60);
 
-  const t = setTimeout(async () => {
-    try {
-      if (!token) return;
-        const progress = Math.round((currentPage / totalPages) * 100);
-
-        await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/library/progress/${book.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ progress }),
-          }
-        );
-      } catch (err) {
-        console.warn("progress update failed", err);
-      }
-    }, 500);
-
-    return () => clearTimeout(t);
-  }, [currentPage, totalPages, book]);
-
-
-  /* --------------------------------------------------
-       Highlight add/delete
-  -----------------------------------------------------*/
-  const handleAddHighlight = async (h: any) => {
-    try {
-      if (!token) return;
-
-      const res = await fetch("https://ebook-backend-lxce.onrender.com/api/library/highlights", {
+      await fetch("https://ebook-backend-lxce.onrender.com/api/library/study-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          book_id: book.id,
-          page: h.page,
-          x_pct: h.xPct,
-          y_pct: h.yPct,
-          w_pct: h.wPct,
-          h_pct: h.hPct,
-          color: h.color || "rgba(255,255,0,0.35)",
-          note: h.text || "",
-        }),
+        body: JSON.stringify({ duration: hours }),
       });
-
-      if (!res.ok) throw new Error("save highlight failed");
-
-      const saved = await res.json();
-      setHighlights((prev) => [...prev, saved]);
-    } catch (err) {
-      console.warn("add highlight failed", err);
-    }
-  };
-
-  const handleDeleteHighlight = async (highlightId: number) => {
-    try {
-      if (!token) return;
-
-      const res = await fetch(
-        `https://ebook-backend-lxce.onrender.com/api/library/highlights/${highlightId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!res.ok) throw new Error("delete failed");
-
-      setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
-    } catch (err) {
-      console.warn("delete highlight failed", err);
-    }
-  };
-
-  /* --------------------------------------------------
-      Close Reader → Save Study Time
-  -----------------------------------------------------*/
-  const handleCloseReader = async () => {
-    if (sessionStart) {
-      const ms = Date.now() - sessionStart;
-      const hours = ms / (1000 * 60 * 60);
-
-      try {
-        await fetch(`https://ebook-backend-lxce.onrender.com/api/library/study-session`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ duration: hours }),
-        });
-
-        window.dispatchEvent(new Event("dashboard:refresh"));
-      } catch (err) {
-        console.warn("Failed to save study session", err);
-      }
     }
 
     onClose();
   };
 
   /* --------------------------------------------------
-      Render UI (No changes)
+      5️⃣ SAFE CONDITIONAL UI RENDERING (AFTER HOOKS)
+  -----------------------------------------------------*/
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white">
+        <div className="animate-pulse text-gray-700 text-lg">Loading book…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white text-red-600">
+        <p className="text-xl mb-4">⚠️ {error}</p>
+        <Button onClick={handleClose}>Close Reader</Button>
+      </div>
+    );
+  }
+
+  if (!book) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white text-gray-600">
+        <p>Book data missing.</p>
+        <Button className="mt-4" onClick={handleClose}>
+          Close
+        </Button>
+      </div>
+    );
+  }
+
+  /* --------------------------------------------------
+      6️⃣ MAIN RENDER
   -----------------------------------------------------*/
   return (
     <div
@@ -223,49 +194,34 @@ useEffect(() => {
         theme === "dark" ? "bg-black text-white" : "bg-white text-black"
       }`}
     >
-      {/* Header */}
+      {/* HEADER */}
       <header
-        className={`sticky top-0 z-10 border-b ${
-          theme === "dark"
-            ? "border-gray-800 bg-black"
-            : "border-gray-200 bg-white"
+        className={`sticky top-0 border-b ${
+          theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"
         }`}
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={handleCloseReader} variant="ghost">
+            <Button onClick={handleClose} variant="ghost">
               <X />
             </Button>
+
             <div>
-              <h2
-                className={
-                  theme === "dark" ? "text-white" : "text-[#1d4d6a]"
-                }
-              >
-                {book.title}
-              </h2>
+              <h2>{book.title}</h2>
               <p className="text-sm text-gray-500">{book.author}</p>
             </div>
           </div>
 
-          {/* Tools */}
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setZoom((z) => Math.max(0.5, z - 1*0.1))}
-              variant="ghost"
-            >
+            <Button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} variant="ghost">
               <ZoomOut />
             </Button>
-            <Button
-              onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
-              variant="ghost"
-            >
+
+            <Button onClick={() => setZoom((z) => Math.min(3, z + 0.1))} variant="ghost">
               <ZoomIn />
             </Button>
-            <Button
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              variant="ghost"
-            >
+
+            <Button onClick={() => setTheme(theme === "light" ? "dark" : "light")} variant="ghost">
               {theme === "light" ? <Moon /> : <Sun />}
             </Button>
 
@@ -284,7 +240,8 @@ useEffect(() => {
         </div>
       </header>
 
-      <div className="flex justify-center  h-[calc(100vh-220px)] overflow-auto">
+      {/* PDF VIEWER */}
+      <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
         <PDFJSViewer
           url={book.file_url}
           page={currentPage}
@@ -295,17 +252,13 @@ useEffect(() => {
           drm={drm}
           highlightMode={highlightMode}
           highlights={highlights}
-          onAddHighlight={handleAddHighlight}
-          onDeleteHighlight={handleDeleteHighlight}
         />
       </div>
 
-      {/* Pagination */}
+      {/* FOOTER */}
       <div
-        className={`fixed left-0 right-0 border-t mt-8 ${
-          theme === "dark"
-            ? "border-gray-800 bg-black"
-            : "border-gray-200 bg-white"
+        className={`fixed bottom-0 left-0 right-0 border-t ${
+          theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -317,15 +270,13 @@ useEffect(() => {
             Page {currentPage} / {totalPages}
           </span>
 
-          <Button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          >
+          <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
             Next <ChevronRight />
           </Button>
         </div>
 
-        <Slider 
-        className="px-4 pb-0 pt-0"
+        <Slider
+          className="px-4 pb-2"
           value={[currentPage]}
           min={1}
           max={totalPages}

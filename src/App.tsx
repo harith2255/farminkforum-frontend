@@ -45,12 +45,12 @@ type Page =
 
 export default function App() {
   (function () {
-  const pushState = window.history.pushState;
-  window.history.pushState = function (...args) {
-    pushState.apply(this, args);
-    window.dispatchEvent(new Event("pushstate"));
-  };
-})();
+    const pushState = window.history.pushState;
+    window.history.pushState = function (...args) {
+      pushState.apply(this, args);
+      window.dispatchEvent(new Event("pushstate"));
+    };
+  })();
 
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
   const [pageParam, setPageParam] = useState<any>(null);
@@ -59,25 +59,45 @@ export default function App() {
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* --------------------------------------------------
-     FIXED ROUTER
-  -------------------------------------------------- */
+  useEffect(() => {
+    const session = JSON.parse(localStorage.getItem("session") || "{}");
+    if (session?.access_token) {
+      localStorage.setItem("token", session.access_token);
+    }
+  }, []);
 
   useEffect(() => {
-  const syncRoute = () => {
-    const route = resolveRoute();
-    setCurrentPage(route.page);
-    setPageParam(route.param);
-  };
+    const original = window.history.pushState;
+    window.history.pushState = function (...args) {
+      original.apply(this, args);
+      window.dispatchEvent(new Event("pushstate"));
+    };
+    return () => {
+      window.history.pushState = original;
+    };
+  }, []);
 
-  window.addEventListener("popstate", syncRoute);
-  window.addEventListener("pushstate", syncRoute); // CUSTOM EVENT
+  // const handleOpenBook = (book: any) => {
+  //   // Navigate to reader page
+  //   handleNavigate("reader", book.id);
+  // };
 
-  return () => {
-    window.removeEventListener("popstate", syncRoute);
-    window.removeEventListener("pushstate", syncRoute);
-  };
-}, []);
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const route = resolveRoute();
+      setCurrentPage(route.page);
+      setPageParam(route.param);
+    };
+
+    window.addEventListener("popstate", syncRoute);
+    window.addEventListener("pushstate", syncRoute); // CUSTOM EVENT
+
+    return () => {
+      window.removeEventListener("popstate", syncRoute);
+      window.removeEventListener("pushstate", syncRoute);
+    };
+  }, []);
 
   const resolveRoute = () => {
     const path = window.location.pathname;
@@ -221,55 +241,58 @@ export default function App() {
   /* --------------------------------------------------
      NAVIGATION
   -------------------------------------------------- */
- const handleNavigate = (page: string, param?: string) => {
-  const newParam = param || null;
-  setPreviousPage(currentPage!);
+  const handleNavigate = (page: string, param?: string) => {
+    const newParam = param || null;
+    setPreviousPage(currentPage!);
 
-  // -------- FIXED NOTES READER --------
-  if (page === "reader-note") {
-    const newId = Number(param);
+    // -------- FIXED NOTES READER --------
+    if (page === "reader-note") {
+      const newId = Number(param);
 
-    // FORCE REMOUNT even if same note clicked again
-    if (currentPage === "reader-note" && pageParam === newId) {
-      setPageParam(null);
-      setTimeout(() => setPageParam(newId), 0);
-    } else {
-      setPageParam(newId);
+      // FORCE REMOUNT even if same note clicked again
+      if (currentPage === "reader-note" && pageParam === newId) {
+        setPageParam(null);
+        setTimeout(() => setPageParam(newId), 0);
+      } else {
+        setPageParam(newId);
+      }
+
+      setCurrentPage("reader-note");
+      window.history.pushState({}, "", `/notes/read/${newId}`);
+      return;
     }
 
-    setCurrentPage("reader-note");
-    window.history.pushState({}, "", `/notes/read/${newId}`);
-    return;
-  }
+    // -------- BOOK READER --------
+    if (page === "reader") {
+      setCurrentPage("reader");
+      setPageParam(param || null);
+      window.history.pushState({}, "", `/reader/${param}`);
+      return;
+    }
 
-  // -------- BOOK READER --------
-  if (page === "reader") {
-    setCurrentPage("reader");
-    setPageParam(param || null);
-    window.history.pushState({}, "", `/reader/${param}`);
-    return;
-  }
+    // -------- PURCHASE --------
+    if (page === "purchase") {
+      const id = param || localStorage.getItem("purchaseId") || "";
+      setCurrentPage("purchase");
+      setPageParam(id);
+      window.history.pushState({}, "", `/purchase/${id}`);
+      return;
+    }
 
-  // -------- PURCHASE --------
-  if (page === "purchase") {
-    const id = param || localStorage.getItem("purchaseId") || "";
-    setCurrentPage("purchase");
-    setPageParam(id);
-    window.history.pushState({}, "", `/purchase/${id}`);
-    return;
-  }
-
-  // -------- DEFAULT --------
-  setCurrentPage(page as Page);
-  window.history.pushState({}, "", `/${page}`);
-};
+    // -------- DEFAULT --------
+    setCurrentPage(page as Page);
+    window.history.pushState({}, "", `/${page}`);
+  };
 
   /* --------------------------------------------------
      LOGOUT
   -------------------------------------------------- */
   const handleLogout = () => {
+    localStorage.removeItem("token");
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("role");
+
+    window.dispatchEvent(new Event("authChan"));
     setUserRole(null);
     setCurrentPage("home");
     window.history.pushState({}, "", "/");
@@ -331,12 +354,12 @@ export default function App() {
       {["explore", "pricing", "about", "contact", "login", "register"].includes(
         currentPage
       ) && (
-        <PublicPages
-          page={currentPage as any}
-          onNavigate={handleNavigate}
-          onLogin={handleLogin}
-        />
-      )}
+          <PublicPages
+            page={currentPage as any}
+            onNavigate={handleNavigate}
+            onLogin={handleLogin}
+          />
+        )}
 
       {currentPage === "test" && (
         <TestPage onNavigate={handleNavigate} onLogout={handleLogout} />

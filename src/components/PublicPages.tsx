@@ -113,15 +113,10 @@ export function LoginPage({
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-6 px-6 bg-[#f5f6f8]">
-      <Card className="w-full max-w-md border-none shadow-xl">
+      <Card className="mt-20 w-full max-w-md border-none shadow-xl">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-[#bf2026]" />
-          </div>
           <CardTitle className="text-[#1d4d6a]">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to access your academic resources
-          </CardDescription>
+          <CardDescription>Sign in to access your academic resources</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -201,7 +196,7 @@ export default function RegisterPage({
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:5000/api/auth/register", {
+      const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/register", {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -221,28 +216,36 @@ export default function RegisterPage({
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-6 py-12 bg-[#f5f6f8]">
-      <Card className="w-full max-w-md border-none shadow-xl">
+    <div className="min-h-[calc(100vh-120px)] flex items-center justify-center px-6 py-12 bg-[#f5f6f8]">
+      <Card className="mt-20 w-full max-w-md border-none shadow-xl">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-[#bf2026]" />
-          </div>
           <CardTitle className="text-[#1d4d6a]">Create Your Account</CardTitle>
-          <CardDescription>
-            Join thousands of learners worldwide
-          </CardDescription>
+          <CardDescription>Join thousands of learners worldwide</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label>First Name</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label> First Name</Label>
             <Input
-              name="firstName"
-              type="text"
-              placeholder="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-            />
-          </div>
+            name="firstName"
+            type="text"
+            placeholder="firstName"
+            value={formData.firstName}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div>
+          <Label>Last Name</Label>
+          <Input
+            name="lastName"
+            type="text"
+            placeholder="lastName"
+            value={formData.lastName}
+            onChange={handleChange}
+          />
+        </div>
+        </div>
 
           <div>
             <Label>Last Name</Label>
