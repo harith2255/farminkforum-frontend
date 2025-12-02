@@ -46,7 +46,7 @@ export default function UserStudyResources() {
     if (!token) return;
 
     try {
-      const res = await axios.get("http://localhost:5000/api/exams/folders", {
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/exams/folders", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -70,7 +70,7 @@ export default function UserStudyResources() {
 
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/exams/submissions/me",
+        "https://ebook-backend-lxce.onrender.com/api/exams/submissions/me",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -145,7 +145,7 @@ export default function UserStudyResources() {
       if (answerText.trim()) form.append("answer_text", answerText);
 
       await axios.post(
-        `http://localhost:5000/api/exams/${attendExamId}/attend`,
+        `https://ebook-backend-lxce.onrender.com/api/exams/${attendExamId}/attend`,
         form,
         {
           headers: {
