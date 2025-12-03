@@ -7,12 +7,21 @@ export default function PaymentModal({ open, item, onClose, onSuccess }: any) {
   const [loading, setLoading] = React.useState(false);
 
   // 🔥 Unified price solution
-  const amount =
-    item?.price ||        // book, note
-    item?.total_price ||  // writing order
-    item?.amount ||       // subscription
-    item?.total ||        // cart
-    0;
+// Resolve nested product object
+const product =
+  item?.book ||
+  item?.note ||
+  item?.subscription ||
+  item?.product ||
+  item || {};
+
+// Extract price
+const amount =
+  product?.price ||        // most products use price
+  product?.amount ||       // subscription uses amount
+  item?.total ||           // cart
+  0;
+
 
   // 🔥 Correct cart title handling
   const title =
@@ -26,15 +35,50 @@ export default function PaymentModal({ open, item, onClose, onSuccess }: any) {
 
   const type = item?.type || "purchase";
 
-  const confirmPayment = async () => {
+ const confirmPayment = async () => {
+  try {
     setLoading(true);
 
-    // Simulated processing (test mode)
+    // simulate payment process
     await new Promise((resolve) => setTimeout(resolve, 1200));
 
+    // 🔥 Determine what user is buying
+    let purchaseItems = [];
+
+    if (product.id) {
+      purchaseItems = [{ id: product.id, type: item.type || "book" }];
+    }
+
+    // 🧠 fallback for cart
+    if (item?.type === "cart") {
+      purchaseItems = item.items?.map((i: any) => ({
+        id: i.id,
+        type: i.type,
+      })) ?? [];
+    }
+
+    // 🚀 CALL BACKEND PURCHASE API
+    await fetch("https://ebook-backend-lxce.onrender.com/api/purchase/unified", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ items: purchaseItems }),
+    });
+
     setLoading(false);
-    onSuccess(item); // calls PurchasePage handleSuccess()
-  };
+
+    // UI callback
+    onSuccess(item);
+
+  } catch (err) {
+    console.error(err);
+    setLoading(false);
+    alert("Payment failed, please try again.");
+  }
+};
+
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -46,6 +90,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }: any) {
         <div className="space-y-4 text-gray-700">
           <p>You are purchasing:</p>
 
+          {/* ITEM CARD */}
           <div className="p-4 border rounded-lg">
             <p className="font-semibold">{title}</p>
             <p className="text-sm capitalize">{type}</p>

@@ -20,12 +20,20 @@ axios.interceptors.response.use(
     const status = err?.response?.status;
 
     if (status === 401) {
-      if (window.location.pathname.startsWith("/user-dashboard")) {
+      const path = window.location.pathname;
+      if (
+        path.startsWith("/user-dashboard") ||
+        path.startsWith("/admin-dashboard")
+      ) {
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("role");
+        localStorage.removeItem("token");
         window.location.href = "/login";
       }
     }
     return Promise.reject(err);
   }
+  
 );
 
 type Page =
@@ -44,21 +52,15 @@ type Page =
   | "reader-note";
 
 export default function App() {
-  (function () {
-    const pushState = window.history.pushState;
-    window.history.pushState = function (...args) {
-      pushState.apply(this, args);
-      window.dispatchEvent(new Event("pushstate"));
-    };
-  })();
-
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
   const [pageParam, setPageParam] = useState<any>(null);
   const [previousPage, setPreviousPage] = useState<Page>("home");
-  const [selectedBook, setSelectedBook] = useState<any>(null);
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* ============================================================
+     1) RESTORE TOKEN — FIXED (runs only once)
+  ============================================================ */
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem("session") || "{}");
     if (session?.access_token) {
@@ -66,6 +68,9 @@ export default function App() {
     }
   }, []);
 
+  /* ============================================================
+     2) FIXED PUSHSTATE HOOK – runs once (not every render)
+  ============================================================ */
   useEffect(() => {
     const original = window.history.pushState;
     window.history.pushState = function (...args) {
@@ -77,192 +82,128 @@ export default function App() {
     };
   }, []);
 
-  // const handleOpenBook = (book: any) => {
-  //   // Navigate to reader page
-  //   handleNavigate("reader", book.id);
-  // };
-
-
-  useEffect(() => {
-    const syncRoute = () => {
-      const route = resolveRoute();
-      setCurrentPage(route.page);
-      setPageParam(route.param);
+const handleOpenBook = (book: any) => {
+  const id = book.book_id || book.id;
+  handleNavigate("reader", id);
     };
 
-    window.addEventListener("popstate", syncRoute);
-    window.addEventListener("pushstate", syncRoute); // CUSTOM EVENT
-
-    return () => {
-      window.removeEventListener("popstate", syncRoute);
-      window.removeEventListener("pushstate", syncRoute);
-    };
-  }, []);
-
-  const resolveRoute = () => {
+  /* ============================================================
+     3) ROUTE RESOLVER
+  ============================================================ */
+  const resolveRoute = (): { page: Page; param: any } => {
     const path = window.location.pathname;
 
-    // Notes reader
     if (path.startsWith("/notes/read/")) {
       const id = Number(path.split("/").pop());
-      return { page: "reader-note" as Page, param: id };
+      return { page: "reader-note", param: id };
     }
 
-    // Book reader
     if (path.startsWith("/reader/")) {
       const id = path.split("/").pop();
-      return { page: "reader" as Page, param: id };
+      return { page: "reader", param: id };
     }
 
-    // Purchase
     if (path.startsWith("/purchase/")) {
       const id = path.split("/").pop();
-      return { page: "purchase" as Page, param: id };
+      return { page: "purchase", param: id };
     }
 
-    // Dashboards
     if (path.startsWith("/user-dashboard"))
-      return { page: "user-dashboard" as Page, param: null };
+      return { page: "user-dashboard", param: null };
 
     if (path.startsWith("/admin-dashboard"))
-      return { page: "admin-dashboard" as Page, param: null };
+      return { page: "admin-dashboard", param: null };
+    if (path.startsWith("/test/")) {
+  const id = path.split("/").pop();
+  return { page: "test", param: id };
+}
 
-    // Static pages
+
     const staticPages = [
-      "/explore",
-      "/pricing",
-      "/about",
-      "/contact",
-      "/login",
-      "/register",
+      "explore",
+      "pricing",
+      "about",
+      "contact",
+      "login",
+      "register",
     ];
 
-    if (staticPages.includes(path)) {
-      return { page: path.replace("/", "") as Page, param: null };
+    const page = path.replace("/", "");
+    if (staticPages.includes(page)) {
+      return { page: page as Page, param: null };
     }
 
-    return { page: "home" as Page, param: null };
+    return { page: "home", param: null };
   };
 
-  /* --------------------------------------------------
-     RESTORE SESSION
-  -------------------------------------------------- */
-  const restoreToken = () => {
-    const session = JSON.parse(localStorage.getItem("session") || "{}");
-
-    if (session?.access_token) {
-      localStorage.setItem("token", session.access_token);
-    }
-  };
-  restoreToken();
-
-  /* --------------------------------------------------
-     INITIAL LOAD → resolve route
-  -------------------------------------------------- */
+  /* ============================================================
+     4) SYNC ROUTER — Single clean listener
+  ============================================================ */
   useEffect(() => {
-    const route = resolveRoute();
-    setCurrentPage(route.page);
-    setPageParam(route.param);
-  }, []);
-
-  /* --------------------------------------------------
-     BACK/FORWARD button
-  -------------------------------------------------- */
-  useEffect(() => {
-    const handler = () => {
-      const route = resolveRoute();
-      setCurrentPage(route.page);
-      setPageParam(route.param);
+    const sync = () => {
+      const r = resolveRoute();
+      setCurrentPage(r.page);
+      setPageParam(r.param);
     };
 
-    window.addEventListener("popstate", handler);
-    return () => window.removeEventListener("popstate", handler);
+    window.addEventListener("popstate", sync);
+    window.addEventListener("pushstate", sync);
+
+    sync(); // INITIAL
+
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("pushstate", sync);
+    };
   }, []);
 
-  /* --------------------------------------------------
-      AUTO LOGIN RESTORE
-  -------------------------------------------------- */
+  /* ============================================================
+     5) AUTO LOGIN RESTORE
+  ============================================================ */
   useEffect(() => {
-    const path = window.location.pathname;
     const logged = localStorage.getItem("isLoggedIn");
     const role = localStorage.getItem("role");
 
-    if (!logged || !role) {
-      setLoading(false);
-      return;
-    }
-
-    setUserRole(role as any);
-
-    if (path.startsWith("/user-dashboard")) {
-      setCurrentPage("user-dashboard");
-      setLoading(false);
-      return;
-    }
-
-    if (path.startsWith("/admin-dashboard")) {
-      setCurrentPage("admin-dashboard");
-      setLoading(false);
-      return;
+    if (logged && role) {
+      setUserRole(role as any);
     }
 
     setLoading(false);
   }, []);
 
-  /* --------------------------------------------------
-     SCROLL RESTORE
-  -------------------------------------------------- */
+  /* ============================================================
+     6) SCROLL RESTORE
+  ============================================================ */
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo(0, 0);
   }, [currentPage]);
 
-  /* --------------------------------------------------
-     LOGIN
-  -------------------------------------------------- */
+  /* ============================================================
+     7) LOGIN
+  ============================================================ */
   const handleLogin = (role: "user" | "admin") => {
     setUserRole(role);
-    const target = role === "user" ? "user-dashboard" : "admin-dashboard";
-    setCurrentPage(target);
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("role", role);
+
+    const target = role === "user" ? "user-dashboard" : "admin-dashboard";
+    setCurrentPage(target as Page);
     window.history.pushState({}, "", `/${target}`);
   };
 
-  /* --------------------------------------------------
-     OPEN BOOK READER
-  -------------------------------------------------- */
-  const handleOpenBook = (book: any) => {
-    setPreviousPage(currentPage!);
-    setSelectedBook(book);
-    setCurrentPage("reader");
-    window.history.pushState({}, "", `/reader/${book.id}`);
-  };
-
-  /* --------------------------------------------------
-     NAVIGATION
-  -------------------------------------------------- */
+  /* ============================================================
+     8) NAVIGATE
+  ============================================================ */
   const handleNavigate = (page: string, param?: string) => {
-    const newParam = param || null;
     setPreviousPage(currentPage!);
 
-    // -------- FIXED NOTES READER --------
     if (page === "reader-note") {
-      const newId = Number(param);
-
-      // FORCE REMOUNT even if same note clicked again
-      if (currentPage === "reader-note" && pageParam === newId) {
-        setPageParam(null);
-        setTimeout(() => setPageParam(newId), 0);
-      } else {
-        setPageParam(newId);
-      }
-
       setCurrentPage("reader-note");
-      window.history.pushState({}, "", `/notes/read/${newId}`);
+      setPageParam(Number(param));
+      window.history.pushState({}, "", `/notes/read/${param}`);
       return;
     }
 
-    // -------- BOOK READER --------
     if (page === "reader") {
       setCurrentPage("reader");
       setPageParam(param || null);
@@ -270,44 +211,42 @@ export default function App() {
       return;
     }
 
-    // -------- PURCHASE --------
     if (page === "purchase") {
-      const id = param || localStorage.getItem("purchaseId") || "";
+      const id = param || "";
       setCurrentPage("purchase");
       setPageParam(id);
       window.history.pushState({}, "", `/purchase/${id}`);
       return;
     }
 
-    // -------- DEFAULT --------
     setCurrentPage(page as Page);
     window.history.pushState({}, "", `/${page}`);
   };
 
-  /* --------------------------------------------------
-     LOGOUT
-  -------------------------------------------------- */
+  /* ============================================================
+     9) LOGOUT
+  ============================================================ */
   const handleLogout = () => {
+    // Remove all tokens ALWAYS
     localStorage.removeItem("token");
-    localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("role");
+    localStorage.removeItem("isLoggedIn");
 
-    window.dispatchEvent(new Event("authChan"));
+    // Notify app
+    window.dispatchEvent(new Event("authChanged"));
+
     setUserRole(null);
     setCurrentPage("home");
     window.history.pushState({}, "", "/");
   };
 
-  /* --------------------------------------------------
+  /* ============================================================
      LOADING SCREEN
-  -------------------------------------------------- */
+  ============================================================ */
   if (loading || currentPage === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-t-[#bf2026] border-gray-300 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 mt-3 font-medium">Loading...</p>
-        </div>
+      <div className="min-h-screen flex justify-center items-center">
+        <div>Loading...</div>
       </div>
     );
   }
@@ -317,25 +256,23 @@ export default function App() {
   -------------------------------------------------- */
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
-      {currentPage === "home" && (
-        <Home onNavigate={handleNavigate} onOpenBook={handleOpenBook} />
-      )}
+      {/* HOME */}
+      {currentPage === "home" && <Home onNavigate={handleNavigate} />}
 
+      {/* USER DASHBOARD */}
       {currentPage === "user-dashboard" && (
-        <UserDashboard
-          onNavigate={handleNavigate}
-          onOpenBook={handleOpenBook}
-          onLogout={handleLogout}
-        />
+        <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} onOpenBook={handleOpenBook}/>
       )}
 
+      {/* ADMIN DASHBOARD */}
       {currentPage === "admin-dashboard" && (
         <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} />
       )}
 
-      {currentPage === "reader" && selectedBook && (
+      {/* READER */}
+      {currentPage === "reader" && pageParam && (
         <BookReader
-          book={selectedBook}
+          bookId={pageParam}
           onClose={() => {
             setCurrentPage(previousPage);
             window.history.pushState({}, "", `/${previousPage}`);
@@ -343,23 +280,26 @@ export default function App() {
         />
       )}
 
+      {/* NOTE READER */}
       {currentPage === "reader-note" && pageParam && (
         <ReadNotePage noteId={pageParam} onNavigate={handleNavigate} />
       )}
 
+      {/* PURCHASE */}
       {currentPage === "purchase" && pageParam && (
         <UniversalPurchasePage id={pageParam} onNavigate={handleNavigate} />
       )}
 
+      {/* PUBLIC PAGES */}
       {["explore", "pricing", "about", "contact", "login", "register"].includes(
         currentPage
       ) && (
-          <PublicPages
-            page={currentPage as any}
-            onNavigate={handleNavigate}
-            onLogin={handleLogin}
-          />
-        )}
+        <PublicPages
+          page={currentPage as any}
+          onNavigate={handleNavigate}
+          onLogin={handleLogin}
+        />
+      )}
 
       {currentPage === "test" && (
         <TestPage onNavigate={handleNavigate} onLogout={handleLogout} />

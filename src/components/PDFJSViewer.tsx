@@ -8,6 +8,31 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
+interface Highlight {
+  id: number | string;
+  page: number;
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
+  color?: string;
+}
+
+interface PDFJSViewerProps {
+  url: string;
+  page?: number;
+  scale?: number;
+  onTotalPages?: (total: number) => void;
+  onPageChange?: (page: number) => void;
+  highlightMode?: boolean;
+  highlights?: Highlight[];
+  isLocked?: boolean;
+  previewPages?: number;
+  onBuyClick?: (bookId: string | number) => void;
+  bookId?: string | number;
+  onDeleteHighlight?: (id: number | string) => void;
+}
+
 export default function PDFJSViewer({
   url,
   page = 1,
@@ -16,15 +41,17 @@ export default function PDFJSViewer({
   onPageChange,
   highlightMode = false,
   highlights = [],
-  onAddHighlight,
+  isLocked = false,
+  previewPages = 1,
+  onBuyClick,
+  bookId,
   onDeleteHighlight,
-}: any) {
+}: PDFJSViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [pdfInstance, setPdfInstance] = useState<any>(null);
 
   const currentRenderTask = useRef<any>(null);
-  const dragState = useRef<any>(null);
 
   /* ------------------------------
       Load PDF
@@ -57,70 +84,7 @@ export default function PDFJSViewer({
       if (loadedPdf?.destroy) loadedPdf.destroy();
       setPdfInstance(null);
     };
-  }, [url]);
-
-  /* ------------------------------
-      DRM Protection: Overlay watermark + Screenshot blur
-  ------------------------------ */
-  useEffect(() => {
-    const pdfCanvas = document.getElementById("pdf-canvas") as HTMLCanvasElement;
-    const protectLayer = document.getElementById("pdf-protect-layer") as HTMLDivElement;
-
-    if (!pdfCanvas || !protectLayer) return;
-
-    const userEmail = localStorage.getItem("email") || "User";
-
-    // Create clean watermark
-    const createWatermark = () => {
-      protectLayer.innerHTML = "";
-      const wm = document.createElement("div");
-      wm.id = "drm-overlay-watermark";
-      wm.innerText = `${userEmail} • ${new Date().toLocaleString()}`;
-      wm.style.position = "absolute";
-      wm.style.top = "50%";
-      wm.style.left = "50%";
-      wm.style.transform = "translate(-50%, -50%) rotate(-25deg)";
-      wm.style.fontSize = "28px";
-      wm.style.opacity = "0.18";
-      wm.style.color = "#000";
-      wm.style.pointerEvents = "none";
-      wm.style.userSelect = "none";
-      wm.style.mixBlendMode = "multiply";
-      protectLayer.appendChild(wm);
-    };
-
-    createWatermark();
-
-    // Re-add watermark if removed
-    const obs = new MutationObserver(() => {
-      if (!document.getElementById("drm-overlay-watermark")) createWatermark();
-    });
-    obs.observe(protectLayer, { childList: true, subtree: true });
-
-    // Screenshot blur
-    const blurOnScreenshot = () => {
-      pdfCanvas.style.filter = "blur(28px)";
-      protectLayer.style.backdropFilter = "blur(12px)";
-
-      setTimeout(() => {
-        pdfCanvas.style.filter = "";
-        protectLayer.style.backdropFilter = "";
-      }, 1400);
-    };
-
-    const handleKey = (e: KeyboardEvent) => {
-      if (["PrintScreen", "Snapshot", "F13"].includes(e.key)) {
-        blurOnScreenshot();
-      }
-    };
-
-    window.addEventListener("keydown", handleKey);
-
-    return () => {
-      window.removeEventListener("keydown", handleKey);
-      obs.disconnect();
-    };
-  }, [url]);
+  }, [url, onTotalPages]);
 
   /* ------------------------------
       Render the page
@@ -128,7 +92,8 @@ export default function PDFJSViewer({
   useEffect(() => {
     if (!pdfInstance) return;
     renderPage(pdfInstance, page, scale);
-  }, [pdfInstance, page, scale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfInstance, page, scale, isLocked, previewPages, highlights]);
 
   async function renderPage(pdf: any, pageNum: number, scaleVal: number) {
     try {
@@ -137,11 +102,19 @@ export default function PDFJSViewer({
       const pdfPage = await pdf.getPage(pageNum);
       const viewport = pdfPage.getViewport({ scale: scaleVal });
 
-      const canvas = canvasRef.current!;
-      const ctx = canvas.getContext("2d")!;
+      const canvas = canvasRef.current;
+      const overlay = overlayRef.current;
+      if (!canvas || !overlay) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
+
+      // reset blur & overlay each render
+      canvas.style.filter = "none";
+      overlay.innerHTML = "";
 
       const renderTask = pdfPage.render({
         canvasContext: ctx,
@@ -151,15 +124,63 @@ export default function PDFJSViewer({
       currentRenderTask.current = renderTask;
       await renderTask.promise;
 
-      const overlay = overlayRef.current!;
+      // 🔒 LOCK FEATURE
+      if (isLocked && pageNum > previewPages) {
+        applyLockOverlay();
+        // we still size overlay for correct click-area
+        overlay.style.width = `${canvas.width}px`;
+        overlay.style.height = `${canvas.height}px`;
+        return;
+      }
+
       overlay.style.width = `${canvas.width}px`;
       overlay.style.height = `${canvas.height}px`;
       drawHighlights(canvas.width, canvas.height);
 
       onPageChange?.(pageNum);
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "RenderingCancelledException") return;
       console.error("renderPage error:", err);
+    }
+  }
+
+  /* ------------------------------
+     🔒 Overlay lock
+  ------------------------------ */
+  function applyLockOverlay() {
+    const canvas = canvasRef.current;
+    const overlay = overlayRef.current;
+    if (!canvas || !overlay) return;
+
+    canvas.style.filter = "blur(8px)";
+
+    overlay.innerHTML = `
+      <div style="
+        position:absolute;top:0;left:0;width:100%;height:100%;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        background:rgba(255,255,255,0.75);backdrop-filter:blur(4px);
+        font-size:22px;font-weight:600;color:#000;z-index:999;
+        pointer-events:none;
+      ">
+        🔒 Buy to unlock full book
+        <button id="unlock-btn" style="
+          pointer-events:auto;
+          margin-top:14px;padding:10px 22px;font-size:18px;border-radius:6px;
+          background:black;color:white;border:none;cursor:pointer;
+        ">
+          Buy Now
+        </button>
+      </div>
+    `;
+
+    const btn = document.getElementById("unlock-btn");
+    if (btn) {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (onBuyClick) {
+          onBuyClick(bookId as any);
+        }
+      };
     }
   }
 
@@ -167,7 +188,9 @@ export default function PDFJSViewer({
       Draw Highlights
   ------------------------------ */
   function drawHighlights(canvasW: number, canvasH: number) {
-    const overlay = overlayRef.current!;
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+
     overlay.innerHTML = "";
 
     (highlights || [])
@@ -184,12 +207,15 @@ export default function PDFJSViewer({
         el.style.top = `${top}px`;
         el.style.width = `${w}px`;
         el.style.height = `${hgt}px`;
-        el.style.background = "rgba(255,255,0,0.35)";
+        el.style.background = h.color || "rgba(255,255,0,0.35)";
         el.style.borderRadius = "2px";
         el.style.cursor = "pointer";
 
-        el.onclick = () => {
-          if (confirm("Delete highlight?")) onDeleteHighlight?.(h.id);
+        el.onclick = (e) => {
+          e.stopPropagation();
+          if (onDeleteHighlight && !isLocked) {
+            if (confirm("Delete highlight?")) onDeleteHighlight(h.id);
+          }
         };
 
         overlay.appendChild(el);

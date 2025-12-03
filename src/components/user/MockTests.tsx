@@ -1,17 +1,11 @@
 import React, { useState, useEffect,useCallback } from 'react';
-import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription
-} from '../ui/card';
+import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { Progress } from '../ui/progress';
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
-} from '../ui/dialog';
-import {
-  Clock, Trophy, Target, Award, ChevronRight
-} from 'lucide-react';
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '../ui/dialog';
+import {Clock, Trophy, Target, Award, ChevronRight} from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 

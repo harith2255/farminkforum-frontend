@@ -10,15 +10,15 @@ export default function DashboardBooksGrid({ books, onNavigate, onOpenBook }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 auto-rows-fr">
   {books.map((book) => (
-    <React.Fragment key={book.id}>
-      <DashboardBookCard
-        book={book}
-        onNavigate={onNavigate}
-        onOpenBook={onOpenBook}
-      />
-    </React.Fragment>
+    <DashboardBookCard
+      key={book.id}
+      book={book}
+      onNavigate={onNavigate}
+      onOpenBook={onOpenBook}
+    />
   ))}
 </div>
+
 
     </div>
   );

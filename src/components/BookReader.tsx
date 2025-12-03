@@ -1,37 +1,47 @@
 // src/components/BookReader.tsx
 import { useState, useEffect } from "react";
 import {
-  X, Sun, Moon, ZoomIn, ZoomOut, Menu,
-  ChevronLeft, ChevronRight
+  X,
+  Sun,
+  Moon,
+  ZoomIn,
+  ZoomOut,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
-export function BookReader({ bookId, drm, onClose }: any) {
-  /* --------------------------------------------------
-        ALL HOOKS MUST BE FIRST — ALWAYS!
-  -----------------------------------------------------*/
+interface BookReaderProps {
+  bookId: string | number;
+  drm?: any;
+  onClose: () => void;
+}
+
+export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
   const [book, setBook] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [zoom, setZoom] = useState(1.2);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [sessionStart, setSessionStart] = useState<number | null>(null);
-
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlights, setHighlights] = useState<any[]>([]);
+
+  const [isLocked, setIsLocked] = useState(true);
+  const [showBuyModal, setShowBuyModal] = useState(false);
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   /* --------------------------------------------------
-      1️⃣ Fetch Book Metadata
+      1️⃣ Fetch Book Metadata + Purchase Status
   -----------------------------------------------------*/
   useEffect(() => {
     if (!bookId) {
@@ -46,16 +56,26 @@ export function BookReader({ bookId, drm, onClose }: any) {
         setError(null);
 
         const res = await fetch(`https://ebook-backend-lxce.onrender.com/api/books/${bookId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
         if (!res.ok) throw new Error("Book not found.");
 
         const data = await res.json();
-        if (!data.book) throw new Error("Book data missing.");
-
         setBook(data.book);
+
+        // check purchase
+        const pres = await fetch(
+          `https://ebook-backend-lxce.onrender.com/api/purchase/check?bookId=${data.book.id}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+
+        if (pres.ok) {
+          const pd = await pres.json();
+          setIsLocked(!pd.purchased);
+        }
       } catch (err: any) {
+        console.error(err);
         setError(err.message || "Failed to load book.");
       } finally {
         setLoading(false);
@@ -63,130 +83,121 @@ export function BookReader({ bookId, drm, onClose }: any) {
     }
 
     loadBook();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId]);
 
   /* --------------------------------------------------
-      2️⃣ Load highlights + last page once book exists
+      OPTIONAL: load highlights (if you have API)
+      (kept simple; doesn't change UI)
   -----------------------------------------------------*/
   useEffect(() => {
-    if (!book) return;
+    if (!book || !token) return;
 
-    window.dispatchEvent(new CustomEvent("reader:open", { detail: book }));
-
-    (async () => {
+    async function loadHighlights() {
       try {
-        if (!token) return;
-
-        await fetch("https://ebook-backend-lxce.onrender.com/api/books/read", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ book_id: book.id }),
-        });
-
-        const hres = await fetch(
+        const res = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/library/highlights/${book.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        if (hres.ok) setHighlights(await hres.json());
-
-        const pres = await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (pres.ok) {
-          const data = await pres.json();
-          if (data?.last_page) setCurrentPage(Number(data.last_page));
-        }
-
-        setSessionStart(Date.now());
+        if (!res.ok) return;
+        const data = await res.json();
+        setHighlights(data || []);
       } catch (err) {
-        console.warn("Reader load error", err);
+        console.error("loadHighlights error:", err);
       }
-    })();
-  }, [book]);
-
-  /* --------------------------------------------------
-      3️⃣ Save last page (debounced)
-  -----------------------------------------------------*/
-  useEffect(() => {
-    if (!book) return;
-
-    const t = setTimeout(async () => {
-      try {
-        if (!token) return;
-        await fetch(`https://ebook-backend-lxce.onrender.com/api/library/lastpage/${book.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ last_page: currentPage }),
-        });
-      } catch (err) {
-        console.warn("Failed saving last page", err);
-      }
-    }, 500);
-
-    return () => clearTimeout(t);
-  }, [currentPage, book]);
-
-  /* --------------------------------------------------
-      4️⃣ Save study session on close
-  -----------------------------------------------------*/
-  const handleClose = async () => {
-    if (sessionStart) {
-      const hours = (Date.now() - sessionStart) / (1000 * 60 * 60);
-
-      await fetch("https://ebook-backend-lxce.onrender.com/api/library/study-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ duration: hours }),
-      });
     }
 
-    onClose();
+    loadHighlights();
+  }, [book, token]);
+
+  async function handleDeleteHighlight(id: number | string) {
+    if (!token) return;
+    try {
+      await fetch(
+        `https://ebook-backend-lxce.onrender.com/api/library/highlights/${id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setHighlights((prev) => prev.filter((h) => h.id !== id));
+    } catch (err) {
+      console.error("deleteHighlight error:", err);
+    }
+  }
+
+  /* --------------------------------------------------
+      🔁 Redirect to purchase page
+  -----------------------------------------------------*/
+  const handleBuyNowRedirect = (id: number) => {
+    if (!id) return;
+    window.location.href = `/purchase/book/${id}`;
   };
 
   /* --------------------------------------------------
-      5️⃣ SAFE CONDITIONAL UI RENDERING (AFTER HOOKS)
+      BUY MODAL (for Next/slider)
+  -----------------------------------------------------*/
+  function handlePurchase() {
+    if (!book) return;
+
+    localStorage.setItem("purchaseType", "book");
+    localStorage.setItem("purchaseId", String(book.id));
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ id: book.id, type: "book" }])
+    );
+
+    localStorage.setItem("previousSection", "reader");
+
+    window.location.href = `/purchase/${book.id}`;
+  }
+
+function handlePageChange(pg: number) {
+  if (pg === currentPage) return; // prevents duplicates
+
+  setCurrentPage(pg);
+
+  if (!book || totalPages <= 1) return;
+
+  window.dispatchEvent(
+    new CustomEvent("reader:progress", {
+      detail: { id: book.id, page: pg, totalPages },
+    })
+  );
+}
+
+
+
+  /* --------------------------------------------------
+      CLOSE HANDLER
+  -----------------------------------------------------*/
+  const handleClose = () => onClose();
+
+  /* --------------------------------------------------
+      UI STATES
   -----------------------------------------------------*/
 
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white">
-        <div className="animate-pulse text-gray-700 text-lg">Loading book…</div>
+        <div className="animate-pulse text-gray-700 text-lg">
+          Loading book…
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !book) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-white text-red-600">
-        <p className="text-xl mb-4">⚠️ {error}</p>
+        <p className="text-xl mb-4">⚠️ {error || "Book not found"}</p>
         <Button onClick={handleClose}>Close Reader</Button>
       </div>
     );
   }
 
-  if (!book) {
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white text-gray-600">
-        <p>Book data missing.</p>
-        <Button className="mt-4" onClick={handleClose}>
-          Close
-        </Button>
-      </div>
-    );
-  }
-
   /* --------------------------------------------------
-      6️⃣ MAIN RENDER
+      MAIN RENDER
   -----------------------------------------------------*/
   return (
     <div
@@ -197,7 +208,9 @@ export function BookReader({ bookId, drm, onClose }: any) {
       {/* HEADER */}
       <header
         className={`sticky top-0 border-b ${
-          theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"
+          theme === "dark"
+            ? "border-gray-800 bg-black"
+            : "border-gray-200 bg-white"
         }`}
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -213,15 +226,26 @@ export function BookReader({ bookId, drm, onClose }: any) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} variant="ghost">
+            <Button
+              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+              variant="ghost"
+            >
               <ZoomOut />
             </Button>
 
-            <Button onClick={() => setZoom((z) => Math.min(3, z + 0.1))} variant="ghost">
+            <Button
+              onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
+              variant="ghost"
+            >
               <ZoomIn />
             </Button>
 
-            <Button onClick={() => setTheme(theme === "light" ? "dark" : "light")} variant="ghost">
+            <Button
+              onClick={() =>
+                setTheme((t) => (t === "light" ? "dark" : "light"))
+              }
+              variant="ghost"
+            >
               {theme === "light" ? <Moon /> : <Sun />}
             </Button>
 
@@ -247,22 +271,32 @@ export function BookReader({ bookId, drm, onClose }: any) {
           page={currentPage}
           scale={zoom}
           onTotalPages={setTotalPages}
-          onPageChange={setCurrentPage}
-          bookId={book.id}
-          drm={drm}
+          onPageChange={handlePageChange}
           highlightMode={highlightMode}
           highlights={highlights}
+          isLocked={isLocked}
+          previewPages={1}
+          bookId={book.id}
+          onBuyClick={handleBuyNowRedirect}
+          onDeleteHighlight={handleDeleteHighlight}
         />
       </div>
 
       {/* FOOTER */}
       <div
         className={`fixed bottom-0 left-0 right-0 border-t ${
-          theme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"
+          theme === "dark"
+            ? "border-gray-800 bg-black"
+            : "border-gray-200 bg-white"
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+          <Button
+            onClick={() => {
+              const newPage = Math.max(1, currentPage - 1);
+              handlePageChange(newPage);
+            }}
+          >
             <ChevronLeft /> Prev
           </Button>
 
@@ -270,7 +304,16 @@ export function BookReader({ bookId, drm, onClose }: any) {
             Page {currentPage} / {totalPages}
           </span>
 
-          <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+          <Button
+            onClick={() => {
+              if (isLocked && currentPage >= 2) {
+                setShowBuyModal(true);
+                return;
+              }
+              const newPage = Math.min(totalPages, currentPage + 1);
+              handlePageChange(newPage);
+            }}
+          >
             Next <ChevronRight />
           </Button>
         </div>
@@ -279,10 +322,40 @@ export function BookReader({ bookId, drm, onClose }: any) {
           className="px-4 pb-2"
           value={[currentPage]}
           min={1}
-          max={totalPages}
-          onValueChange={(v) => setCurrentPage(v[0])}
+          max={isLocked ? Math.min(totalPages, 2) : totalPages}
+          onValueChange={(v) => {
+            const pg = v[0];
+
+            if (isLocked && pg > 1) {
+              setShowBuyModal(true);
+              return;
+            }
+
+            handlePageChange(pg);
+          }}
         />
       </div>
+
+      {/* BUY MODAL */}
+      {showBuyModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[999]">
+          <div className="bg-white p-6 rounded-xl text-black">
+            <h2 className="text-xl font-semibold mb-4">Unlock Full Book</h2>
+
+            <Button className="w-full mb-3" onClick={handlePurchase}>
+              Buy Now
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowBuyModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

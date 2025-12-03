@@ -11,40 +11,70 @@ function Explore({ onOpenBook, onNavigate }) {
   const [loading, setLoading] = useState(true);
 
   const isLoggedIn = () => {
-    const token = localStorage.getItem("token");    return token && token.length > 10;
+    const token = localStorage.getItem("token");
+    return token && token.length > 10;
   };
 
-  // ✅ MAKE fetchBooks stable and available everywhere
+  // ✅ Stable fetchBooks method
   const fetchBooks = useCallback(async () => {
     try {
       setLoading(true);
 
-      // 1️⃣ Fetch all books
-      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/content?type=books");
+      const token = localStorage.getItem("token");
+
+      /* ---------------------------------------------------
+            1️⃣ Fetch all books
+      --------------------------------------------------- */
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/content?type=books"
+      );
       let list = res.data?.contents || [];
 
-      // 2️⃣ Fetch purchased book IDs
-      let purchasedIds = [];
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const pres = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          purchasedIds = pres.data || [];
-        } catch (err) {
-          console.log("⚠️ Could not fetch purchased IDs", err);
-        }
-      }
-console.log("🔥 purchasedIds =", purchasedIds);
-console.log("📚 allBooks =", list);
+      /* ---------------------------------------------------
+            2️⃣ Fetch purchased + collection book IDs
+      --------------------------------------------------- */
+     let purchasedIds = [];
+let collectionIds = [];
 
-      // 3️⃣ Merge purchased flag
-      const merged = list.map((b) => ({
-        ...b,
-        purchased: purchasedIds.includes(b.id),
-      }));
+if (token) {
+  try {
+    const pres = await axios.get(
+      "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    purchasedIds = Array.isArray(pres.data) ? pres.data : pres.data?.bookIds || [];
+  } catch (err) {
+    console.log("⚠️ Could not fetch purchased IDs", err);
+  }
+
+  try {
+    const cres = await axios.get(
+      "https://ebook-backend-lxce.onrender.com/api/library/collection/book-ids",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    collectionIds = Array.isArray(cres.data)
+      ? cres.data
+      : cres.data?.bookIds || [];
+
+  } catch (err) {
+    console.log("⚠️ Could not fetch collection IDs", err);
+  }
+}
+
+/* ---------------------------------------------------
+      3️⃣ Merge flags into books
+--------------------------------------------------- */
+
+const normPurchased = purchasedIds.map(String);
+const normCollection = collectionIds.map(String);
+
+const merged = list.map((b) => ({
+  ...b,
+  purchased: normPurchased.includes(String(b.id)),
+  inCollection: normCollection.includes(String(b.id)),
+}));
+
 
       console.log("📘 MERGED BOOKS = ", merged);
 
@@ -56,20 +86,30 @@ console.log("📚 allBooks =", list);
     }
   }, []);
 
-  // 1️⃣ Load books initially
+  /* ---------------------------------------------------
+        LOAD BOOKS INITIALLY
+  --------------------------------------------------- */
   useEffect(() => {
     fetchBooks();
   }, [fetchBooks]);
 
-  // 2️⃣ Refresh Explore after payment success
+  /* ---------------------------------------------------
+        REFRESH AFTER PAYMENT SUCCESS
+  --------------------------------------------------- */
   useEffect(() => {
     const refresh = () => fetchBooks();
     window.addEventListener("refresh-library", refresh);
 
     return () => window.removeEventListener("refresh-library", refresh);
   }, [fetchBooks]);
+useEffect(() => {
+  window.addEventListener("collections:changed", fetchBooks);
+  return () => window.removeEventListener("collections:changed", fetchBooks);
+}, []);
 
-  // 3️⃣ (Optional) Some pages emit refresh-explore
+  /* ---------------------------------------------------
+        OPTIONAL GLOBAL REFRESH
+  --------------------------------------------------- */
   useEffect(() => {
     const refresh = () => fetchBooks();
     window.addEventListener("refresh-explore", refresh);
@@ -77,6 +117,9 @@ console.log("📚 allBooks =", list);
     return () => window.removeEventListener("refresh-explore", refresh);
   }, [fetchBooks]);
 
+  /* ---------------------------------------------------
+        FILTERING
+  --------------------------------------------------- */
   const categories = [
     "All",
     ...Array.from(new Set(books.map((b) => b.category).filter(Boolean))),
@@ -86,6 +129,10 @@ console.log("📚 allBooks =", list);
     selectedCategory === "All"
       ? books
       : books.filter((b) => b.category === selectedCategory);
+
+  /* ---------------------------------------------------
+        RENDER
+  --------------------------------------------------- */
   return (
     <div className="space-y-6">
       <h2 className="text-[#1d4d6a] mb-1">Explore Books</h2>
@@ -99,10 +146,11 @@ console.log("📚 allBooks =", list);
         layout="user"
       />
 
-{loading ? (
+      {loading ? (
         <p className="text-center text-gray-500">Loading books...</p>
       ) : (
         <DashboardBooksGrid
+        
           books={filteredBooks}
           onOpenBook={onOpenBook}
           onNavigate={onNavigate}

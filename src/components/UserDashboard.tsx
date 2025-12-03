@@ -18,10 +18,6 @@ import {
   Settings,
   Navigation,
   ShoppingCart,
-  PenIcon,
-  Crown,
-  PenTool,
-  ShoppingBag
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -30,9 +26,8 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { toast } from "sonner";
 
 import Explore from "./user/Explore";
-import MyLibrary  from "./user/MyLibrary";
+import MyLibrary from "./user/MyLibrary";
 import { MockTests } from "./user/MockTests";
-import Exams from "./user/Exams";
 import NotesRepository from "./user/NotesRepository";
 import { WritingServices } from "./user/WritingServices";
 import { JobPortal } from "./user/JobPortal";
@@ -40,11 +35,12 @@ import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
 import CartPage from "./user/Cartpage";
-import ReadNotePage from "./ReadNotePage";
 import axios from "axios";
 import * as React from "react";
 import { Progress } from "./ui/progress";
 import UniversalPurchasePage from "./PurchasePage";
+import Exams from "./user/Exams";
+import ReadNotePage from "./ReadNotePage";
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
@@ -57,7 +53,7 @@ type UserSection =
   | "explore"
   | "library"
   | "tests"
-  |"exams"
+  | "exams"
   | "notes"
   | "writing"
   | "jobs"
@@ -67,9 +63,13 @@ type UserSection =
   | "cartpage"
   | "purchase"
   | "purchase/cart"
-  |"reader-note";
+  | "reader-note";
 
-export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboardProps) {
+export function UserDashboard({
+  onNavigate,
+  onOpenBook,
+  onLogout,
+}: UserDashboardProps) {
   const [activeSection, setActiveSection] = useState<UserSection>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -88,13 +88,108 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  
+
+  const [activeSub, setActiveSub] = useState<any | null>(null);
+function UpgradeRequired({ onNavigate }) {
+  return (
+    <div className="p-6 border border-red-200 bg-red-50 rounded-lg">
+      <h2 className="text-lg font-semibold text-red-600 mb-2">
+        Subscription Required
+      </h2>
+      <p className="text-sm text-gray-600 mb-4">
+        You need an active subscription to access exams.
+      </p>
+
+      <Button
+        className="bg-[#bf2026] text-white"
+        onClick={() => onNavigate("payments")}
+      >
+        View Plans
+      </Button>
+    </div>
+  );
+}
+
+/* --------------------------------------------------
+   📚 READING PROGRESS & LAST PAGE SYNC
+-----------------------------------------------------*/
+useEffect(() => {
+  async function handleProgress(e: any) {
+    const { id, page, totalPages } = e.detail;
+    if (!id || !page || !totalPages) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const percent = Math.min(
+      100,
+      Math.round((page / totalPages) * 100)
+    );
+
+    // Save progress
+   axios.put(
+  `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
+  { progress: percent, last_page: page },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
+
+
+    // Save last page
+    axios.put(
+      `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
+      { last_page: page },
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).catch(err => console.warn("last-page save failed:", err));
+
+    // Refresh UI
+    window.dispatchEvent(new Event("dashboard:update"));
+  }
+
+  window.addEventListener("reader:progress", handleProgress);
+  return () => window.removeEventListener("reader:progress", handleProgress);
+}, []);
+
+
+useEffect(() => {
+  const handler = () => {
+    window.dispatchEvent(new Event("dashboard:update"));
+  };
+
+  window.addEventListener("collections:changed", handler);
+  return () => window.removeEventListener("collections:changed", handler);
+}, []);
+
+
+
+useEffect(() => {
+  const fetchDashboard = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/dashboard", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setDashboardData(res.data);
+    } catch(err) {
+      console.error("Dashboard refresh failed:", err);
+    }
+  };
+
+  window.addEventListener("dashboard:update", fetchDashboard);
+  return () => window.removeEventListener("dashboard:update", fetchDashboard);
+}, []);
+
+
   // ✅ FIX: Load Profile CLEANLY here
   useEffect(() => {
     async function loadProfile() {
       try {
         const session = JSON.parse(localStorage.getItem("session") || "{}");
-        const token = session?.access_token || localStorage.getItem("token");
+        const token =
+          session?.access_token || localStorage.getItem("token");
+
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -108,25 +203,29 @@ export function UserDashboard({ onNavigate, onOpenBook, onLogout }: UserDashboar
   }, []);
 
   // 🔥 Get section from URL on first load
-useEffect(() => {
-  const path = window.location.pathname;
-
-  if (path.startsWith("/user-dashboard/")) {
-    const sub = path.replace("/user-dashboard/", "").trim();
-    if (sub) {
-      setActiveSection(sub as UserSection);
-    }
-  }
-}, []);
-
- // Dashboard fetch
   useEffect(() => {
+    const path = window.location.pathname;
+
+    if (path.startsWith("/user-dashboard/")) {
+      const sub = path.replace("/user-dashboard/", "").trim();
+      if (sub) {
+        setActiveSection(sub as UserSection);
+      }
+    }
+  }, []);
+
+  
+
+  // Dashboard fetch
+  useEffect(() => {
+    
     const fetchDashboard = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const token = localStorage.getItem("token");        if (!token) {
+        const token = localStorage.getItem("token");
+        if (!token) {
           setError("You are not logged in.");
           setLoading(false);
           return;
@@ -155,12 +254,27 @@ useEffect(() => {
 
     fetchDashboard();
   }, []);
+  
+// 🔥 Listen for subscription changes globally
+useEffect(() => {
+  const handler = async () => {
+    await fetchSubscription();             // refresh active plan
+    window.dispatchEvent(new Event("dashboard:update"));  // refresh dashboard stats
+  };
+
+  window.addEventListener("subscription:updated", handler);
+
+  return () => window.removeEventListener("subscription:updated", handler);
+}, []);
+
+
 
   // Load cart
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        const token = localStorage.getItem("token");        if (!token) return;
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/cart", {
           headers: { Authorization: `Bearer ${token}` },
@@ -182,7 +296,8 @@ useEffect(() => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem("token");        if (!token) return;
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
@@ -190,18 +305,16 @@ useEffect(() => {
 
         const raw = res.data.notifications || [];
 
-const items = raw.map((n: any) => ({
-  ...n,
-  time: n.created_at
-    ? new Date(n.created_at).toLocaleString()
-    : "Unknown",
-}));
+        const items = raw.map((n: any) => ({
+          ...n,
+          time: n.created_at
+            ? new Date(n.created_at).toLocaleString()
+            : "Unknown",
+        }));
 
-setNotifications(items);
-setUnreadCount(items.filter((n: any) => !n.is_read).length);
-
+        setNotifications(items);
+        setUnreadCount(items.filter((n: any) => !n.is_read).length);
       } catch (err) {
-        
         console.error("Failed to fetch notifications", err);
       }
     };
@@ -212,25 +325,37 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
     return () => window.removeEventListener("notifications:refresh", listener);
   }, []);
 
-  const menuItems = [
-    { id: "dashboard", icon: Home, label: "Dashboard" },
-    { id: "explore", icon: Navigation, label: "Explore" },
-    { id: "library", icon: BookOpen, label: "My Library" },
-    { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
-    { id: "exams", icon: Crown, label: "Exams" },
-    { id: "notes", icon: FileText, label: "Notes" },
-    { id: "writing", icon: PenIcon, label: "Writing Services" },
-    { id: "jobs", icon: Briefcase, label: "Job Portal" },
-    { id: "payments", icon: CreditCard, label: "Payments" },
-    { id: "profile", icon: User, label: "Profile" },
-  ];
+const menuItems = [
+  { id: "dashboard", icon: Home, label: "Dashboard" },
+  { id: "explore", icon: Navigation, label: "Explore" },
+  { id: "library", icon: BookOpen, label: "My Library" },
+
+  // 👇 only show if subscription active
+  ...(activeSub
+    ? [{ id: "exams", icon: Trophy, label: "Exams" }]
+    : []),
+
+  { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
+  { id: "notes", icon: FileText, label: "Notes" },
+  { id: "writing", icon: FileText, label: "Writing Services" },
+  { id: "jobs", icon: Briefcase, label: "Job Portal" },
+  { id: "payments", icon: CreditCard, label: "Payments" },
+  { id: "profile", icon: User, label: "Profile" },
+];
+
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
-      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
+      if (
+        avatarRef.current &&
+        !avatarRef.current.contains(event.target as Node)
+      ) {
         setAvatarOpen(false);
       }
       if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
@@ -252,71 +377,124 @@ setUnreadCount(items.filter((n: any) => !n.is_read).length);
     localStorage.setItem("sidebar-collapsed", sidebarCollapsed.toString());
   }, [sidebarCollapsed]);
 
-   // 🚀 MASTER URL ⟶ SECTION SYNC (replace all old ones)
-useEffect(() => {
-  const syncFromURL = () => {
-    let path = window.location.pathname;
+  // 🚀 MASTER URL ⟶ SECTION SYNC (replace all old ones)
+  useEffect(() => {
+    const syncFromURL = () => {
+      let path = window.location.pathname;
 
-    if (!path.startsWith("/user-dashboard")) {
-      setActiveSection("dashboard");
-      return;
-    }
+      if (!path.startsWith("/user-dashboard")) {
+        setActiveSection("dashboard");
+        return;
+      }
 
-    let sub = path.replace("/user-dashboard/", "").trim();
+      let sub = path.replace("/user-dashboard/", "").trim();
 
-    // normalize weird patterns
-    if (sub === "" || sub === "/") sub = "dashboard";
-    if (sub.startsWith("purchase")) sub = "purchase";
-    if (sub.startsWith("cart")) sub = "cartpage";
+      // normalize weird patterns
+      if (sub === "" || sub === "/") sub = "dashboard";
+      if (sub.startsWith("purchase")) sub = "purchase";
+      if (sub.startsWith("cart")) sub = "cartpage";
 
- const valid: UserSection[] = [
-  "dashboard","explore","library","tests","notes","writing","jobs",
-  "payments","profile","notifications","cartpage","purchase","reader-note"
-];
+      const valid: UserSection[] = [
+        "dashboard",
+        "explore",
+        "library",
+        "tests",
+        "notes",
+        "exams",
+        "writing",
+        "jobs",
+        "payments",
+        "profile",
+        "notifications",
+        "cartpage",
+        "purchase",
+        "reader-note",
+      ];
 
-    if (valid.includes(sub as UserSection)) {
-      setActiveSection(sub as UserSection);
-    } else {
-      setActiveSection("dashboard");
-    }
-  };
+      if (valid.includes(sub as UserSection)) {
+        setActiveSection(sub as UserSection);
+      } else {
+        setActiveSection("dashboard");
+      }
+    };
 
-  // Run immediately (first load)
-  syncFromURL();
+    // Run immediately (first load)
+    syncFromURL();
 
-  // Browser back/forward
-  window.addEventListener("popstate", syncFromURL);
+    // Browser back/forward
+    window.addEventListener("popstate", syncFromURL);
 
-  // restore-user-section support
-  const restore = (e: any) => {
-    if (e.detail) {
-      setActiveSection(e.detail as UserSection);
-    } else {
-      syncFromURL();
-    }
-  };
-  window.addEventListener("restore-user-section", restore);
+    // restore-user-section support
+    const restore = (e: any) => {
+      if (e.detail) {
+        setActiveSection(e.detail as UserSection);
+      } else {
+        syncFromURL();
+      }
+    };
+    window.addEventListener("restore-user-section", restore);
 
-  // safety retry
-  const retry = setTimeout(syncFromURL, 50);
+    // safety retry
+    const retry = setTimeout(syncFromURL, 50);
 
-  return () => {
-    window.removeEventListener("popstate", syncFromURL);
-    window.removeEventListener("restore-user-section", restore);
-    clearTimeout(retry);
-  };
-}, []);
+    return () => {
+      window.removeEventListener("popstate", syncFromURL);
+      window.removeEventListener("restore-user-section", restore);
+      clearTimeout(retry);
+    };
+  }, []);
 
   const handleLogoutClick = () => {
     toast.success("Logged out successfully");
     onLogout();
   };
 
+// 1. Define function OUTSIDE useEffect
+// outside useEffect
+async function fetchSubscription() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const { data } = await axios.get(
+      "https://ebook-backend-lxce.onrender.com/api/subscriptions/active",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setActiveSub(data || null);
+
+  } catch (err) {
+    console.error("Failed to load subscription:", err);
+    setActiveSub(null);
+  }
+}
+
+// initial load + focus refresh
+useEffect(() => {
+  fetchSubscription();
+
+  const handler = () => fetchSubscription();
+  window.addEventListener("focus", handler);
+
+  return () => window.removeEventListener("focus", handler);
+}, []);
+
+// refresh after purchase
+useEffect(() => {
+  const handler = () => fetchSubscription();
+  window.addEventListener("subscription:updated", handler);
+
+  return () => window.removeEventListener("subscription:updated", handler);
+}, []);
+
+
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
       {/* Sidebar */}
       <aside
-        className={`${sidebarCollapsed ? "w-20" : "w-64"} bg-white border-r border-gray-200 fixed h-screen overflow-y-auto transition-all duration-300`}
+        className={`${
+          sidebarCollapsed ? "w-20" : "w-64"
+        } bg-white border-r border-gray-200 fixed h-screen overflow-y-auto transition-all duration-300`}
       >
         <div className="p-6 border-b border-gray-200 flex items-center justify-center">
           <div className="flex flex-col items-center leading-tight text-center">
@@ -329,15 +507,14 @@ useEffect(() => {
           {menuItems.map((item) => (
             <button
               key={item.id}
-             onClick={() => {
-  setActiveSection(item.id as UserSection);
-  setDropdownOpen(false);
-  setAvatarOpen(false);
+              onClick={() => {
+                setActiveSection(item.id as UserSection);
+                setDropdownOpen(false);
+                setAvatarOpen(false);
 
-  // URL update without navigation
-  window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-}}
-
+                // URL update without navigation
+                window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
                 activeSection === item.id
                   ? "bg-[#bf2026] text-white shadow-md"
@@ -345,7 +522,9 @@ useEffect(() => {
               }`}
             >
               <item.icon className="w-5 h-5" />
-              {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+              {!sidebarCollapsed && (
+                <span className="text-sm">{item.label}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -362,12 +541,20 @@ useEffect(() => {
       </aside>
 
       {/* Main Content */}
-      <div className={`flex-1 ${sidebarCollapsed ? "ml-20" : "ml-64"} transition-all duration-300`}>
+      <div
+        className={`flex-1 ${
+          sidebarCollapsed ? "ml-20" : "ml-64"
+        } transition-all duration-300`}
+      >
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
           <div className="px-8 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              >
                 <Menu className="w-5 h-5 text-gray-600" />
               </Button>
 
@@ -375,7 +562,9 @@ useEffect(() => {
                 <h1 className="text-[#1d4d6a] mb-1">
                   Welcome back, {dashboardData?.user?.full_name || "Student"}!
                 </h1>
-                <p className="text-sm text-gray-500">Continue your learning journey</p>
+                <p className="text-sm text-gray-500">
+                  Continue your learning journey
+                </p>
               </div>
             </div>
 
@@ -404,7 +593,9 @@ useEffect(() => {
 
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b font-semibold text-gray-700">Notifications</div>
+                    <div className="p-3 border-b font-semibold text-gray-700">
+                      Notifications
+                    </div>
 
                     <ul className="max-h-60 overflow-y-auto">
                       {notifications.length === 0 && (
@@ -419,15 +610,20 @@ useEffect(() => {
                           className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
                           onClick={async () => {
                             try {
-                              const token = localStorage.getItem("token");                              await axios.patch(
+                              const token = localStorage.getItem("token");
+                              await axios.patch(
                                 `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
                                 {},
-                                { headers: { Authorization: `Bearer ${token}` } }
+                                {
+                                  headers: { Authorization: `Bearer ${token}` },
+                                }
                               );
 
                               setNotifications((prev) =>
                                 prev.map((item) =>
-                                  item.id === n.id ? { ...item, is_read: true } : item
+                                  item.id === n.id
+                                    ? { ...item, is_read: true }
+                                    : item
                                 )
                               );
 
@@ -483,7 +679,9 @@ useEffect(() => {
                   <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
                     <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
                       <span>Cart</span>
-                      <span className="text-xs text-gray-500">{cartItems.length} items</span>
+                      <span className="text-xs text-gray-500">
+                        {cartItems.length} items
+                      </span>
                     </div>
 
                     {cartItems.length > 0 ? (
@@ -499,7 +697,9 @@ useEffect(() => {
                               >
                                 <img
                                   src={
-                                    product?.file_url?.match(/\.(png|jpg|jpeg)$/i)
+                                    product?.file_url?.match(
+                                      /\.(png|jpg|jpeg)$/i
+                                    )
                                       ? product.file_url
                                       : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
                                   }
@@ -510,7 +710,9 @@ useEffect(() => {
                                   <p className="text-sm font-medium text-gray-700">
                                     {product?.title}
                                   </p>
-                                  <p className="text-xs text-gray-500">₹{product?.price}</p>
+                                  <p className="text-xs text-gray-500">
+                                    ₹{product?.price}
+                                  </p>
                                 </div>
                               </li>
                             );
@@ -565,7 +767,9 @@ useEffect(() => {
                       <div>
                         <p className="text-sm font-medium text-gray-700">
                           {user?.full_name ||
-                            `${user?.first_name || ""} ${user?.last_name || ""}` ||
+                            `${user?.first_name || ""} ${
+                              user?.last_name || ""
+                            }` ||
                             "Guest User"}
                         </p>
                         <p className="text-xs text-gray-400">
@@ -612,20 +816,26 @@ useEffect(() => {
             )}
 
             {activeSection === "explore" && (
-              <Explore
-                onOpenBook={onOpenBook}
-                onNavigate={onNavigate}
-              />
+              <Explore onOpenBook={onOpenBook} onNavigate={onNavigate} />
             )}
 
-            {activeSection === "library" && <MyLibrary onOpenBook={onOpenBook} />}
+            {activeSection === "library" && (
+              <MyLibrary onOpenBook={onOpenBook} />
+            )}
 
             {activeSection === "tests" && <MockTests />}
 
             {activeSection === "notes" && (
               <NotesRepository onNavigate={onNavigate} />
             )}
-            {activeSection === "exams" && <Exams />}
+           {activeSection === "exams" && (
+  activeSub ? (
+    <Exams />
+  ) : (
+    <UpgradeRequired onNavigate={setActiveSection} />
+  )
+)}
+
 
             {activeSection === "writing" && (
               <WritingServices onNavigate={onNavigate} />
@@ -646,32 +856,31 @@ useEffect(() => {
             )}
 
             {activeSection === "cartpage" && (
-  <CartPage
-    items={cartItems}
-    onNavigate={(page) => {
-      setActiveSection(page as UserSection);
-      window.history.pushState({}, "", `/user-dashboard/${page}`);
-    }}
-  />  
+              <CartPage
+                items={cartItems}
+                onNavigate={(page) => {
+                  setActiveSection(page as UserSection);
+                  window.history.pushState({}, "", `/user-dashboard/${page}`);
+                }}
+              />
             )}
 
-{activeSection === "purchase" && (
-  <UniversalPurchasePage
-    onNavigate={(page) => {
-      setActiveSection(page as UserSection);
-      window.history.pushState({}, "", `/${page}`);
-
-    }}
-  />
-)}
-{activeSection === "reader-note" && (
-  <ReadNotePage
-    onNavigate={(page) => {
-      setActiveSection(page as UserSection);
-      window.history.pushState({}, "", `/user-dashboard/${page}`);
-    }}
-  />
-)}
+            {activeSection === "purchase" && (
+              <UniversalPurchasePage
+                onNavigate={(page) => {
+                  setActiveSection(page as UserSection);
+                  window.history.pushState({}, "", `/${page}`);
+                }}
+              />
+            )}
+            {activeSection === "reader-note" && (
+              <ReadNotePage
+                onNavigate={(page) => {
+                  setActiveSection(page as UserSection);
+                  window.history.pushState({}, "", `/user-dashboard/${page}`);
+                }}
+              />
+            )}
           </Suspense>
         </main>
       </div>
@@ -679,86 +888,25 @@ useEffect(() => {
   );
 }
 
-
-
-
-
-
 // src/components/DashboardHome.tsx
 
+const API_URL = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
 
-const API_URL = (import.meta.env.VITE_API_URL as string) || "https://ebook-backend-lxce.onrender.com";
-
-export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) => void }) {
-  const [dashboardData, setDashboardData] = useState<any | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
-
- // Extracted fetch so other effects / events can call it
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const token = localStorage.getItem("token");      if (!token) {
-        setError("You are not logged in.");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${API_URL}/api/dashboard`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Dashboard load failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setDashboardData(data);
-    } catch (err) {
-      console.error("Dashboard Fetch Error:", err);
-      setError("Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
-
-   // Global dashboard update listeners (fired from BookReader, MockTests, etc.)
-  useEffect(() => {
-    const refresh = () => fetchDashboard();
-    const events = [
-      "dashboard:update",
-      "dashboard:update.tests",
-      "dashboard:update.study",
-      "dashboard:update.streak",
-      "dashboard:update.library",
-      "dashboard:update.notifications",
-      "dashboard:update.cart",
-    ];
-
-    events.forEach((ev) => window.addEventListener(ev, refresh));
-    return () => events.forEach((ev) => window.removeEventListener(ev, refresh));
-  }, []);
-
+export default function DashboardHome({
+  onOpenBook,
+  dashboardData,
+  loading,
+  error,
+}) {
   if (loading)
     return <p className="text-center text-gray-500">Loading dashboard...</p>;
-  if (error)
-    return <p className="text-center text-red-500">{error}</p>;
+  if (error) return <p className="text-center text-red-500">{error}</p>;
 
   const stats = dashboardData?.stats || {};
   const recentBooks = dashboardData?.recentBooks || [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
       {/* Books Read */}
       <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardContent className="p-6 flex justify-between">
@@ -767,7 +915,7 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
             <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <TrendingUp className="w-3 h-3" />
-              <span>+{stats.booksThisMonth ?? 0}</span>
+              <span>+{stats.booksThisMonth ?? 0} this month</span>
             </div>
           </div>
           <BookOpen className="w-6 h-6 text-[#bf2026]" />
@@ -782,7 +930,9 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
             <h3 className="text-[#1d4d6a] mb-1">{stats.testsCompleted ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <Trophy className="w-3 h-3" />
-              <span>{stats.avgScore ? `${stats.avgScore}% avg` : "No tests yet"}</span>
+              <span>
+                {stats.avgScore ? `${stats.avgScore}% avg` : "No tests yet"}
+              </span>
             </div>
           </div>
           <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
@@ -795,11 +945,14 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
           <div>
             <p className="text-sm text-gray-500 mb-1">Study Hours</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
+
             <div className="flex items-center gap-1 text-xs text-green-600">
               <Clock className="w-3 h-3" />
+
               <span>+{stats.weeklyHours ?? 0}h this week</span>
             </div>
           </div>
+
           <TrendingUp className="w-6 h-6 text-[#bf2026]" />
         </CardContent>
       </Card>
@@ -809,7 +962,9 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
         <CardContent className="p-6 flex justify-between">
           <div>
             <p className="text-sm text-gray-500 mb-1">Active Streak</p>
-            <h3 className="text-[#1d4d6a] mb-1">{stats.activeStreak ?? 0} Days</h3>
+            <h3 className="text-[#1d4d6a] mb-1">
+              {stats.activeStreak ?? 0} Days
+            </h3>
             <div className="flex items-center gap-1 text-xs text-orange-600">
               <Trophy className="w-3 h-3" />
               <span>
@@ -834,8 +989,8 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
             </p>
           )}
 
-          {recentBooks.map((entry: any, index: number) => {
-            const book = entry.ebooks; 
+          {recentBooks.map((entry, index) => {
+            const book = entry.ebooks;
             if (!book) return null;
 
             return (
@@ -851,10 +1006,15 @@ export default function DashboardHome({ onOpenBook }: { onOpenBook: (book: any) 
                   })
                 }
               >
-<img src={book.cover_url} className="w-14 h-20 object-cover rounded-md shadow" />
+                <img
+                  src={book.cover_url}
+                  className="w-14 h-20 object-cover rounded-md shadow"
+                />
 
                 <div className="flex-1">
-                  <h4 className="text-[#1d4d6a] font-medium mb-1">{book.title}</h4>
+                  <h4 className="text-[#1d4d6a] font-medium mb-1">
+                    {book.title}
+                  </h4>
                   <p className="text-sm text-gray-500 mb-2">{book.author}</p>
                   <Progress value={entry.progress || 0} className="h-2" />
                 </div>

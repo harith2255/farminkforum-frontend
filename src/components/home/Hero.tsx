@@ -35,7 +35,7 @@ export function Hero({ onNavigate, onOpenBook }: HeroProps) {
       </p>
       <Button
         className="bg-[#bf2026] hover:bg-[#a01c22] text-white px-6 py-3 rounded-lg text-lg transition-all"
-        onClick={() => navigate("login")}
+        onClick={() => onNavigate("login")}
       >
         Start Reading
       </Button>

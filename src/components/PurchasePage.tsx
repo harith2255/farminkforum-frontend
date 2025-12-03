@@ -2,12 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import PaymentModal from "./paymentModal";
 import { toast } from "sonner";
@@ -23,14 +18,21 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
-type PurchaseType = "book" | "note" | "subscription" | "writing" | "cart" | null;
+type PurchaseType =
+  | "book"
+  | "note"
+  | "subscription"
+  | "writing"
+  | "cart"
+  | null;
 
 export default function UniversalPurchasePage({ id, onNavigate }: any) {
-  const [item, setItem] = useState<any>(null);  
+  const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
 
-  const purchaseType: PurchaseType = (localStorage.getItem("purchaseType") as PurchaseType) || null;
+  const purchaseType: PurchaseType =
+    (localStorage.getItem("purchaseType") as PurchaseType) || null;
 
   const rawPurchaseItems =
     localStorage.getItem("purchaseItems") ||
@@ -42,7 +44,8 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem("session") || "{}");
-    return session.access_token || localStorage.getItem("token");  };
+    return session.access_token || localStorage.getItem("token");
+  };
 
   // ---------------- ICON MAP ----------------
   const IconForType = ({ t }: { t: PurchaseType }) => {
@@ -81,10 +84,18 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
   // ---------------- PRODUCT EXTRACTOR ----------------
   const getProductFromEntry = (entry: any) =>
-    entry?.book || entry?.note || entry?.product || entry || null;
+    entry?.book ||
+    entry?.note ||
+    entry?.subscription ||
+    entry?.product ||
+    entry ||
+    null;
 
   // ---------------- FETCH PRODUCT BY ID ----------------
-  const fetchProductById = async (type: PurchaseType, productId: string | null) => {
+  const fetchProductById = async (
+    type: PurchaseType,
+    productId: string | null
+  ) => {
     if (!type || !productId) {
       toast.error("Invalid purchase information");
       return null;
@@ -97,12 +108,13 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-     const url =
-  type === "book"
-    ? `https://ebook-backend-lxce.onrender.com/api/books/${productId}`
-
+      const url =
+        type === "book"
+          ? `https://ebook-backend-lxce.onrender.com/api/books/${productId}`
           : type === "note"
           ? `https://ebook-backend-lxce.onrender.com/api/notes/${productId}`
+          : type === "subscription"
+          ? `https://ebook-backend-lxce.onrender.com/api/subscriptions/${productId}`
           : null;
 
       if (!url) {
@@ -227,37 +239,65 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
     }
 
     try {
-      let purchaseData;
-
       if (!item) throw new Error("No item found");
-
-      if (item.type === "cart") {
-        purchaseData = {
-          items: item.items.map((entry: any) => {
-            const p = getProductFromEntry(entry);
-            return { type: p.type || "book", id: p.id };
-          }),
-        };
-      } else {
-        purchaseData = {
-          items: [{ type: item.type, id: item.id }],
-        };
-      }
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/purchase/unified", purchaseData, {
-        headers,
-      });
+      // ⭐ If this is a subscription purchase, call upgrade endpoint
+      if (item.type === "subscription") {
+        await axios.post(
+          "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
+          { planId: item.id },
+          { headers }
+        );
 
-      toast.success("Payment successful! 🎉");
+        toast.success("Subscription upgraded successfully! 🎉");
+
+        // Refresh subscription UI
+        localStorage.setItem("refreshSubscription", "true");
+
+        // Clear any old purchase data
+        localStorage.removeItem("purchaseType");
+        localStorage.removeItem("purchaseId");
+
+        // Redirect user back
+        onNavigate("user-dashboard");
+        return;
+      }
+
+      // ⭐ For NON-subscription purchases → use unified endpoint
+      let purchaseData;
+
+      if (item.type === "cart") {
+        purchaseData = {
+          items: item.items
+  .map((entry: any) => {
+    const p = getProductFromEntry(entry);
+    if (!p?.id) return null; // skip invalid
+    return { type: p.type || "book", id: p.id };
+  })
+  .filter(Boolean)
+
+        };
+      } else {
+        purchaseData = { items: [{ type: item.type, id: item.id }] };
+      }
+
+      await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/purchase/unified",
+        purchaseData,
+        { headers }
+      );
+
+      toast.success("Payment successful!");
 
       localStorage.removeItem("purchaseType");
       localStorage.removeItem("purchaseId");
       localStorage.removeItem("purchaseItems");
       localStorage.removeItem("cartItems");
+window.dispatchEvent(new Event("refresh-library"));
+window.dispatchEvent(new Event("refresh-explore"));
 
-      window.dispatchEvent(new Event("refresh-library"));
       onNavigate("user-dashboard");
     } catch (err) {
       console.error("Payment error:", err);
@@ -266,13 +306,15 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
   };
 
   if (loading) return <p className="text-center p-6">Loading...</p>;
-  if (!item) return <p className="text-center p-6 text-red-500">Item not found.</p>;
+  if (!item)
+    return <p className="text-center p-6 text-red-500">Item not found.</p>;
 
   const isCart = item?.type === "cart";
   const items = isCart ? item.items : [item];
-  const totalAmount = isCart
-    ? Number(item.total)
-    : Number(item.price || item.amount || 0);
+ const product = getProductFromEntry(item);
+const totalAmount = isCart
+  ? Number(item.total)
+  : Number(product?.price || 0);
 
   return (
     <div className="px-4 py-8 max-w-5xl mx-auto">
@@ -334,7 +376,9 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
                 <Shield className="w-12 h-12 text-green-600" />
                 <div>
                   <p className="font-semibold text-gray-900">Secure Checkout</p>
-                  <p className="text-sm text-gray-600">Your payment info is safe</p>
+                  <p className="text-sm text-gray-600">
+                    Your payment info is safe
+                  </p>
                 </div>
               </div>
             </CardContent>

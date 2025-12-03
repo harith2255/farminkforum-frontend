@@ -32,7 +32,7 @@ export default function PublicBookCard({ book, onNavigate }) {
       );
 
       toast.success("Added to cart ✓");
-      window.dispatchEvent(new Event("cart:changed"));
+      window.dispatchEvent(new Event("cart:changed"))
     } catch (err) {
       console.error(err);
       toast.error("Failed to add book to cart");
