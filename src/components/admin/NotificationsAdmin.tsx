@@ -32,6 +32,7 @@ export function NotificationsAdmin() {
   const loadNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API}/logs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -59,6 +60,7 @@ export function NotificationsAdmin() {
 
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API}/send`, {
         method: "POST",
         headers: {
@@ -93,6 +95,7 @@ export function NotificationsAdmin() {
   const saveDraft = async () => {
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API}/draft`, {
         method: "POST",
         headers: {
@@ -122,7 +125,9 @@ export function NotificationsAdmin() {
     <div className="space-y-6">
       <div>
         <h2 className="text-[#1d4d6a] mb-1">Send Notifications</h2>
-        <p className="text-sm text-gray-500">Compose and send messages to users</p>
+        <p className="text-sm text-gray-500">
+          Compose and send messages to users
+        </p>
       </div>
 
       {/* ---------------------- COMPOSE NOTIFICATION ------------------------ */}

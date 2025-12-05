@@ -90,96 +90,120 @@ export function UserDashboard({
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [activeSub, setActiveSub] = useState<any | null>(null);
-function UpgradeRequired({ onNavigate }) {
-  return (
-    <div className="p-6 border border-red-200 bg-red-50 rounded-lg">
-      <h2 className="text-lg font-semibold text-red-600 mb-2">
-        Subscription Required
-      </h2>
-      <p className="text-sm text-gray-600 mb-4">
-        You need an active subscription to access exams.
-      </p>
 
-      <Button
-        className="bg-[#bf2026] text-white"
-        onClick={() => onNavigate("payments")}
-      >
-        View Plans
-      </Button>
-    </div>
-  );
-}
+  const [sidebarOpen, setSidebarOpen] = useState(false); // MOBILE sidebar
 
-/* --------------------------------------------------
-   📚 READING PROGRESS & LAST PAGE SYNC
------------------------------------------------------*/
-useEffect(() => {
-  async function handleProgress(e: any) {
-    const { id, page, totalPages } = e.detail;
-    if (!id || !page || !totalPages) return;
+  function UpgradeRequired({ onNavigate }) {
+    return (
+      <div className="p-6 border border-red-200 bg-red-50 rounded-lg">
+        <h2 className="text-lg font-semibold text-red-600 mb-2">
+          Subscription Required
+        </h2>
+        <p className="text-sm text-gray-600 mb-4">
+          You need an active subscription to access exams.
+        </p>
 
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    const percent = Math.min(
-      100,
-      Math.round((page / totalPages) * 100)
+        <Button
+          className="bg-[#bf2026] text-white"
+          onClick={() => onNavigate("payments")}
+        >
+          View Plans
+        </Button>
+      </div>
     );
-
-    // Save progress
-   axios.put(
-  `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
-  { progress: percent, last_page: page },
-  { headers: { Authorization: `Bearer ${token}` } }
-);
-
-
-    // Save last page
-    axios.put(
-      `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
-      { last_page: page },
-      { headers: { Authorization: `Bearer ${token}` } }
-    ).catch(err => console.warn("last-page save failed:", err));
-
-    // Refresh UI
-    window.dispatchEvent(new Event("dashboard:update"));
   }
 
-  window.addEventListener("reader:progress", handleProgress);
-  return () => window.removeEventListener("reader:progress", handleProgress);
-}, []);
+  /* --------------------------------------------------
+     📚 READING PROGRESS & LAST PAGE SYNC
+  -----------------------------------------------------*/
+  useEffect(() => {
+    async function handleProgress(e: any) {
+      const { id, page, totalPages } = e.detail;
+      if (!id || !page || !totalPages) return;
 
-
-useEffect(() => {
-  const handler = () => {
-    window.dispatchEvent(new Event("dashboard:update"));
-  };
-
-  window.addEventListener("collections:changed", handler);
-  return () => window.removeEventListener("collections:changed", handler);
-}, []);
-
-
-
-useEffect(() => {
-  const fetchDashboard = async () => {
-    try {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/dashboard", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const percent = Math.min(
+        100,
+        Math.round((page / totalPages) * 100)
+      );
 
-      setDashboardData(res.data);
-    } catch(err) {
-      console.error("Dashboard refresh failed:", err);
+      // Save progress
+      await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
+        { progress: percent, last_page: page },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+
+      // Save last page
+      await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
+        { last_page: page },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(err => console.warn("last-page save failed:", err));
+
+      // Refresh UI
+      window.dispatchEvent(new Event("dashboard:update"));
     }
-  };
 
-  window.addEventListener("dashboard:update", fetchDashboard);
-  return () => window.removeEventListener("dashboard:update", fetchDashboard);
-}, []);
+    window.addEventListener("reader:progress", handleProgress);
+    return () => window.removeEventListener("reader:progress", handleProgress);
+  }, []);
+  useEffect(() => {
+    const handler = () => {
+      setActiveSection("notes");
+
+      // Keep URL in sync
+      window.history.pushState({}, "", "/user-dashboard/notes");
+    };
+
+    window.addEventListener("open-dashboard-notes", handler);
+    return () => window.removeEventListener("open-dashboard-notes", handler);
+  }, []);
+
+  // Restore notes section after closing reader-note
+  useEffect(() => {
+    const handler = () => {
+      setActiveSection("notes");
+      window.history.pushState({}, "", "/user-dashboard/notes");
+    };
+
+    window.addEventListener("open-dashboard-notes", handler);
+    return () => window.removeEventListener("open-dashboard-notes", handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      window.dispatchEvent(new Event("dashboard:update"));
+    };
+
+    window.addEventListener("collections:changed", handler);
+    return () => window.removeEventListener("collections:changed", handler);
+  }, []);
+
+
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setDashboardData(res.data);
+      } catch (err) {
+        console.error("Dashboard refresh failed:", err);
+      }
+    };
+
+    window.addEventListener("dashboard:update", fetchDashboard);
+    return () => window.removeEventListener("dashboard:update", fetchDashboard);
+  }, []);
 
 
   // ✅ FIX: Load Profile CLEANLY here
@@ -214,11 +238,11 @@ useEffect(() => {
     }
   }, []);
 
-  
+
 
   // Dashboard fetch
   useEffect(() => {
-    
+
     const fetchDashboard = async () => {
       try {
         setLoading(true);
@@ -254,18 +278,18 @@ useEffect(() => {
 
     fetchDashboard();
   }, []);
-  
-// 🔥 Listen for subscription changes globally
-useEffect(() => {
-  const handler = async () => {
-    await fetchSubscription();             // refresh active plan
-    window.dispatchEvent(new Event("dashboard:update"));  // refresh dashboard stats
-  };
 
-  window.addEventListener("subscription:updated", handler);
+  // 🔥 Listen for subscription changes globally
+  useEffect(() => {
+    const handler = async () => {
+      await fetchSubscription();             // refresh active plan
+      window.dispatchEvent(new Event("dashboard:update"));  // refresh dashboard stats
+    };
 
-  return () => window.removeEventListener("subscription:updated", handler);
-}, []);
+    window.addEventListener("subscription:updated", handler);
+
+    return () => window.removeEventListener("subscription:updated", handler);
+  }, []);
 
 
 
@@ -325,23 +349,23 @@ useEffect(() => {
     return () => window.removeEventListener("notifications:refresh", listener);
   }, []);
 
-const menuItems = [
-  { id: "dashboard", icon: Home, label: "Dashboard" },
-  { id: "explore", icon: Navigation, label: "Explore" },
-  { id: "library", icon: BookOpen, label: "My Library" },
+  const menuItems = [
+    { id: "dashboard", icon: Home, label: "Dashboard" },
+    { id: "explore", icon: Navigation, label: "Explore" },
+    { id: "library", icon: BookOpen, label: "My Library" },
 
-  // 👇 only show if subscription active
-  ...(activeSub
-    ? [{ id: "exams", icon: Trophy, label: "Exams" }]
-    : []),
+    // 👇 only show if subscription active
+    ...(activeSub
+      ? [{ id: "exams", icon: Trophy, label: "Exams" }]
+      : []),
 
-  { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
-  { id: "notes", icon: FileText, label: "Notes" },
-  { id: "writing", icon: FileText, label: "Writing Services" },
-  { id: "jobs", icon: Briefcase, label: "Job Portal" },
-  { id: "payments", icon: CreditCard, label: "Payments" },
-  { id: "profile", icon: User, label: "Profile" },
-];
+    { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
+    { id: "notes", icon: FileText, label: "Notes" },
+    { id: "writing", icon: FileText, label: "Writing Services" },
+    { id: "jobs", icon: Briefcase, label: "Job Portal" },
+    { id: "payments", icon: CreditCard, label: "Payments" },
+    { id: "profile", icon: User, label: "Profile" },
+  ];
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -376,6 +400,14 @@ const menuItems = [
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", sidebarCollapsed.toString());
   }, [sidebarCollapsed]);
+  useEffect(() => {
+    const handler = () => {
+      const last = localStorage.getItem("lastSection") as UserSection;
+      if (last) setActiveSection(last);
+    };
+    window.addEventListener("restore-user-section", handler);
+    return () => window.removeEventListener("restore-user-section", handler);
+  }, []);
 
   // 🚀 MASTER URL ⟶ SECTION SYNC (replace all old ones)
   useEffect(() => {
@@ -449,359 +481,397 @@ const menuItems = [
     onLogout();
   };
 
-// 1. Define function OUTSIDE useEffect
-// outside useEffect
-async function fetchSubscription() {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+  // 1. Define function OUTSIDE useEffect
+  // outside useEffect
+  async function fetchSubscription() {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
 
-    const { data } = await axios.get(
-      "https://ebook-backend-lxce.onrender.com/api/subscriptions/active",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+      const { data } = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/subscriptions/active",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    setActiveSub(data || null);
+      setActiveSub(data || null);
 
-  } catch (err) {
-    console.error("Failed to load subscription:", err);
-    setActiveSub(null);
+    } catch (err) {
+      console.error("Failed to load subscription:", err);
+      setActiveSub(null);
+    }
   }
-}
 
-// initial load + focus refresh
-useEffect(() => {
-  fetchSubscription();
+  // initial load + focus refresh
+  useEffect(() => {
+    fetchSubscription();
 
-  const handler = () => fetchSubscription();
-  window.addEventListener("focus", handler);
+    const handler = () => fetchSubscription();
+    window.addEventListener("focus", handler);
 
-  return () => window.removeEventListener("focus", handler);
-}, []);
+    return () => window.removeEventListener("focus", handler);
+  }, []);
 
-// refresh after purchase
-useEffect(() => {
-  const handler = () => fetchSubscription();
-  window.addEventListener("subscription:updated", handler);
+  // refresh after purchase
+  useEffect(() => {
+    const handler = () => fetchSubscription();
+    window.addEventListener("subscription:updated", handler);
 
-  return () => window.removeEventListener("subscription:updated", handler);
-}, []);
+    return () => window.removeEventListener("subscription:updated", handler);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
+        setAvatarOpen(false);
+      }
+      // Close mobile sidebar if clicked outside
+      // We check if the click target is outside the sidebar AND we are on a mobile screen
+      const isMobile = window.innerWidth < 1024; // Tailwind's 'lg' breakpoint is 1024px
+      if (isMobile && (event.target as HTMLElement).closest('#sidebar') === null) {
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // *** NEW Function to handle button click across all screens ***
+  const handleMenuToggle = () => {
+    // Check screen width for mobile vs. desktop logic
+    if (window.innerWidth < 1024) {
+      // Mobile/Tablet View (less than lg breakpoint)
+      setSidebarOpen(!sidebarOpen);
+    } else {
+      // Desktop View (lg breakpoint and up)
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
+  };
+  // ***************************************************************
 
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarCollapsed ? "w-20" : "w-64"
-        } bg-white border-r border-gray-200 fixed h-screen overflow-y-auto transition-all duration-300`}
+  {/* Overlay for mobile */}
+  <div
+    className={`fixed inset-0 bg-black/40 z-40 transition-opacity 
+      ${sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} 
+      lg:hidden`}
+    onClick={() => setSidebarOpen(false)} // Added close on click for better UX
+  />
+
+  {/* Sidebar */}
+  <aside
+    id="sidebar"
+    className={`fixed z-50 top-0 left-0 h-full bg-white border-r border-gray-200 
+      flex flex-col transition-all duration-300
+      ${sidebarCollapsed ? "w-20" : "w-64"}
+      ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
+  >
+    <div className="p-6 border-b border-gray-200 flex items-center justify-center">
+      <div className="flex flex-col items-center leading-tight text-center">
+        <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
+        <p className="text-xs text-gray-500">Student Portal</p>
+      </div>
+    </div>
+
+    <nav className="p-4">
+      {menuItems.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => {
+            setActiveSection(item.id as UserSection);
+            setDropdownOpen(false);
+            setAvatarOpen(false);
+            // Close sidebar on mobile after selection
+            setSidebarOpen(false); 
+
+            // URL update without navigation
+            window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+          }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
+            activeSection === item.id
+              ? "bg-[#bf2026] text-white shadow-md"
+              : "text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          <item.icon className="w-5 h-5" />
+          {!sidebarCollapsed && (
+            <span className="text-sm">{item.label}</span>
+          )}
+        </button>
+      ))}
+    </nav>
+
+    <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+      <button
+        onClick={handleLogoutClick}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
       >
-        <div className="p-6 border-b border-gray-200 flex items-center justify-center">
-          <div className="flex flex-col items-center leading-tight text-center">
-            <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
-            <p className="text-xs text-gray-500">Student Portal</p>
+        <LogOut className="w-5 h-5" />
+        {!sidebarCollapsed && <span className="text-sm">Logout</span>}
+      </button>
+    </div>
+  </aside>
+
+  {/* Main Content */}
+  <div
+    className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300`}
+  >
+    {/* Header */}
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+              {/* This is the single button for all screens */}
+              <Button onClick={handleMenuToggle} variant="ghost" size="sm" className="inline-flex">
+                <Menu className="w-5 h-5" />
+              </Button>
+
+          <div>
+            <h1 className="text-[#1d4d6a] mb-1 text-base sm:text-lg">
+              Welcome back, {dashboardData?.user?.full_name || "Student"}!
+            </h1>
+            <p className="text-sm text-gray-500 hidden sm:block">
+              Continue your learning journey
+            </p>
           </div>
         </div>
 
-        <nav className="p-4">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveSection(item.id as UserSection);
-                setDropdownOpen(false);
-                setAvatarOpen(false);
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Search */}
+          {/* <div className="relative hidden md:block">
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-32 sm:w-64"
+            />
+          </div> */}
 
-                // URL update without navigation
-                window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
-                activeSection === item.id
-                  ? "bg-[#bf2026] text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
+          {/* Notifications */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              className="relative p-2 hover:bg-gray-100 rounded-lg"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
             >
-              <item.icon className="w-5 h-5" />
-              {!sidebarCollapsed && (
-                <span className="text-sm">{item.label}</span>
+              <Bell className="w-5 h-5 text-gray-600" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
               )}
             </button>
-          ))}
-        </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-          <button
-            onClick={handleLogoutClick}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
-          </button>
-        </div>
-      </aside>
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                <div className="p-3 border-b font-semibold text-gray-700">
+                  Notifications
+                </div>
 
-      {/* Main Content */}
-      <div
-        className={`flex-1 ${
-          sidebarCollapsed ? "ml-20" : "ml-64"
-        } transition-all duration-300`}
-      >
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              >
-                <Menu className="w-5 h-5 text-gray-600" />
-              </Button>
-
-              <div>
-                <h1 className="text-[#1d4d6a] mb-1">
-                  Welcome back, {dashboardData?.user?.full_name || "Student"}!
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Continue your learning journey
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-64"
-                />
-              </div>
-
-              {/* Notifications */}
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  className="relative p-2 hover:bg-gray-100 rounded-lg"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                >
-                  <Bell className="w-5 h-5 text-gray-600" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                <ul className="max-h-60 overflow-y-auto">
+                  {notifications.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-gray-400 text-center">
+                      No notifications
+                    </p>
                   )}
-                </button>
 
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b font-semibold text-gray-700">
-                      Notifications
-                    </div>
-
-                    <ul className="max-h-60 overflow-y-auto">
-                      {notifications.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-gray-400 text-center">
-                          No notifications
-                        </p>
-                      )}
-
-                      {notifications.map((n) => (
-                        <li
-                          key={n.id}
-                          className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                          onClick={async () => {
-                            try {
-                              const token = localStorage.getItem("token");
-                              await axios.patch(
-                                `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
-                                {},
-                                {
-                                  headers: { Authorization: `Bearer ${token}` },
-                                }
-                              );
-
-                              setNotifications((prev) =>
-                                prev.map((item) =>
-                                  item.id === n.id
-                                    ? { ...item, is_read: true }
-                                    : item
-                                )
-                              );
-
-                              setUnreadCount((prev) => Math.max(prev - 1, 0));
-
-                              setActiveSection("notifications");
-                              setDropdownOpen(false);
-                            } catch (err) {
-                              console.error("Failed to mark read:", err);
+                  {notifications.map((n) => (
+                    <li
+                      key={n.id}
+                      className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem("token");
+                          await axios.patch(
+                            `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
+                            {},
+                            {
+                              headers: { Authorization: `Bearer ${token}` },
                             }
-                          }}
-                        >
-                          <p
-                            className={`text-gray-700 ${
-                              n.is_read ? "opacity-70" : "font-medium"
-                            }`}
+                          );
+
+                          setNotifications((prev) =>
+                            prev.map((item) =>
+                              item.id === n.id
+                                ? { ...item, is_read: true }
+                                : item
+                            )
+                          );
+
+                          setUnreadCount((prev) => Math.max(prev - 1, 0));
+
+                          setActiveSection("notifications");
+                          setDropdownOpen(false);
+                        } catch (err) {
+                          console.error("Failed to mark read:", err);
+                        }
+                      }}
+                    >
+                      <p
+                        className={`text-gray-700 ${
+                          n.is_read ? "opacity-70" : "font-medium"
+                        }`}
+                      >
+                        {n.message}
+                      </p>
+                      <p className="text-xs text-gray-400">{n.time}</p>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="text-center py-2 border-t">
+                  <button
+                    onClick={() => {
+                      setActiveSection("notifications");
+                      setDropdownOpen(false);
+                    }}
+                    className="text-[#bf2026] text-sm font-medium hover:underline"
+                  >
+                    View all
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cart Dropdown */}
+          <div className="relative" ref={cartRef}>
+            <button
+              className="relative p-2 hover:bg-gray-100 rounded-lg"
+              onClick={() => setCartOpen(!cartOpen)}
+            >
+              <ShoppingCart className="w-5 h-5 text-gray-600" />
+              {cartItems.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+              )}
+            </button>
+
+            {cartOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
+                  <span>Cart</span>
+                  <span className="text-xs text-gray-500">
+                    {cartItems.length} items
+                  </span>
+                </div>
+
+                {cartItems.length > 0 ? (
+                  <>
+                    <ul className="max-h-60 overflow-y-auto">
+                      {cartItems.map((item) => {
+                        const product = item.book || item.note;
+
+                        return (
+                          <li
+                            key={item.id}
+                            className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
                           >
-                            {n.message}
-                          </p>
-                          <p className="text-xs text-gray-400">{n.time}</p>
-                        </li>
-                      ))}
+                            <img
+                              src={
+                                product?.file_url?.match(
+                                  /\.(png|jpg|jpeg)$/i
+                                )
+                                  ? product.file_url
+                                  : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                              }
+                              className="w-10 h-10 rounded object-cover"
+                            />
+
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-700">
+                                {product?.title}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                ₹{product?.price}
+                              </p>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
 
                     <div className="text-center py-2 border-t">
                       <button
                         onClick={() => {
-                          setActiveSection("notifications");
-                          setDropdownOpen(false);
+                          setActiveSection("cartpage");
+                          setCartOpen(false);
                         }}
                         className="text-[#bf2026] text-sm font-medium hover:underline"
                       >
-                        View all
+                        View Cart
                       </button>
                     </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-500 py-6 text-sm">
+                    Your cart is empty 🛍️
                   </div>
                 )}
               </div>
-
-              {/* Cart Dropdown */}
-              <div className="relative" ref={cartRef}>
-                <button
-                  className="relative p-2 hover:bg-gray-100 rounded-lg"
-                  onClick={() => setCartOpen(!cartOpen)}
-                >
-                  <ShoppingCart className="w-5 h-5 text-gray-600" />
-                  {cartItems.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
-                  )}
-                </button>
-
-                {cartOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
-                      <span>Cart</span>
-                      <span className="text-xs text-gray-500">
-                        {cartItems.length} items
-                      </span>
-                    </div>
-
-                    {cartItems.length > 0 ? (
-                      <>
-                        <ul className="max-h-60 overflow-y-auto">
-                          {cartItems.map((item) => {
-                            const product = item.book || item.note;
-
-                            return (
-                              <li
-                                key={item.id}
-                                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
-                              >
-                                <img
-                                  src={
-                                    product?.file_url?.match(
-                                      /\.(png|jpg|jpeg)$/i
-                                    )
-                                      ? product.file_url
-                                      : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
-                                  }
-                                  className="w-10 h-10 rounded"
-                                />
-
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-700">
-                                    {product?.title}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    ₹{product?.price}
-                                  </p>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-
-                        <div className="text-center py-2 border-t">
-                          <button
-                            onClick={() => {
-                              setActiveSection("cartpage");
-                              setCartOpen(false);
-                            }}
-                            className="text-[#bf2026] text-sm font-medium hover:underline"
-                          >
-                            View Cart
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center text-gray-500 py-6 text-sm">
-                        Your cart is empty 🛍️
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Avatar Dropdown (FINAL & FIXED — only one rendered) */}
-              <div className="relative" ref={avatarRef}>
-                <button
-                  className="p-1 rounded-full hover:bg-gray-100"
-                  aria-label="User Menu"
-                  onClick={() => setAvatarOpen(!avatarOpen)}
-                >
-                  <Avatar className="w-8 h-8">
-                    {user?.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <AvatarFallback>
-                        {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                </button>
-
-                {avatarOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-4 border-b border-gray-200 flex items-center gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          {user?.full_name ||
-                            `${user?.first_name || ""} ${
-                              user?.last_name || ""
-                            }` ||
-                            "Guest User"}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {user?.email || "no-email@example.com"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <ul className="py-2">
-                      <li>
-                        <button
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                          onClick={() => setActiveSection("profile")}
-                        >
-                          <Settings className="w-4 h-4" /> Settings
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                          onClick={handleLogoutClick}
-                        >
-                          <LogOut className="w-4 h-4" /> Logout
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
-        </header>
+
+          {/* Avatar Dropdown (FINAL & FIXED — only one rendered) */}
+          <div className="relative" ref={avatarRef}>
+            <button
+              className="p-1 rounded-full hover:bg-gray-100"
+              aria-label="User Menu"
+              onClick={() => setAvatarOpen(!avatarOpen)}
+            >
+              <Avatar className="w-8 h-8">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <AvatarFallback>
+                    {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+            </button>
+
+            {avatarOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      {user?.full_name ||
+                        `${user?.first_name || ""} ${user?.last_name || ""}` ||
+                        "Guest User"}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {user?.email || "no-email@example.com"}
+                    </p>
+                  </div>
+                </div>
+
+                <ul className="py-2">
+                  <li>
+                    <button
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                      onClick={() => setActiveSection("profile")}
+                    >
+                      <Settings className="w-4 h-4" /> Settings
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                      onClick={handleLogoutClick}
+                    >
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
 
         {/* Main Content */}
         <main className="p-8">
@@ -828,13 +898,13 @@ useEffect(() => {
             {activeSection === "notes" && (
               <NotesRepository onNavigate={onNavigate} />
             )}
-           {activeSection === "exams" && (
-  activeSub ? (
-    <Exams />
-  ) : (
-    <UpgradeRequired onNavigate={setActiveSection} />
-  )
-)}
+            {activeSection === "exams" && (
+              activeSub ? (
+                <Exams />
+              ) : (
+                <UpgradeRequired onNavigate={setActiveSection} />
+              )
+            )}
 
 
             {activeSection === "writing" && (
@@ -873,14 +943,8 @@ useEffect(() => {
                 }}
               />
             )}
-            {activeSection === "reader-note" && (
-              <ReadNotePage
-                onNavigate={(page) => {
-                  setActiveSection(page as UserSection);
-                  window.history.pushState({}, "", `/user-dashboard/${page}`);
-                }}
-              />
-            )}
+
+
           </Suspense>
         </main>
       </div>
@@ -914,8 +978,8 @@ export default function DashboardHome({
             <p className="text-sm text-gray-500 mb-1">Books Read</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp className="w-3 h-3" />
-              <span>+{stats.booksThisMonth ?? 0} this month</span>
+              {/* <TrendingUp className="w-3 h-3" /> */}
+              {/* <span>+{stats.booksThisMonth ?? 0} this month</span> */}
             </div>
           </div>
           <BookOpen className="w-6 h-6 text-[#bf2026]" />
@@ -929,10 +993,10 @@ export default function DashboardHome({
             <p className="text-sm text-gray-500 mb-1">Tests Completed</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.testsCompleted ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
-              <Trophy className="w-3 h-3" />
+              {/* <Trophy className="w-3 h-3" />
               <span>
                 {stats.avgScore ? `${stats.avgScore}% avg` : "No tests yet"}
-              </span>
+              </span> */}
             </div>
           </div>
           <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
@@ -946,14 +1010,14 @@ export default function DashboardHome({
             <p className="text-sm text-gray-500 mb-1">Study Hours</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
 
-            <div className="flex items-center gap-1 text-xs text-green-600">
+            {/* <div className="flex items-center gap-1 text-xs text-green-600">
               <Clock className="w-3 h-3" />
 
               <span>+{stats.weeklyHours ?? 0}h this week</span>
-            </div>
+            </div> */}
           </div>
 
-          <TrendingUp className="w-6 h-6 text-[#bf2026]" />
+          {/* <TrendingUp className="w-6 h-6 text-[#bf2026]" /> */}
         </CardContent>
       </Card>
 

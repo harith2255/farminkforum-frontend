@@ -11,7 +11,13 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Badge } from "../ui/badge";
 import { Upload, Edit, Trash2, ImageIcon, Plus, X } from "lucide-react";
@@ -22,9 +28,9 @@ type Test = any;
 
 const API = import.meta.env.VITE_API_BASE || "https://ebook-backend-lxce.onrender.com/api";
 
-
 function getAuthHeaders() {
-  const token = localStorage.getItem("token");  return token ? { Authorization: `Bearer ${token}` } : {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function ContentManagementGrid() {
@@ -33,40 +39,36 @@ export function ContentManagementGrid() {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [mcqs, setMcqs] = useState([
+    { question: "", options: ["", "", "", ""], answer: "" },
+  ]);
 
+  const [mcqPage, setMcqPage] = useState(0);
 
-const [mcqs, setMcqs] = useState([
-  { question: "", options: ["", "", "", ""], answer: "" }
-]);
+  const addQuestion = () => {
+    setMcqs([...mcqs, { question: "", options: ["", "", "", ""], answer: "" }]);
+    setMcqPage(mcqs.length);
+  };
 
-const [mcqPage, setMcqPage] = useState(0);
+  const removeQuestion = (index: number) => {
+    const updated = [...mcqs];
+    updated.splice(index, 1);
+    setMcqs(updated);
+    setMcqPage(Math.max(0, index - 1));
+  };
 
-const addQuestion = () => {
-  setMcqs([...mcqs, { question: "", options: ["", "", "", ""], answer: "" }]);
-  setMcqPage(mcqs.length);
-};
+  const updateQuestion = (index: number, field: string, value: string) => {
+    const updated = [...mcqs];
+    // @ts-ignore
+    updated[index][field] = value;
+    setMcqs(updated);
+  };
 
-const removeQuestion = (index: number) => {
-  const updated = [...mcqs];
-  updated.splice(index, 1);
-  setMcqs(updated);
-  setMcqPage(Math.max(0, index - 1));
-};
-
-const updateQuestion = (index: number, field: string, value: string) => {
-  const updated = [...mcqs];
-  updated[index][field] = value;
-  setMcqs(updated);
-};
-
-const updateOption = (qIndex: number, optionIndex: number, value: string) => {
-  const updated = [...mcqs];
-  updated[qIndex].options[optionIndex] = value;
-  setMcqs(updated);
-};
-
-
-
+  const updateOption = (qIndex: number, optionIndex: number, value: string) => {
+    const updated = [...mcqs];
+    updated[qIndex].options[optionIndex] = value;
+    setMcqs(updated);
+  };
 
   // Upload dialogs
   const [showUploadBook, setShowUploadBook] = useState(false);
@@ -76,7 +78,9 @@ const updateOption = (qIndex: number, optionIndex: number, value: string) => {
   // Edit dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [editType, setEditType] = useState<"book" | "note" | "test" | null>(null);
+  const [editType, setEditType] = useState<"book" | "note" | "test" | null>(
+    null
+  );
 
   // Forms
   const [bookForm, setBookForm] = useState({
@@ -114,8 +118,10 @@ const updateOption = (qIndex: number, optionIndex: number, value: string) => {
   const [editSaving, setEditSaving] = useState(false);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string, type: "book" | "note" | "test" } | null>(null);
-
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: "book" | "note" | "test";
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -129,9 +135,20 @@ const updateOption = (qIndex: number, optionIndex: number, value: string) => {
         axios.get(`${API}/admin/content?type=tests`, { headers }),
       ]);
 
-      setBooks(booksRes.data?.contents || []);
-      setNotes(notesRes.data?.contents || []);
-      setTests(testsRes.data?.contents || []);
+      // support both { contents: [...] } and raw arrays
+      const extract = (res: any) => {
+        if (!res) return [];
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data?.contents && Array.isArray(res.data.contents))
+          return res.data.contents;
+        if (res.data?.data && Array.isArray(res.data.data))
+          return res.data.data;
+        return [];
+      };
+
+      setBooks(extract(booksRes));
+      setNotes(extract(notesRes));
+      setTests(extract(testsRes));
     } catch (err) {
       console.error("fetchContent error", err);
     } finally {
@@ -144,84 +161,81 @@ const updateOption = (qIndex: number, optionIndex: number, value: string) => {
   }, []);
 
   const handleDelete = async () => {
-  if (!deleteTarget) return;
-console.log("Deleting:", deleteTarget);
+    if (!deleteTarget) return;
+    console.log("Deleting:", deleteTarget);
 
-  const { id, type } = deleteTarget;
+    const { id, type } = deleteTarget;
 
-  const typeMap: Record<string, string> = {
-    book: "book",
-    note: "note",
-    test: "test",
+    const typeMap: Record<string, string> = {
+      book: "book",
+      note: "note",
+      test: "test",
+    };
+
+    const mappedType = typeMap[type];
+
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(`${API}/admin/content/${mappedType}/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log(
+        "🔥 Sending DELETE:",
+        `${API}/admin/content/${mappedType}/${id}`
+      );
+
+      setDeleteModalOpen(false);
+      setDeleteTarget(null);
+      fetchContent();
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Delete failed");
+    }
   };
 
-  const mappedType = typeMap[type];
-
-  try {
-    const token = localStorage.getItem("token");
-    await axios.delete(`${API}/admin/content/${mappedType}/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-console.log("🔥 Sending DELETE:", `${API}/admin/content/${mappedType}/${id}`);
-
-    setDeleteModalOpen(false);
-    setDeleteTarget(null);
-    fetchContent();
-
-  } catch (err) {
-    console.error("Delete error:", err);
-    alert("Delete failed");
-  }
-};
 const handleEditSave = async () => {
-  if (!editItem || !editType) return;
+  if (!editItem || editType !== "test") return;
 
   try {
     setEditSaving(true);
 
-    const formData = new FormData();
-    formData.append("title", editItem.title || "");
-    formData.append("description", editItem.description || "");
-    formData.append("category", editItem.category || "Agriculture");
-    formData.append("price", editItem.price || "0");
+    const payload: any = {
+      title: editItem.title,
+      subject: editItem.subject,
+      difficulty: editItem.difficulty,
+      total_questions: Number(editItem.total_questions),
+      duration_minutes: Number(editItem.duration_minutes),
+      description: editItem.description,
+    };
 
-    if (editItem.tags) {
-      formData.append(
-        "tags",
-        Array.isArray(editItem.tags) ? editItem.tags.join(",") : editItem.tags
-      );
-    }
+    // If start_time changed
+    if (editItem.start_time) {
+      payload.start_time = editItem.start_time;
 
-    // For test type only
-    if (editType === "test") {
-      formData.append("subject", editItem.subject);
-      formData.append("difficulty", editItem.difficulty);
-      formData.append("total_questions", editItem.total_questions);
-      formData.append("duration_minutes", editItem.duration_minutes);
-      if (editItem.scheduled_date) {
-        formData.append("scheduled_date", editItem.scheduled_date);
+      // Auto calculate end_time
+      if (editItem.duration_minutes) {
+        const start = new Date(editItem.start_time);
+        const end = new Date(start.getTime() + editItem.duration_minutes * 60 * 1000);
+        payload.end_time = end.toISOString();
       }
-    }
-
-    // Replace file if changed
-    if (editItem.newFile) {
-      formData.append("file", editItem.newFile);
     }
 
     const headers = {
       ...getAuthHeaders(),
-      "Content-Type": "multipart/form-data",
+      "Content-Type": "application/json",
     };
 
     await axios.put(
-      `${API}/admin/content/${editType}/${editItem.id}`,
-      formData,
+      `${API}/admin/content/test/${editItem.id}`,
+      payload,
       { headers }
     );
 
     alert("Updated successfully!");
     setShowEditDialog(false);
     fetchContent();
+
   } catch (err) {
     console.error("Edit error:", err);
     alert("Failed to update.");
@@ -229,7 +243,6 @@ const handleEditSave = async () => {
     setEditSaving(false);
   }
 };
-
 
   // ---------- Upload Handlers ----------
   const uploadBook = async () => {
@@ -257,7 +270,16 @@ const handleEditSave = async () => {
 
       alert("✅ E-Book uploaded successfully!");
       setShowUploadBook(false);
-      setBookForm({ title: "", author: "", category: "Agriculture", price: "", description: "", tags: "", file: null, cover: null });
+      setBookForm({
+        title: "",
+        author: "",
+        category: "Agriculture",
+        price: "",
+        description: "",
+        tags: "",
+        file: null,
+        cover: null,
+      });
       fetchContent();
     } catch (err: any) {
       console.error("uploadBook error", err);
@@ -283,12 +305,22 @@ const handleEditSave = async () => {
       data.append("description", noteForm.description || "");
       data.append("file", noteForm.file as Blob);
 
-      const headers = { ...getAuthHeaders(), "Content-Type": "multipart/form-data" };
+      const headers = {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      };
       await axios.post(`${API}/admin/content/upload`, data, { headers });
 
       alert("✅ Note uploaded successfully!");
       setShowUploadNote(false);
-      setNoteForm({ title: "", author: "", category: "Agriculture", price: "", description: "", file: null });
+      setNoteForm({
+        title: "",
+        author: "",
+        category: "Agriculture",
+        price: "",
+        description: "",
+        file: null,
+      });
       fetchContent();
     } catch (err: any) {
       console.error("uploadNote error", err);
@@ -298,59 +330,89 @@ const handleEditSave = async () => {
     }
   };
 
-  const uploadTest = async () => {
- if (!testForm.title || !testForm.total_questions || !testForm.duration_minutes) {
-  return alert("Please fill title, total questions and duration.");
-}
+const uploadTest = async () => {
+  try {
+    setUploading(true);
 
-    try {
-      setUploading(true);
-      const data = new FormData();
-      data.append("type", "Mock Test");
-      data.append("title", testForm.title);
-      data.append("subject", testForm.subject || "Agriculture");
-      data.append("difficulty", testForm.difficulty || "Easy");
-      data.append("total_questions", testForm.total_questions || "0");
-      data.append("duration_minutes", testForm.duration_minutes || "0");
-      if (testForm.scheduled_date) data.append("scheduled_date", new Date(testForm.scheduled_date).toISOString());
-      data.append("description", testForm.description || "");
-      data.append("file", testForm.file as Blob);
-      data.append("mcqs", JSON.stringify(mcqs));
+    const data = new FormData();
+    
+    data.append("type", "Mock Test");
 
+    // Required
+    data.append("title", testForm.title);
+    data.append("subject", testForm.subject || "");
+    data.append("difficulty", testForm.difficulty || "");
+    data.append("total_questions", testForm.total_questions || "");
+    data.append("duration_minutes", testForm.duration_minutes || "");
+    data.append("scheduled_date", testForm.scheduled_date || "");
+    data.append("description", testForm.description || "");
 
-      const headers = { ...getAuthHeaders(), "Content-Type": "multipart/form-data" };
-      await axios.post(`${API}/admin/content/upload`, data, { headers });
-
-      alert("✅ Mock test uploaded successfully!");
-      setShowUploadTest(false);
-      setTestForm({ title: "", subject: "Agriculture", difficulty: "Easy", total_questions: "", duration_minutes: "", scheduled_date: "", description: "", file: null });
-      fetchContent();
-    } catch (err: any) {
-      console.error("uploadTest error", err);
-      alert(err?.response?.data?.error || "Upload failed");
-    } finally {
-      setUploading(false);
+    // Optional File
+    if (testForm.file) {
+      data.append("file", testForm.file);
     }
-  };
 
-  const openEditModal = (item: any, type: "book" | "note" | "test") => {
-  setEditItem(item);
-  setEditType(type);
-  setShowEditDialog(true);
+    // MCQs JSON
+    data.append("mcqs", JSON.stringify(mcqs));
+
+    const headers = {
+      ...getAuthHeaders(),
+      "Content-Type": "multipart/form-data",
+    };
+
+    await axios.post(`${API}/admin/content/upload`, data, { headers });
+
+    alert("✅ Mock Test uploaded successfully!");
+
+
+
+    // reset form
+    setTestForm({
+      title: "",
+      subject: "Agriculture",
+      difficulty: "Easy",
+      total_questions: "",
+      duration_minutes: "",
+      scheduled_date: "",
+      description: "",
+      file: null,
+    });
+
+    // reset MCQs to one blank question after upload
+    setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
+    setMcqPage(0);
+
+    fetchContent();
+  } catch (err: any) {
+    console.error("uploadTest error", err);
+    alert(err?.response?.data?.error || "Upload failed");
+  } finally {
+    setUploading(false);
+  }
 };
 
-
+  const openEditModal = (item: any, type: "book" | "note" | "test") => {
+    setEditItem(item);
+    setEditType(type);
+    setShowEditDialog(true);
+  };
 
   // ---------- Helpers ----------
   const renderCover = (item: any, fallbackText = "No Cover") => {
-    const url = item?.cover_url || item?.file_url ;
-    if (url) return (
-      <img src={url} alt={item.title} className="w-full h-44 object-cover rounded-t-md" />
-    );
+    const url = item?.cover_url || item?.file_url;
+    if (url)
+      return (
+        <img
+          src={url}
+          alt={item.title}
+          className="w-full h-44 object-cover rounded-t-md"
+        />
+      );
 
     return (
       <div className="w-full h-44 bg-gray-100 flex items-center justify-center rounded-t-md">
-        <ImageIcon className="w-8 h-8 text-gray-400" />      </div>
+        <ImageIcon className="w-8 h-8 text-gray-400" />
+      </div>
     );
   };
 
@@ -358,18 +420,31 @@ const handleEditSave = async () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[#1d4d6a] mb-1 text-xl font-semibold">Content Management — Grid</h2>
-          <p className="text-sm text-gray-500">Upload and manage E-Books, Notes and Mock Tests</p>
+          <h2 className="text-[#1d4d6a] mb-1 text-xl font-semibold">
+            Content Management — Grid
+          </h2>
+          <p className="text-sm text-gray-500">
+            Upload and manage E-Books, Notes and Mock Tests
+          </p>
         </div>
 
         <div className="flex gap-2">
-          <Button className="bg-[#1d4d6a] text-white" onClick={() => setShowUploadBook(true)}>
+          <Button
+            className="bg-[#1d4d6a] text-white"
+            onClick={() => setShowUploadBook(true)}
+          >
             <Plus className="w-4 h-4 mr-2" /> Upload E-Book
           </Button>
-          <Button className="bg-[#bf2026] text-white" onClick={() => setShowUploadNote(true)}>
+          <Button
+            className="bg-[#bf2026] text-white"
+            onClick={() => setShowUploadNote(true)}
+          >
             <Upload className="w-4 h-4 mr-2" /> Upload Notes
           </Button>
-          <Button className="bg-[#153a4f] text-white" onClick={() => setShowUploadTest(true)}>
+          <Button
+            className="bg-[#153a4f] text-white"
+            onClick={() => setShowUploadTest(true)}
+          >
             <Upload className="w-4 h-4 mr-2" /> Upload Mock Test
           </Button>
         </div>
@@ -391,29 +466,52 @@ const handleEditSave = async () => {
                 <CardContent>
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-[#1d4d6a]">{book.title}</h3>
+                      <h3 className="text-sm font-semibold text-[#1d4d6a]">
+                        {book.title}
+                      </h3>
                       <p className="text-xs text-gray-500">{book.author}</p>
-                      <p className="text-xs text-gray-400 mt-1">{book.category}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {book.category}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium">{book.price ? `₹${book.price}` : "Free"}</div>
-                      <Badge className="mt-2">{book.pages ? `${book.pages} pages` : "—"}</Badge>
+                      <div className="text-sm font-medium">
+                        {book.price ? `₹${book.price}` : "Free"}
+                      </div>
+                      <Badge className="mt-2">
+                        {book.pages ? `${book.pages} pages` : "—"}
+                      </Badge>
                     </div>
                   </div>
 
                   <div className="mt-3 flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEditModal(book, "book") }>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(book, "book")}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm" className="text-red-600" onClick={() => {
-  setDeleteTarget({ id: book.id, type: "book" });
-  setDeleteModalOpen(true);
-}}
->
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => {
+                        setDeleteTarget({ id: book.id, type: "book" });
+                        setDeleteModalOpen(true);
+                      }}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     {book.file_url && (
-                      <a href={book.file_url} target="_blank" rel="noreferrer" className="ml-auto text-sm text-blue-600 underline">View</a>
+                      <a
+                        href={book.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-auto text-sm text-blue-600 underline"
+                      >
+                        View
+                      </a>
                     )}
                   </div>
                 </CardContent>
@@ -431,29 +529,52 @@ const handleEditSave = async () => {
                 <CardContent>
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-[#1d4d6a]">{note.title}</h3>
+                      <h3 className="text-sm font-semibold text-[#1d4d6a]">
+                        {note.title}
+                      </h3>
                       <p className="text-xs text-gray-500">{note.author}</p>
-                      <p className="text-xs text-gray-400 mt-1">{note.category}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {note.category}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium">{note.price ? `₹${note.price}` : "Free"}</div>
-                      <Badge className="mt-2">{note.pages ? `${note.pages} pages` : "—"}</Badge>
+                      <div className="text-sm font-medium">
+                        {note.price ? `₹${note.price}` : "Free"}
+                      </div>
+                      <Badge className="mt-2">
+                        {note.pages ? `${note.pages} pages` : "—"}
+                      </Badge>
                     </div>
                   </div>
 
                   <div className="mt-3 flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEditModal(note, "note") }>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(note, "note")}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm" className="text-red-600" onClick={() => {
-  setDeleteTarget({ id: note.id, type: "note" });
-  setDeleteModalOpen(true);
-}}
->
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => {
+                        setDeleteTarget({ id: note.id, type: "note" });
+                        setDeleteModalOpen(true);
+                      }}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     {note.file_url && (
-                      <a href={note.file_url} target="_blank" rel="noreferrer" className="ml-auto text-sm text-blue-600 underline">Download</a>
+                      <a
+                        href={note.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-auto text-sm text-blue-600 underline"
+                      >
+                        Download
+                      </a>
                     )}
                   </div>
                 </CardContent>
@@ -471,26 +592,49 @@ const handleEditSave = async () => {
                 <CardContent>
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-[#1d4d6a]">{t.title}</h3>
+                      <h3 className="text-sm font-semibold text-[#1d4d6a]">
+                        {t.title}
+                      </h3>
                       <p className="text-xs text-gray-500">{t.subject}</p>
-                      <p className="text-xs text-gray-400 mt-1">{t.difficulty} • {t.total_questions} Qs</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {t.difficulty} • {t.total_questions} Qs
+                      </p>
+
+                      {(t.start_time || t.scheduled_date) && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          Starts:{" "}
+                          {new Date(
+                            t.start_time || t.scheduled_date
+                          ).toLocaleString()}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <Badge>{t.attempts?.[0]?.count ?? 0} participants</Badge>
-
                     </div>
                   </div>
 
                   <div className="mt-3 flex gap-2">
-                    <Button variant="outline" size="sm" className="text-red-600" onClick={() => {
-  setDeleteTarget({ id: t.id, type: "test" });
-  setDeleteModalOpen(true);
-}}
->
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => {
+                        setDeleteTarget({ id: t.id, type: "test" });
+                        setDeleteModalOpen(true);
+                      }}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     {t.file_url && (
-                      <a href={t.file_url} target="_blank" rel="noreferrer" className="ml-auto text-sm text-blue-600 underline">Download</a>
+                      <a
+                        href={t.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-auto text-sm text-blue-600 underline"
+                      >
+                        Download
+                      </a>
                     )}
                   </div>
                 </CardContent>
@@ -501,33 +645,30 @@ const handleEditSave = async () => {
       </Tabs>
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-  <DialogContent className="max-w-sm">
-    <DialogHeader>
-      <DialogTitle>Delete Content</DialogTitle>
-    </DialogHeader>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Content</DialogTitle>
+          </DialogHeader>
 
-    <p className="text-sm text-gray-600">
-      Are you sure you want to delete this item? This action cannot be undone.
-    </p>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete this item? This action cannot be
+            undone.
+          </p>
 
-    <div className="mt-4 flex justify-end gap-3">
-      <Button
-        variant="outline"
-        onClick={() => setDeleteModalOpen(false)}
-      >
-        Cancel
-      </Button>
+          <div className="mt-4 flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+              Cancel
+            </Button>
 
-      <Button
-        className="bg-red-600 hover:bg-red-700 text-white"
-        onClick={handleDelete}
-      >
-        Delete
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
-
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* UPLOAD DIALOGS (BOOK / NOTE / TEST) */}
       <Dialog open={showUploadBook} onOpenChange={setShowUploadBook}>
@@ -539,17 +680,33 @@ const handleEditSave = async () => {
           <div className="space-y-4 p-4">
             <div>
               <Label>Title</Label>
-              <Input value={bookForm.title} onChange={(e) => setBookForm({ ...bookForm, title: e.target.value })} />
+              <Input
+                value={bookForm.title}
+                onChange={(e) =>
+                  setBookForm({ ...bookForm, title: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Author</Label>
-              <Input value={bookForm.author} onChange={(e) => setBookForm({ ...bookForm, author: e.target.value })} />
+              <Input
+                value={bookForm.author}
+                onChange={(e) =>
+                  setBookForm({ ...bookForm, author: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Category</Label>
-              <select value={bookForm.category} onChange={(e) => setBookForm({ ...bookForm, category: e.target.value })} className="w-full border p-2 rounded">
+              <select
+                value={bookForm.category}
+                onChange={(e) =>
+                  setBookForm({ ...bookForm, category: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              >
                 <option>Agriculture</option>
               </select>
             </div>
@@ -557,34 +714,78 @@ const handleEditSave = async () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Price</Label>
-                <Input value={bookForm.price} onChange={(e) => setBookForm({ ...bookForm, price: e.target.value })} />
+                <Input
+                  value={bookForm.price}
+                  onChange={(e) =>
+                    setBookForm({ ...bookForm, price: e.target.value })
+                  }
+                />
               </div>
               <div>
                 <Label>Tags (comma separated)</Label>
-                <Input value={bookForm.tags} onChange={(e) => setBookForm({ ...bookForm, tags: e.target.value })} />
+                <Input
+                  value={bookForm.tags}
+                  onChange={(e) =>
+                    setBookForm({ ...bookForm, tags: e.target.value })
+                  }
+                />
               </div>
             </div>
 
             <div>
               <Label>Description</Label>
-              <Textarea value={bookForm.description} onChange={(e) => setBookForm({ ...bookForm, description: e.target.value })} />
+              <Textarea
+                value={bookForm.description}
+                onChange={(e) =>
+                  setBookForm({ ...bookForm, description: e.target.value })
+                }
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Upload File (PDF / EPUB)</Label>
-                <input type="file" accept=".pdf,.epub" onChange={(e: any) => setBookForm({ ...bookForm, file: e.target.files?.[0] ?? null })} />
+                <input
+                  type="file"
+                  accept=".pdf,.epub"
+                  onChange={(e: any) =>
+                    setBookForm({
+                      ...bookForm,
+                      file: e.target.files?.[0] ?? null,
+                    })
+                  }
+                />
               </div>
 
               <div>
                 <Label>Cover Image (optional)</Label>
-                <input type="file" accept="image/*" onChange={(e: any) => setBookForm({ ...bookForm, cover: e.target.files?.[0] ?? null })} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e: any) =>
+                    setBookForm({
+                      ...bookForm,
+                      cover: e.target.files?.[0] ?? null,
+                    })
+                  }
+                />
               </div>
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowUploadBook(false)}>Cancel</Button>
-              <Button className="bg-[#bf2026] text-white flex-1" onClick={uploadBook} disabled={uploading}>{uploading ? "Uploading..." : "Upload E-Book"}</Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadBook(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-[#bf2026] text-white flex-1"
+                onClick={uploadBook}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload E-Book"}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -599,39 +800,85 @@ const handleEditSave = async () => {
           <div className="space-y-4 p-4">
             <div>
               <Label>Title</Label>
-              <Input value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} />
+              <Input
+                value={noteForm.title}
+                onChange={(e) =>
+                  setNoteForm({ ...noteForm, title: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Author</Label>
-              <Input value={noteForm.author} onChange={(e) => setNoteForm({ ...noteForm, author: e.target.value })} />
+              <Input
+                value={noteForm.author}
+                onChange={(e) =>
+                  setNoteForm({ ...noteForm, author: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Category</Label>
-              <select value={noteForm.category} onChange={(e) => setNoteForm({ ...noteForm, category: e.target.value })} className="w-full border p-2 rounded">
+              <select
+                value={noteForm.category}
+                onChange={(e) =>
+                  setNoteForm({ ...noteForm, category: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              >
                 <option>Agriculture</option>
               </select>
             </div>
 
             <div>
               <Label>Price</Label>
-              <Input value={noteForm.price} onChange={(e) => setNoteForm({ ...noteForm, price: e.target.value })} />
+              <Input
+                value={noteForm.price}
+                onChange={(e) =>
+                  setNoteForm({ ...noteForm, price: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Description</Label>
-              <Textarea value={noteForm.description} onChange={(e) => setNoteForm({ ...noteForm, description: e.target.value })} />
+              <Textarea
+                value={noteForm.description}
+                onChange={(e) =>
+                  setNoteForm({ ...noteForm, description: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Upload File (PDF)</Label>
-              <input type="file" accept=".pdf" onChange={(e: any) => setNoteForm({ ...noteForm, file: e.target.files?.[0] ?? null })} />
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e: any) =>
+                  setNoteForm({
+                    ...noteForm,
+                    file: e.target.files?.[0] ?? null,
+                  })
+                }
+              />
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowUploadNote(false)}>Cancel</Button>
-              <Button className="bg-[#bf2026] text-white flex-1" onClick={uploadNote} disabled={uploading}>{uploading ? "Uploading..." : "Upload Notes"}</Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadNote(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-[#bf2026] text-white flex-1"
+                onClick={uploadNote}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload Notes"}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -646,20 +893,37 @@ const handleEditSave = async () => {
           <div className="space-y-4 p-4">
             <div>
               <Label>Title</Label>
-              <Input value={testForm.title} onChange={(e) => setTestForm({ ...testForm, title: e.target.value })} />
+              <Input
+                value={testForm.title}
+                onChange={(e) =>
+                  setTestForm({ ...testForm, title: e.target.value })
+                }
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Subject</Label>
-                <select value={testForm.subject} onChange={(e) => setTestForm({ ...testForm, subject: e.target.value })} className="w-full border p-2 rounded">
+                <select
+                  value={testForm.subject}
+                  onChange={(e) =>
+                    setTestForm({ ...testForm, subject: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                >
                   <option>Agriculture</option>
                 </select>
               </div>
 
               <div>
                 <Label>Difficulty</Label>
-                <select value={testForm.difficulty} onChange={(e) => setTestForm({ ...testForm, difficulty: e.target.value })} className="w-full border p-2 rounded">
+                <select
+                  value={testForm.difficulty}
+                  onChange={(e) =>
+                    setTestForm({ ...testForm, difficulty: e.target.value })
+                  }
+                  className="w-full border p-2 rounded"
+                >
                   <option>Easy</option>
                   <option>Medium</option>
                   <option>Hard</option>
@@ -670,23 +934,52 @@ const handleEditSave = async () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Total Questions</Label>
-                <Input type="number" value={testForm.total_questions} onChange={(e) => setTestForm({ ...testForm, total_questions: e.target.value })} />
+                <Input
+                  type="number"
+                  value={testForm.total_questions}
+                  onChange={(e) =>
+                    setTestForm({
+                      ...testForm,
+                      total_questions: e.target.value,
+                    })
+                  }
+                />
               </div>
 
               <div>
                 <Label>Duration (minutes)</Label>
-                <Input type="number" value={testForm.duration_minutes} onChange={(e) => setTestForm({ ...testForm, duration_minutes: e.target.value })} />
+                <Input
+                  type="number"
+                  value={testForm.duration_minutes}
+                  onChange={(e) =>
+                    setTestForm({
+                      ...testForm,
+                      duration_minutes: e.target.value,
+                    })
+                  }
+                />
               </div>
             </div>
 
             <div>
               <Label>Scheduled Date</Label>
-              <Input type="datetime-local" value={testForm.scheduled_date} onChange={(e) => setTestForm({ ...testForm, scheduled_date: e.target.value })} />
+              <Input
+                type="datetime-local"
+                value={testForm.scheduled_date}
+                onChange={(e) =>
+                  setTestForm({ ...testForm, scheduled_date: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <Label>Description</Label>
-              <Textarea value={testForm.description} onChange={(e) => setTestForm({ ...testForm, description: e.target.value })} />
+              <Textarea
+                value={testForm.description}
+                onChange={(e) =>
+                  setTestForm({ ...testForm, description: e.target.value })
+                }
+              />
             </div>
 
             {/* MCQ SECTION WITH PAGINATION */}
@@ -694,7 +987,9 @@ const handleEditSave = async () => {
               <div className="flex justify-between items-center mb-4">
                 <div>
                   <h2 className="text-lg font-semibold">MCQ Section</h2>
-                  <p className="text-sm text-gray-500">Add multiple choice questions for the test</p>
+                  <p className="text-sm text-gray-500">
+                    Add multiple choice questions for the test
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -731,7 +1026,9 @@ const handleEditSave = async () => {
                     <Label>Question Text</Label>
                     <Textarea
                       value={mcqs[mcqPage].question}
-                      onChange={(e) => updateQuestion(mcqPage, "question", e.target.value)}
+                      onChange={(e) =>
+                        updateQuestion(mcqPage, "question", e.target.value)
+                      }
                       placeholder="Enter question"
                       className="mt-1"
                       rows={2}
@@ -744,7 +1041,9 @@ const handleEditSave = async () => {
                         <Label>Option {i + 1}</Label>
                         <Input
                           value={opt}
-                          onChange={(e) => updateOption(mcqPage, i, e.target.value)}
+                          onChange={(e) =>
+                            updateOption(mcqPage, i, e.target.value)
+                          }
                           placeholder={`Option ${i + 1}`}
                           className="mt-1"
                         />
@@ -756,7 +1055,9 @@ const handleEditSave = async () => {
                     <Label>Correct Answer</Label>
                     <Input
                       value={mcqs[mcqPage].answer}
-                      onChange={(e) => updateQuestion(mcqPage, "answer", e.target.value)}
+                      onChange={(e) =>
+                        updateQuestion(mcqPage, "answer", e.target.value)
+                      }
                       placeholder="Enter correct answer (must match one of the options)"
                       className="mt-1"
                     />
@@ -797,10 +1098,13 @@ const handleEditSave = async () => {
                     <Badge
                       key={index}
                       variant={index === mcqPage ? "default" : "outline"}
-                      className={`cursor-pointer ${index === mcqPage
-                        ? "bg-[#1d4d6a] text-white"
-                        : mcq.question ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
-                        }`}
+                      className={`cursor-pointer ${
+                        index === mcqPage
+                          ? "bg-[#1d4d6a] text-white"
+                          : mcq.question
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
                       onClick={() => setMcqPage(index)}
                     >
                       Q{index + 1}
@@ -811,15 +1115,20 @@ const handleEditSave = async () => {
               </div>
             </div>
 
-
-            {/* <div>
-              <Label>Upload File (PDF / DOCX)</Label>
-              <input type="file" accept=".pdf,.doc,.docx" onChange={(e: any) => setTestForm({ ...testForm, file: e.target.files?.[0] ?? null })} />
-            </div> */}
-
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowUploadTest(false)}>Cancel</Button>
-              <Button className="bg-[#bf2026] text-white flex-1" onClick={uploadTest} disabled={uploading}>{uploading ? "Uploading..." : "Upload Mock Test"}</Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadTest(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-[#bf2026] text-white flex-1"
+                onClick={uploadTest}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload Mock Test"}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -836,43 +1145,87 @@ const handleEditSave = async () => {
             <div className="space-y-4 p-4">
               <div>
                 <Label>Title</Label>
-                <Input value={editItem.title || ""} onChange={(e) => setEditItem({ ...editItem, title: e.target.value })} />
+                <Input
+                  value={editItem.title || ""}
+                  onChange={(e) =>
+                    setEditItem({ ...editItem, title: e.target.value })
+                  }
+                />
               </div>
 
               {editType !== "test" ? (
                 <>
                   <div>
                     <Label>Author</Label>
-                    <Input value={editItem.author || ""} onChange={(e) => setEditItem({ ...editItem, author: e.target.value })} />
+                    <Input
+                      value={editItem.author || ""}
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, author: e.target.value })
+                      }
+                    />
                   </div>
 
                   <div>
                     <Label>Category</Label>
-                    <select value={editItem.category || "Agriculture"} onChange={(e) => setEditItem({ ...editItem, category: e.target.value })} className="w-full border p-2 rounded">
+                    <select
+                      value={editItem.category || "Agriculture"}
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, category: e.target.value })
+                      }
+                      className="w-full border p-2 rounded"
+                    >
                       <option>Agriculture</option>
                     </select>
                   </div>
 
                   <div>
                     <Label>Price</Label>
-                    <Input value={editItem.price || ""} onChange={(e) => setEditItem({ ...editItem, price: e.target.value })} />
+                    <Input
+                      value={editItem.price || ""}
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, price: e.target.value })
+                      }
+                    />
                   </div>
 
                   <div>
                     <Label>Description</Label>
-                    <Textarea value={editItem.description || ""} onChange={(e) => setEditItem({ ...editItem, description: e.target.value })} />
+                    <Textarea
+                      value={editItem.description || ""}
+                      onChange={(e) =>
+                        setEditItem({
+                          ...editItem,
+                          description: e.target.value,
+                        })
+                      }
+                    />
                   </div>
 
                   <div>
                     <Label>Tags (comma separated)</Label>
-                    <Input value={Array.isArray(editItem.tags) ? editItem.tags.join(",") : (editItem.tags || "")} onChange={(e) => setEditItem({ ...editItem, tags: e.target.value })} />
+                    <Input
+                      value={
+                        Array.isArray(editItem.tags)
+                          ? editItem.tags.join(",")
+                          : editItem.tags || ""
+                      }
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, tags: e.target.value })
+                      }
+                    />
                   </div>
                 </>
               ) : (
                 <>
                   <div>
                     <Label>Subject</Label>
-                    <select value={editItem.subject || "Agriculture"} onChange={(e) => setEditItem({ ...editItem, subject: e.target.value })} className="w-full border p-2 rounded">
+                    <select
+                      value={editItem.subject || "Agriculture"}
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, subject: e.target.value })
+                      }
+                      className="w-full border p-2 rounded"
+                    >
                       <option>Agriculture</option>
                     </select>
                   </div>
@@ -880,7 +1233,16 @@ const handleEditSave = async () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Difficulty</Label>
-                      <select value={editItem.difficulty || "Easy"} onChange={(e) => setEditItem({ ...editItem, difficulty: e.target.value })} className="w-full border p-2 rounded">
+                      <select
+                        value={editItem.difficulty || "Easy"}
+                        onChange={(e) =>
+                          setEditItem({
+                            ...editItem,
+                            difficulty: e.target.value,
+                          })
+                        }
+                        className="w-full border p-2 rounded"
+                      >
                         <option>Easy</option>
                         <option>Medium</option>
                         <option>Hard</option>
@@ -889,25 +1251,70 @@ const handleEditSave = async () => {
 
                     <div>
                       <Label>Total Questions</Label>
-                      <Input type="number" value={editItem.total_questions || ""} onChange={(e) => setEditItem({ ...editItem, total_questions: e.target.value })} />
+                      <Input
+                        type="number"
+                        value={editItem.total_questions || ""}
+                        onChange={(e) =>
+                          setEditItem({
+                            ...editItem,
+                            total_questions: e.target.value,
+                          })
+                        }
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Duration (minutes)</Label>
-                      <Input type="number" value={editItem.duration_minutes || ""} onChange={(e) => setEditItem({ ...editItem, duration_minutes: e.target.value })} />
+                      <Input
+                        type="number"
+                        value={editItem.duration_minutes || ""}
+                        onChange={(e) =>
+                          setEditItem({
+                            ...editItem,
+                            duration_minutes: e.target.value,
+                          })
+                        }
+                      />
                     </div>
 
                     <div>
                       <Label>Scheduled Date</Label>
-                      <Input type="datetime-local" value={editItem.scheduled_date ? new Date(editItem.scheduled_date).toISOString().slice(0,16) : ""} onChange={(e) => setEditItem({ ...editItem, scheduled_date: e.target.value })} />
+                      <Input
+                        type="datetime-local"
+                        value={
+                          editItem.start_time
+                            ? new Date(editItem.start_time)
+                                .toISOString()
+                                .slice(0, 16)
+                            : editItem.scheduled_date
+                            ? new Date(editItem.scheduled_date)
+                                .toISOString()
+                                .slice(0, 16)
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setEditItem({
+                            ...editItem,
+                            start_time: new Date(e.target.value).toISOString(),
+                          })
+                        }
+                      />
                     </div>
                   </div>
 
                   <div>
                     <Label>Description</Label>
-                    <Textarea value={editItem.description || ""} onChange={(e) => setEditItem({ ...editItem, description: e.target.value })} />
+                    <Textarea
+                      value={editItem.description || ""}
+                      onChange={(e) =>
+                        setEditItem({
+                          ...editItem,
+                          description: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                 </>
               )}
@@ -918,8 +1325,19 @@ const handleEditSave = async () => {
               </div> */}
 
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-                <Button className="bg-[#bf2026] text-white flex-1" onClick={handleEditSave} disabled={editSaving}>{editSaving ? "Saving..." : "Save Changes"}</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-[#bf2026] text-white flex-1"
+                  onClick={handleEditSave}
+                  disabled={editSaving}
+                >
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </Button>
               </div>
             </div>
           ) : (

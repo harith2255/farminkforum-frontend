@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Download, FileText } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Download, FileText } from "lucide-react";
 
 import {
-  BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import * as React from "react";
 
 export function ReportsAnalytics() {
@@ -17,6 +25,7 @@ export function ReportsAnalytics() {
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
+
   // --------------------------------------------
   // Fetch Analytics (Revenue, Users, Books)
   // --------------------------------------------
@@ -38,10 +47,9 @@ export function ReportsAnalytics() {
   // --------------------------------------------
   const fetchReports = async () => {
     try {
-      const res = await axios.get(
-        "https://ebook-backend-lxce.onrender.com/api/admin/reports",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/reports", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       setReports(res.data.reports || []);
     } catch (err) {
@@ -72,26 +80,26 @@ export function ReportsAnalytics() {
   // Download Report
   // --------------------------------------------
   const downloadReport = async (id: string) => {
-  const token = localStorage.getItem("token");
-  try {
-    const res = await axios.get(
-      `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "blob"
-      }
-    );
+    const token = localStorage.getItem("token");
 
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `report-${id}.csv`;
-    a.click();
-  } catch (err) {
-    console.error("Download error:", err);
-  }
-};
+    try {
+      const res = await axios.get(
+        `https://ebook-backend-lxce.onrender.com/api/admin/reports/${id}/download`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
+        }
+      );
 
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${id}.csv`;
+      a.click();
+    } catch (err) {
+      console.error("Download error:", err);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -111,7 +119,9 @@ export function ReportsAnalytics() {
     <div className="space-y-6">
       <div>
         <h2 className="text-[#1d4d6a] mb-1">Reports & Analytics</h2>
-        <p className="text-sm text-gray-500">Generate and download platform reports</p>
+        <p className="text-sm text-gray-500">
+          Generate and download platform reports
+        </p>
       </div>
 
       {/* ---------------------------- */}
@@ -119,7 +129,9 @@ export function ReportsAnalytics() {
       {/* ---------------------------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
-          <CardTitle className="text-[#1d4d6a]">Revenue vs User Growth</CardTitle>
+          <CardTitle className="text-[#1d4d6a]">
+            Revenue vs User Growth
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -130,8 +142,20 @@ export function ReportsAnalytics() {
               <Tooltip />
               <Legend />
 
-              <Line type="monotone" dataKey="revenue" stroke="#bf2026" strokeWidth={2} name="Revenue (₹)" />
-              <Line type="monotone" dataKey="users" stroke="#1d4d6a" strokeWidth={2} name="New Users" />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#bf2026"
+                strokeWidth={2}
+                name="Revenue (₹)"
+              />
+              <Line
+                type="monotone"
+                dataKey="users"
+                stroke="#1d4d6a"
+                strokeWidth={2}
+                name="New Users"
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

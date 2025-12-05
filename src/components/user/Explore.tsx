@@ -49,7 +49,7 @@ if (token) {
 
   try {
     const cres = await axios.get(
-      "https://ebook-backend-lxce.onrender.com/api/library/collection/book-ids",
+      "https://ebook-backend-lxce.onrender.com/api/library/collections/book-ids",
       { headers: { Authorization: `Bearer ${token}` } }
     );
 

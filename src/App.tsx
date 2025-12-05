@@ -11,14 +11,13 @@ import * as React from "react";
 import axios from "axios";
 import ReadNotePage from "./components/ReadNotePage";
 
-/* --------------------------------------------------
-   AXIOS INTERCEPTOR
--------------------------------------------------- */
+/* ============================================================
+   AXIOS INTERCEPTOR – CLEAN & SAFE
+============================================================ */
 axios.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err?.response?.status;
-
     if (status === 401) {
       const path = window.location.pathname;
       if (
@@ -50,6 +49,7 @@ type Page =
   | "purchase"
   | "test"
   | "reader-note";
+  
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
@@ -85,66 +85,67 @@ export default function App() {
 const handleOpenBook = (book: any) => {
   const id = book.book_id || book.id;
   handleNavigate("reader", id);
-    };
+};
+
+
 
   /* ============================================================
      3) ROUTE RESOLVER
   ============================================================ */
-  const resolveRoute = (): { page: Page; param: any } => {
-    const path = window.location.pathname;
+ const resolveRoute = (): { page: Page; param: any } => {
+  const path = window.location.pathname || "";
 
-    if (path.startsWith("/notes/read/")) {
-      const id = Number(path.split("/").pop());
-      return { page: "reader-note", param: id };
-    }
+  if (path.startsWith("/notes/read/")) {
+    const id = Number(path.split("/").pop());
+    return { page: "reader-note", param: id };
+  }
 
-    if (path.startsWith("/reader/")) {
-      const id = path.split("/").pop();
-      return { page: "reader", param: id };
-    }
+  if (path.startsWith("/reader/")) {
+    const id = path.split("/").pop();
+    return { page: "reader", param: id };
+  }
 
-    if (path.startsWith("/purchase/")) {
-      const id = path.split("/").pop();
-      return { page: "purchase", param: id };
-    }
+  if (path.startsWith("/purchase/")) {
+    const id = path.split("/").pop();
+    return { page: "purchase", param: id };
+  }
 
-    if (path.startsWith("/user-dashboard"))
-      return { page: "user-dashboard", param: null };
-
-    if (path.startsWith("/admin-dashboard"))
-      return { page: "admin-dashboard", param: null };
-    if (path.startsWith("/test/")) {
+  if (path.startsWith("/user-dashboard")) {
+    return { page: "user-dashboard", param: null };
+  }
+  if (path.startsWith("/test/")) {
   const id = path.split("/").pop();
   return { page: "test", param: id };
 }
 
 
-    const staticPages = [
-      "explore",
-      "pricing",
-      "about",
-      "contact",
-      "login",
-      "register",
-    ];
+  if (path.startsWith("/admin-dashboard")) {
+    return { page: "admin-dashboard", param: null };
+  }
 
-    const page = path.replace("/", "");
-    if (staticPages.includes(page)) {
-      return { page: page as Page, param: null };
-    }
+  // fallback static pages
+  const staticPages = ["explore", "pricing", "about", "contact", "login", "register"];
+  const page = path.replace("/", "");
+  if (staticPages.includes(page)) {
+    return { page: page as Page, param: null };
+  }
 
-    return { page: "home", param: null };
-  };
+  // fallback always return
+  return { page: "home", param: null };
+};
 
   /* ============================================================
      4) SYNC ROUTER — Single clean listener
   ============================================================ */
   useEffect(() => {
-    const sync = () => {
-      const r = resolveRoute();
-      setCurrentPage(r.page);
-      setPageParam(r.param);
-    };
+   const sync = () => {
+  const r = resolveRoute();
+  if (!r) return;
+
+  setCurrentPage(r.page ?? "home");
+  setPageParam(r.param ?? null);
+};
+
 
     window.addEventListener("popstate", sync);
     window.addEventListener("pushstate", sync);
@@ -251,9 +252,9 @@ const handleOpenBook = (book: any) => {
     );
   }
 
-  /* --------------------------------------------------
+  /* ============================================================
      RENDER PAGES
-  -------------------------------------------------- */
+  ============================================================ */
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
       {/* HOME */}
@@ -281,9 +282,24 @@ const handleOpenBook = (book: any) => {
       )}
 
       {/* NOTE READER */}
-      {currentPage === "reader-note" && pageParam && (
-        <ReadNotePage noteId={pageParam} onNavigate={handleNavigate} />
-      )}
+{currentPage === "reader-note" && pageParam && (
+  <ReadNotePage
+    noteId={pageParam}
+    onNavigate={handleNavigate}
+    onClose={() => {
+      setCurrentPage("user-dashboard");
+      window.history.pushState({}, "", `/user-dashboard`);
+      
+      // Optional: trigger dashboard to open notes tab
+      setTimeout(() => {
+        window.dispatchEvent(new Event("open-dashboard-notes"));
+      }, 0);
+    }}
+  />
+)}
+
+
+
 
       {/* PURCHASE */}
       {currentPage === "purchase" && pageParam && (
@@ -301,9 +317,15 @@ const handleOpenBook = (book: any) => {
         />
       )}
 
-      {currentPage === "test" && (
-        <TestPage onNavigate={handleNavigate} onLogout={handleLogout} />
-      )}
+      {currentPage === "test" && pageParam && (
+  <TestPage 
+    testId={pageParam}
+    onNavigate={handleNavigate}
+    onLogout={handleLogout}
+  />
+)}
+
+
 
       <Toaster />
     </div>

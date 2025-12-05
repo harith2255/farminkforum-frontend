@@ -26,6 +26,7 @@ export default function DashboardBookCard({
 const [inCollection, setInCollection] = useState(false);
 
 
+
   const isLoggedIn = () => !!localStorage.getItem("token");
   const token = localStorage.getItem("token");
 
@@ -66,6 +67,29 @@ const [inCollection, setInCollection] = useState(false);
 }, []);
 
 
+useEffect(() => {
+  const loadCollections = async () => {
+    if (!isLoggedIn()) return;
+
+    try {
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/library/collections",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setCollections(res.data || []);
+
+      const contains = res.data.some((c) =>
+        c.books?.some((b) => b.id === book.id)
+      );
+
+      setInCollection(contains);
+
+    } catch {}
+  };
+
+  loadCollections();
+}, []);
 
   /* ---------------------------------------------------
         ADD BOOK TO COLLECTION

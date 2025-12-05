@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "../ui/button";
 import { CheckCircle } from "lucide-react";
 import axios from "axios";
@@ -7,240 +7,188 @@ interface Question {
   id: number;
   question: string;
   options: string[];
-  answer?: string; // backend does NOT send answer
+  answer?: string;
 }
 
 export default function TestPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [timeLeft, setTimeLeft] = useState<number>(600);
-  const [showResult, setShowResult] = useState<boolean>(false);
-  const [score, setScore] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const questionsPerPage = 5;
 
-  const pathParts = window.location.pathname.split("/").filter(Boolean);
-// URL: /test/8 → ["test", "8"]
-const testId = pathParts[1];
-
-
+  const testId = window.location.pathname.split("/").pop();
   const attemptId = localStorage.getItem("active_attempt_id");
-  const token = localStorage.getItem("token");console.log("Submitting with attemptId:", attemptId);
+  const token = localStorage.getItem("token");
 
-  /* ---------------------------------------------------
-     1️⃣ Fetch Questions from Backend
-  -----------------------------------------------------*/
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-       const res = await axios.get(
-  `https://ebook-backend-lxce.onrender.com/api/mock-tests/test/${testId}`,
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+  const API_TEST = "https://ebook-backend-lxce.onrender.com/api/mock-tests";
+  const API_ACTION = "https://ebook-backend-lxce.onrender.com/api/test";
 
-setQuestions(res.data.mcqs || []);
+  /* ==========================================================
+     Load Test
+  ===========================================================*/
+  const loadTest = useCallback(async () => {
+    if (!attemptId || !testId) return;
 
+    try {
+      const res = await axios.get(`${API_TEST}/test/${testId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      const formatted = res.data.map((q: any) => ({
-  id: q.id,
-  question: q.question,
-  options: [q.option_a, q.option_b, q.option_c, q.option_d],
-  answer: q.correct_option // 🔥 correct answer available now
-}));
-        setQuestions(formatted);
-      } catch (err) {
-        console.error("❌ Error loading questions:", err);
+      const test = res.data;
+
+      if (!test || !test.mock_test_questions) {
+        alert("This test has no questions");
+        window.location.href = "/user-dashboard";
+        return;
       }
-    };
 
-    fetchQuestions();
-  }, []);
+      const mcqs = test.mock_test_questions;
 
-  // add stat
-const handleAnswer = (id: number, option: string) => {
-  // 1) Update UI state
-  setAnswers((prev) => {
-    const updated = { ...prev, [id]: option };
+      const formatted = mcqs.map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        options: [q.option_a, q.option_b, q.option_c, q.option_d].filter(Boolean),
+        answer: q.correct_option,
+      }));
 
-    // Save in local storage (fallback safety)
-    const attemptId = localStorage.getItem("active_attempt_id");
-    if (attemptId) {
-      const key = `attempt_${attemptId}_answers`;
-      localStorage.setItem(key, JSON.stringify(updated));
+      setQuestions(formatted);
+
+      // timeLeft
+      const duration = Number(test.duration_minutes);
+      const defaultTime = duration > 0 ? duration * 60 : 15 * 60;
+
+      setTimeLeft(defaultTime);
+
+      // load saved answers
+      const saved = localStorage.getItem(`attempt_${attemptId}_answers`);
+      if (saved) setAnswers(JSON.parse(saved));
+
+      // load saved page
+      const savedPage = localStorage.getItem(`attempt_${attemptId}_page`);
+      if (savedPage) setCurrentPage(Number(savedPage));
+
+      setInitialized(true);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load test");
+      window.location.href = "/user-dashboard";
     }
+  }, [attemptId, testId, token]);
 
-    return updated;
-  });
-
-  // 2) Save to backend
-  saveAnswerToServer(id, option);
-};
-
-
-const handleSubmit = async (auto = false) => {
-  if (submitting) return;
-  setSubmitting(true);
-
-  const attemptId = localStorage.getItem("active_attempt_id");
-  if (!attemptId) {
-    alert("❌ Attempt ID missing. Cannot submit!");
-    setSubmitting(false);
-    return;
-  }
-
-  try {
-    // 1) Flush any answers in localStorage for this attempt (optional fallback)
-    const key = `attempt_${attemptId}_answers`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const savedAnswers: Record<number, string> = JSON.parse(saved);
-        // send each answer (dedupe by question id)
-        const entries = Object.entries(savedAnswers);
-        await Promise.all(
-          entries.map(([qid, ans]) =>
-            axios.post(
-              "https://ebook-backend-lxce.onrender.com/api/test/save-answer",
-              { attempt_id: attemptId, question_id: Number(qid), answer: ans },
-              { headers: { Authorization: `Bearer ${token}` } }
-            )
-          )
-        );
-        // optional: remove local cache after flush
-        localStorage.removeItem(key);
-      } catch (e) {
-        console.warn("Failed to flush local answers:", e);
-      }
-    }
-
-    // 2) Also ensure any in-memory answers not yet saved are saved
-    // (this assumes saveAnswerToServer is the same post used above)
-    const unsavedRequests: Promise<any>[] = [];
-    Object.entries(answers).forEach(([qid, ans]) => {
-      // You can add a check to only post if not present in DB, but simple approach:
-      unsavedRequests.push(
-        axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/test/save-answer",
-          { attempt_id: attemptId, question_id: Number(qid), answer: ans },
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).catch(err => {
-          console.warn("save-answer failed for", qid, err);
-        })
-      );
-    });
-    await Promise.all(unsavedRequests);
-
-    // 3) Now call finish (only after answers saved)
-    await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/test/finish",
-      { attempt_id: attemptId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    // Local score calculation (optional, UI-only)
-    let correct = 0;
-    questions.forEach((q) => {
-      if (answers[q.id] === q.answer) correct++;
-    });
-
-    setScore(correct);
-    setShowResult(true);
-
-    // Notify dashboard to refresh
-    localStorage.setItem("test_finished", "yes");
-
-    if (auto) alert("⏳ Time up! Auto-submitted.");
-  } catch (err) {
-    console.error("❌ Failed to finish test:", err);
-    alert("❌ Failed to submit test. Check backend logs.");
-  } finally {
-    setSubmitting(false);
-  }
-};
-
-
-
-
-  /* ---------------------------------------------------
-     2️⃣ Auto-Save Answer on Select
-  -----------------------------------------------------*/
-  const saveAnswerToServer = async (question_id: number, answer: string) => {
-  try {
-    await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/test/save-answer",
-      { attempt_id: attemptId, question_id, answer },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (err) {
-    console.error("❌ Failed to save answer:", err);
-  }
-};
-
-
-
-  /* ---------------------------------------------------
-     3️⃣ Timer + Auto Submit
-  -----------------------------------------------------*/
   useEffect(() => {
-    if (timeLeft <= 0) {
-      handleSubmit(true); // 🔥 auto submit
-      return;
-    }
-    if (showResult) return;
+    loadTest();
+  }, [loadTest]);
 
-    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+  /* ==========================================================
+     Timer
+  ===========================================================*/
+  useEffect(() => {
+    if (!initialized || showResult) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSubmit(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     return () => clearInterval(timer);
-  }, [timeLeft, showResult]);
+  }, [initialized, showResult]);
 
-
-  
-
-
-  /* ---------------------------------------------------
-     Pagination
-  -----------------------------------------------------*/
-  const totalPages = Math.ceil(questions.length / questionsPerPage);
-  const startIndex = (currentPage - 1) * questionsPerPage;
-  const currentQuestions = questions.slice(startIndex, startIndex + questionsPerPage);
-
-  /* ---------------------------------------------------
-     Format Timer
-  -----------------------------------------------------*/
-  const formatTime = (seconds: number): string => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? `0${s}` : s}`;
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  /* ---------------------------------------------------
-     Prevent reopening finished tests
-  -----------------------------------------------------*/
-  useEffect(() => {
+  /* ==========================================================
+     Save Answer
+  ===========================================================*/
+  const saveAnswerToServer = async (question_id: number, answer: string) => {
     if (!attemptId) return;
 
-    const checkAttempt = async () => {
-      const res = await axios.get(
-        `https://ebook-backend-lxce.onrender.com/api/test/attempt/${attemptId}`,
+    try {
+      await axios.post(
+        `${API_ACTION}/save-answer`,
+        { attempt_id: attemptId, question_id, answer },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch {
+      console.warn("Failed to save answer");
+    }
+  };
+
+  const handleAnswer = (id: number, option: string) => {
+    setAnswers((prev) => {
+      const updated = { ...prev, [id]: option };
+
+      localStorage.setItem(
+        `attempt_${attemptId}_answers`,
+        JSON.stringify(updated)
+      );
+
+      saveAnswerToServer(id, option);
+
+      return updated;
+    });
+  };
+
+  /* ==========================================================
+     Submit
+  ===========================================================*/
+  const handleSubmit = async (auto = false) => {
+    if (submitting || !attemptId) return;
+    setSubmitting(true);
+
+    try {
+      await axios.post(
+        `${API_ACTION}/finish`,
+        { attempt_id: attemptId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (res.data.status === "completed") {
-        alert("This test is already completed!");
-        window.location.href = "/dashboard";
-      }
-    };
+      localStorage.removeItem(`attempt_${attemptId}_answers`);
+      localStorage.removeItem(`attempt_${attemptId}_page`);
 
-    checkAttempt();
-  }, []);
+      localStorage.setItem("test_finished", "yes");
 
-  /* ---------------------------------------------------
-     Return UI
-  -----------------------------------------------------*/
+      setShowResult(true);
+
+      if (auto) alert("Time up! Test auto-submitted.");
+    } catch (err) {
+      console.error("Failed to submit:", err);
+      alert("Failed to submit test");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ==========================================================
+     Pagination
+  ===========================================================*/
+  const totalPages = Math.ceil(questions.length / questionsPerPage);
+  const start = (currentPage - 1) * questionsPerPage;
+  const current = questions.slice(start, start + questionsPerPage);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    localStorage.setItem(`attempt_${attemptId}_page`, String(page));
+  };
+
+  /* ==========================================================
+     UI
+  ===========================================================*/
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-6">
-
       {/* TIMER */}
       <div className="bg-[#1d4d6a] text-white px-6 py-2 rounded-full mb-6 shadow-md text-lg font-semibold">
         ⏰ Time Left: {formatTime(timeLeft)}
@@ -248,16 +196,18 @@ const handleSubmit = async (auto = false) => {
 
       {/* QUESTIONS */}
       <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-4xl">
-        
-        {currentQuestions.map((q, index) => (
+        {current.map((q, idx) => (
           <div key={q.id} className="mb-6 border-b pb-4">
             <h3 className="font-semibold text-lg text-[#1d4d6a] mb-2">
-              {startIndex + index + 1}. {q.question}
+              {start + idx + 1}. {q.question}
             </h3>
 
             <div className="grid gap-2">
               {q.options.map((option) => (
-                <label key={option} className="flex items-center gap-2 text-gray-700">
+                <label
+                  key={`${q.id}-${option}`}
+                  className="flex items-center gap-2 text-gray-700"
+                >
                   <input
                     type="radio"
                     name={`q-${q.id}`}
@@ -272,38 +222,45 @@ const handleSubmit = async (auto = false) => {
           </div>
         ))}
 
-        {/* NAVIGATION */}
+        {/* NAV */}
         <div className="flex justify-between items-center mt-6">
-          <Button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>
+          <Button
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+          >
             Previous
           </Button>
 
           {currentPage < totalPages ? (
-            <Button onClick={() => setCurrentPage((p) => p + 1)}>
+            <Button onClick={() => goToPage(currentPage + 1)}>
               Next
             </Button>
           ) : (
-            <Button className="bg-[#bf2026]" onClick={() => handleSubmit(false)}>
+            <Button
+              className="bg-[#bf2026]"
+              disabled={submitting}
+              onClick={() => handleSubmit(false)}
+            >
               Submit Test
             </Button>
           )}
         </div>
       </div>
 
-      {/* RESULT POPUP */}
+      {/* RESULT */}
       {showResult && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 text-center w-96">
             <CheckCircle className="text-green-500 w-16 h-16 mx-auto mb-3" />
-
-            <h2 className="text-2xl font-bold text-[#1d4d6a] mb-2">✅ Test Completed!</h2>
-
+            <h2 className="text-2xl font-bold text-[#1d4d6a] mb-2">
+              ✅ Test Submitted!
+            </h2>
             <p className="text-lg text-gray-700 mb-3">
               Your test has been submitted successfully.
             </p>
 
             <Button
-              onClick={() => (window.location.href = "/user/dashboard")}
+              onClick={() => (window.location.href = "/user-dashboard")}
               className="bg-[#bf2026] text-white"
             >
               Go to Dashboard

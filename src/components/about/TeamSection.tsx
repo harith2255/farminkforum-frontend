@@ -21,7 +21,7 @@ const TeamSection = () => (
         
         {/* LEFT SIDE — IMAGE */}
         <div className="flex-shrink-0 flex flex-col items-center sm:items-start text-center sm:text-left">
-          <div className="relative h-56 w-56 sm:h-72 sm:w-72 md:h-80 md:w-80 rounded-2xl overflow-hidden shadow-md mb-4">
+          <div className="relative aspect-square w-48 sm:w-64 md:w-72 rounded-2xl overflow-hidden shadow-md mb-4">
             <ImageWithFallback
               src={author.image}
               alt={author.name}

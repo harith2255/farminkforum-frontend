@@ -1,24 +1,32 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { Search, Eye, Star, CheckCircle, BookOpen } from 'lucide-react';
+import { useState, useEffect,useMemo } from "react";
+import { Card, CardContent } from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { Search, Eye, Star, CheckCircle, BookOpen } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
-import * as React from 'react';
+import * as React from "react";
 
 export default function NotesRepository({ onNavigate }: any) {
   const [selectedNote, setSelectedNote] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState("All");
   const [notes, setNotes] = useState<any[]>([]);
   const [downloaded, setDownloaded] = useState<number[]>([]);
-  const [purchased, setPurchased] = useState<number[]>([]);
+  const [purchased, setPurchased] = useState<number[]>([]); // ✅ NEW: Track purchased notes
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
 
-  const token = localStorage.getItem("token");
+const token = useMemo(() => localStorage.getItem("token"), []);
+
+
   /* ----------------------------------------
      ⭐ ADD TO CART FOR NOTES
   ---------------------------------------- */
@@ -45,48 +53,34 @@ export default function NotesRepository({ onNavigate }: any) {
      - Sets ALL required purchase data
      - Navigates to purchase page
   ---------------------------------------- */
-  const buyNow = (noteId: number) => {
-    // Find the full note object
-    const note = notes.find(n => n.id === noteId);
-    
-    if (!note) {
-      toast.error("Note not found");
-      return;
-    }
+const buyNow = (noteId: number) => {
+  const note = notes.find((n) => n.id === noteId);
+  if (!note) {
+    toast.error("Note not found");
+    return;
+  }
 
-    console.log("🛒 Setting up purchase for note:", note);
-
-    // ✅ CRITICAL: Set ALL required localStorage keys
-    localStorage.setItem("purchaseType", "note");
-    localStorage.setItem("purchaseId", noteId.toString());
-    
-    // ✅ THIS WAS MISSING - Add purchaseItems with full note data
-    localStorage.setItem("purchaseItems", JSON.stringify([
+  // store purchase info
+  localStorage.setItem("purchaseType", "note");
+  localStorage.setItem("purchaseId", String(noteId));
+  localStorage.setItem(
+    "purchaseItems",
+    JSON.stringify([
       {
         type: "note",
         id: noteId,
-        note: note // Include full note object to avoid extra API call
-      }
-    ]));
-    
-    // Mark previous page so purchase page can go back
-    localStorage.setItem("previousSection", "notes");
+        note,
+      },
+    ])
+  );
+  localStorage.setItem("previousSection", "notes");
 
-    // Verify data was set (debug)
-    console.log("✅ Purchase data set:", {
-      type: localStorage.getItem("purchaseType"),
-      id: localStorage.getItem("purchaseId"),
-      items: localStorage.getItem("purchaseItems")
-    });
+  // 👇 Correct navigation + URL management
+  onNavigate("purchase", String(noteId));
+};
 
-    // Navigate using your manual routing
-    onNavigate("purchase");
 
-    // Update URL to show dynamic ID (visual only)
-    window.history.pushState({}, "", `/purchase/${noteId}`);
-  };
-
- /* ----------------------------------------
+  /* ----------------------------------------
      Fetch Notes + Downloaded Notes + Purchased Notes
   ---------------------------------------- */
   useEffect(() => {
@@ -95,8 +89,8 @@ export default function NotesRepository({ onNavigate }: any) {
         const notesRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/notes", {
           params: {
             category: activeCategory !== "All" ? activeCategory : undefined,
-            search: searchText || undefined
-          }
+            search: searchText || undefined,
+          },
         });
         setNotes(notesRes.data);
 
@@ -109,8 +103,10 @@ export default function NotesRepository({ onNavigate }: any) {
           const downloadedIds = downloadedRes.data.map((d: any) => d.note.id);
           setDownloaded(downloadedIds);
 
+        
           // ✅ NEW: Get purchased notes
-// ✅ NEW: Get purchased notes
+        // Get purchased notes
+// purchased notes
 const purchasedRes = await axios.get(
   "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
   {
@@ -118,13 +114,25 @@ const purchasedRes = await axios.get(
   }
 );
 
-console.log("Purchased Note IDs:", purchasedRes.data);
-setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
+console.log("Purchased Raw:", purchasedRes.data);
 
+let purchasedIds: number[] = [];
+
+// case: [1,2,3]
+if (Array.isArray(purchasedRes.data)) {
+  purchasedIds = purchasedRes.data.map((id) => Number(id));
+}
+
+// case: { ids: [1,2,3] }
+else if (Array.isArray(purchasedRes.data?.ids)) {
+  purchasedIds = purchasedRes.data.ids.map((id) => Number(id));
+}
+
+// fallback
+setPurchased(purchasedIds);
 
 
         }
-
       } catch (err) {
         console.error("Failed to load data:", err);
       } finally {
@@ -147,15 +155,15 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
      ⭐ READ NOTE (for purchased notes)
      Opens the note in a new tab or modal
   ---------------------------------------- */
-  const readNote = async (noteId: number) => {
+ const readNote = async (noteId: number) => {
   if (!token) return onNavigate("login");
 
   try {
-    // Fetch full note data (with DRM)
-    const res = await axios.get(
-      `https://ebook-backend-lxce.onrender.com/api/notes/${noteId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    // (optional) you can even skip this fetch, because ReadNotePage
+    // will call /api/notes/:id again anyway – but it's fine to keep
+    const res = await axios.get(`https://ebook-backend-lxce.onrender.com/api/notes/${noteId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     const noteData = res.data?.note || res.data;
 
@@ -164,21 +172,18 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
       return;
     }
 
-    // Save note data in localStorage
+    // optional – if you want to reuse cached data
     localStorage.setItem("currentNoteData", JSON.stringify(noteData));
 
-    // 🚀 CRITICAL FIX — include noteId in navigation
-    onNavigate("notes-read", noteId);
-
-    // Update URL visually
-    window.history.pushState({}, "", `/notes/read/${noteId}`);
-
+    // ✅ CORRECT: let App handle route + history
+    onNavigate("reader-note", String(noteId));
+    // ❌ remove this manual pushState, App already does it:
+    // window.history.pushState({}, "", `/notes/read/${noteId}`);
   } catch (err: any) {
     console.error("Read note error:", err);
     toast.error(err?.response?.data?.error || "Failed to read note");
   }
 };
-
 
   /* ----------------------------------------
      ⭐ DOWNLOAD NOTE
@@ -194,7 +199,7 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
       window.open(res.data.file_url, "_blank");
 
       if (!downloaded.includes(noteId)) {
-        setDownloaded(prev => [...prev, noteId]);
+        setDownloaded((prev) => [...prev, noteId]);
       }
 
       toast.success("Download started");
@@ -218,7 +223,9 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
       {/* HEADER */}
       <div>
         <h2 className="text-[#1d4d6a] mb-1">Notes Repository</h2>
-        <p className="text-sm text-gray-500">Access high-quality academic notes</p>
+        <p className="text-sm text-gray-500">
+          Access high-quality academic notes
+        </p>
       </div>
 
       {/* Search */}
@@ -242,7 +249,9 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
             key={category}
             variant="outline"
             onClick={() => setActiveCategory(category)}
-            className={activeCategory === category ? "bg-[#bf2026] text-white" : ""}
+            className={
+              activeCategory === category ? "bg-[#bf2026] text-white" : ""
+            }
           >
             {category}
           </Button>
@@ -273,51 +282,52 @@ setPurchased(purchasedRes.data);   // ← THIS WAS MISSING
 
                   {/* ⭐ ACTION BUTTONS */}
                   <div className="flex gap-2 mt-3">
-
                     {/* Preview */}
-                    <Button variant="outline" size="sm" onClick={() => handlePreview(note)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePreview(note)}
+                    >
                       <Eye className="w-3 h-3 mr-2" /> Preview
                     </Button>
 
                     {/* ✅ PURCHASED - Show Read button */}
                     {purchased.includes(note.id) ? (
-                      <Button 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => readNote(note.id)}
-                      >
-                        <BookOpen className="w-3 h-3 mr-1" /> Read
-                      </Button>
-                    ) : downloaded.includes(note.id) ? (
-                      /* Already downloaded but not purchased */
-                      <Button size="sm" className="bg-green-600 text-white" onClick={() => downloadNote(note.id)}>
-                        <CheckCircle className="w-3 h-3 mr-1" /> Download
-                      </Button>
-                    ) : note.price === "Free" || note.price === 0 ? (
-                      /* Free notes */
-                      <Button size="sm" className="bg-[#bf2026] text-white" onClick={() => downloadNote(note.id)}>
-                        Download Free
-                      </Button>
-                    ) : (
-                      /* Not purchased - show Buy and Cart buttons */
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addToCart(note.id)}
-                        >
-                          Add to Cart
-                        </Button>
+  <Button
+    size="sm"
+    className="bg-green-600 hover:bg-green-700 text-white"
+    onClick={() => readNote(note.id)}
+  >
+    <BookOpen className="w-3 h-3 mr-1" /> Read
+  </Button>
+) : note.price === "Free" || note.price === 0 ? (
+  <Button
+    size="sm"
+    className="bg-[#bf2026] text-white"
+    onClick={() => downloadNote(note.id)}
+  >
+    Download Free
+  </Button>
+) : (
+  <>
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => addToCart(note.id)}
+    >
+      Add to Cart
+    </Button>
 
-                        <Button
-                          size="sm"
-                          className="bg-[#bf2026] text-white"
-                          onClick={() => buyNow(note.id)}
-                        >
-                          Buy ₹{note.price}
-                        </Button>
-                      </>
-                    )}
+    <Button
+      size="sm"
+      className="bg-[#bf2026] text-white"
+      onClick={() => buyNow(note.id)}
+    >
+      Buy ₹{note.price}
+    </Button>
+  </>
+)}
+
                   </div>
                 </div>
               </div>

@@ -29,25 +29,19 @@ export function CustomerManagement() {
 
   const [loading, setLoading] = useState(true);
 
-  // Email modal
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
 
-  // -------------------------------------
-  // FETCH CUSTOMERS
-  // -------------------------------------
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-
       const token = localStorage.getItem("token");
       const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/admin/customers", {
         headers: { Authorization: `Bearer ${token}` },
         params: { search, status, plan, page, limit: 10 },
       });
-
       setCustomers(res.data.data || []);
       setTotalPages(res.data.totalPages);
     } catch (err) {
@@ -66,10 +60,6 @@ export function CustomerManagement() {
     fetchCustomers();
   };
 
-  // -------------------------------------
-  // ACTION HANDLERS
-  // -------------------------------------
-
   const suspendCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
     await axios.post(
@@ -77,7 +67,6 @@ export function CustomerManagement() {
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     fetchCustomers();
   };
 
@@ -88,19 +77,16 @@ export function CustomerManagement() {
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     fetchCustomers();
   };
 
   const deleteCustomer = async (id: string) => {
     if (!confirm("Are you sure you want to delete this customer?")) return;
-
     const token = localStorage.getItem("token");
     await axios.delete(
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     fetchCustomers();
   };
 
@@ -111,47 +97,42 @@ export function CustomerManagement() {
       {
         title: emailSubject,
         message: emailMessage,
-        link: "dashboard", // optional navigation link
+        link: "dashboard",
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     setShowEmailModal(false);
     setEmailSubject("");
     setEmailMessage("");
   };
 
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div>
           <h2 className="text-[#1d4d6a] mb-1">Customer Management</h2>
-          <p className="text-sm text-gray-500">
-            {loading ? "Loading..." : `${customers.length} customers`}
-          </p>
+          <p className="text-sm text-gray-500">{loading ? "Loading..." : `${customers.length} customers`}</p>
         </div>
-
         <Button className="bg-[#bf2026] text-white">Export Data</Button>
       </div>
 
       {/* Filters */}
       <Card className="border-none shadow-md">
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <div className="relative sm:flex-1 w-full">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 placeholder="Search by name or email..."
-                className="pl-10"
+                className="pl-10 w-full"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
             <select
-              className="border px-3 py-2 rounded-lg"
+              className="border px-3 py-2 rounded-lg w-full sm:flex-1"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -161,7 +142,7 @@ export function CustomerManagement() {
             </select>
 
             <select
-              className="border px-3 py-2 rounded-lg"
+              className="border px-3 py-2 rounded-lg w-full sm:flex-1"
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
             >
@@ -171,9 +152,8 @@ export function CustomerManagement() {
               <option value="Institutional">Institutional</option>
             </select>
 
-            <Button variant="outline" className="gap-2" onClick={applyFilters}>
-              <Filter className="w-4 h-4" />
-              Apply
+            <Button variant="outline" className="gap-2 w-full sm:flex-1" onClick={applyFilters}>
+              <Filter className="w-4 h-4" /> Apply
             </Button>
           </div>
         </CardHeader>
@@ -184,145 +164,136 @@ export function CustomerManagement() {
           ) : customers.length === 0 ? (
             <p className="text-center py-6 text-gray-500">No customers found</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Total Spent</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Total Spent</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-              <TableBody>
+                  <TableBody>
+                    {customers.map((c) => {
+                      const displayName =
+                        c.full_name?.trim() ||
+                        `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
+                        c.email?.split("@")[0] ||
+                        "Unnamed";
+
+                      const initial = displayName[0]?.toUpperCase() || "U";
+
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback className="bg-[#1d4d6a] text-white">{initial}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-[#1d4d6a] font-medium">{displayName}</span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>{c.email}</TableCell>
+                          <TableCell><Badge>{c.plan || "N/A"}</Badge></TableCell>
+                          <TableCell>
+                            <Badge className={c.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>{c.status}</Badge>
+                          </TableCell>
+                          <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</TableCell>
+                          <TableCell>₹{Number(c.total_spent ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => { setSelectedCustomer(c); setShowEmailModal(true); }}>
+                                <Mail className="w-4 h-4" />
+                              </Button>
+                              {c.status === "Active" ? (
+                                <Button variant="ghost" size="sm" onClick={() => suspendCustomer(c.id)}>
+                                  <ShieldOff className="w-4 h-4 text-red-500" />
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="sm" onClick={() => activateCustomer(c.id)}>
+                                  <ShieldCheck className="w-4 h-4 text-green-500" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => deleteCustomer(c.id)}>
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-4">
                 {customers.map((c) => {
                   const displayName =
                     c.full_name?.trim() ||
                     `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
                     c.email?.split("@")[0] ||
                     "Unnamed";
-
                   const initial = displayName[0]?.toUpperCase() || "U";
 
                   return (
-                    <TableRow key={c.id}>
-                      <TableCell>
+                    <Card key={c.id} className="p-4 shadow-md">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback className="bg-[#1d4d6a] text-white">
-                              {initial}
-                            </AvatarFallback>
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-[#1d4d6a] text-white">{initial}</AvatarFallback>
                           </Avatar>
-
-                          <span className="text-[#1d4d6a] font-medium">
-                            {displayName}
-                          </span>
+                          <div>
+                            <p className="font-medium text-[#1d4d6a]">{displayName}</p>
+                            <p className="text-sm text-gray-500">{c.email}</p>
+                          </div>
                         </div>
-                      </TableCell>
+                        <Badge className={c.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>{c.status}</Badge>
+                      </div>
 
-                      <TableCell>{c.email}</TableCell>
+                      <div className="flex justify-between items-center text-sm text-gray-600 mb-2">
+                        <span>Plan: {c.plan || "N/A"}</span>
+                        <span>Joined: {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</span>
+                        <span>Total: ₹{Number(c.total_spent ?? 0).toLocaleString()}</span>
+                      </div>
 
-                      <TableCell>
-                        <Badge>{c.plan || "N/A"}</Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge
-                          className={
-                            c.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        {c.created_at
-                          ? new Date(c.created_at).toLocaleDateString()
-                          : "—"}
-                      </TableCell>
-
-                      <TableCell>
-                        ₹{Number(c.total_spent ?? 0).toLocaleString()}
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {/* Email */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedCustomer(c);
-                              setShowEmailModal(true);
-                            }}
-                          >
-                            <Mail className="w-4 h-4" />
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedCustomer(c); setShowEmailModal(true); }}>
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                        {c.status === "Active" ? (
+                          <Button variant="ghost" size="sm" onClick={() => suspendCustomer(c.id)}>
+                            <ShieldOff className="w-4 h-4 text-red-500" />
                           </Button>
-
-                          {/* Suspend / Activate */}
-                          {c.status === "Active" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => suspendCustomer(c.id)}
-                            >
-                              <ShieldOff className="w-4 h-4 text-red-500" />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => activateCustomer(c.id)}
-                            >
-                              <ShieldCheck className="w-4 h-4 text-green-500" />
-                            </Button>
-                          )}
-
-                          {/* Delete */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteCustomer(c.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => activateCustomer(c.id)}>
+                            <ShieldCheck className="w-4 h-4 text-green-500" />
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => deleteCustomer(c.id)}>
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
-
+              </div>
+            </>
           )}
 
           {/* Pagination */}
           <div className="flex justify-center gap-3 mt-4">
-            <Button
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Prev
-            </Button>
-
-            <span className="text-gray-600">
-              Page {page} of {totalPages}
-            </span>
-
-            <Button
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
+            <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Prev</Button>
+            <span className="text-gray-600">Page {page} of {totalPages}</span>
+            <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
           </div>
         </CardContent>
       </Card>
@@ -340,19 +311,12 @@ export function CustomerManagement() {
             onChange={(e) => setEmailSubject(e.target.value)}
             className="mb-3"
           />
-
           <Textarea
             placeholder="Write your message..."
             value={emailMessage}
             onChange={(e) => setEmailMessage(e.target.value)}
           />
-
-          <Button
-            className="mt-4 w-full bg-[#bf2026] text-white"
-            onClick={sendNotification}
-          >
-            Send Email
-          </Button>
+          <Button className="mt-4 w-full bg-[#bf2026] text-white" onClick={sendNotification}>Send Email</Button>
         </DialogContent>
       </Dialog>
     </div>

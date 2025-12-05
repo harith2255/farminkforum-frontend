@@ -22,21 +22,28 @@ export function CTASection({ onNavigate }: CTASectionProps) {
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex  gap-6 justify-center p-8">
+        <div className="flex flex-col items-center sm:flex-row gap-4 sm:gap-6 justify-center p-6 w-full">
           <Button
             onClick={() => onNavigate("register")}
-            className="bg-[#bf2026] hover:bg-[#a01c22] text-white px-10 py-5 rounded-lg font-medium text-lg shadow-lg hover:shadow-2xl transition-all hover:scale-105"
+            className="bg-[#bf2026] hover:bg-[#a01c22] text-white 
+               px-8 py-4 rounded-lg font-medium text-lg 
+               shadow-lg hover:shadow-2xl transition-all hover:scale-105
+               w-80 sm:w-auto"
           >
             Start Your Free Trial
           </Button>
 
           <Button
             onClick={() => onNavigate("explore")}
-            className="bg-white text-[#1d4d6a] hover:bg-gray-100 px-10 py-5 rounded-lg font-medium text-lg shadow-md hover:shadow-xl transition-all hover:scale-105"
+            className="bg-white text-[#1d4d6a] hover:bg-gray-100 
+               px-8 py-4 rounded-lg font-medium text-lg 
+               shadow-md hover:shadow-xl transition-all hover:scale-105
+               w-80 sm:w-auto"
           >
             Browse Library
           </Button>
         </div>
+
       </div>
 
       {/* Decorative Blur Shapes */}

@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import {
-  X, Sun, Moon, ZoomIn, ZoomOut,
-  ChevronLeft, ChevronRight
+  X,
+  Sun,
+  Moon,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
@@ -9,7 +14,6 @@ import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
 export default function NotesReader({ note, drm, onClose }: any) {
-
   /* ============================
      SAFETY: NOTE NOT LOADED
   ============================ */
@@ -28,7 +32,8 @@ export default function NotesReader({ note, drm, onClose }: any) {
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlights, setHighlights] = useState<any[]>([]);
 
-  const token = localStorage.getItem("token");  const userEmail = localStorage.getItem("email") || "User";
+  const token = localStorage.getItem("token");
+  const userEmail = localStorage.getItem("email") || "User";
 
   /* ============================
      DRM: BLOCK COPY / SELECT / RIGHT-CLICK
@@ -43,7 +48,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
     document.addEventListener("paste", prevent);
     document.addEventListener("contextmenu", prevent);
     document.addEventListener("selectstart", prevent);
-    
+
     return () => {
       document.removeEventListener("copy", prevent);
       document.removeEventListener("cut", prevent);
@@ -93,7 +98,9 @@ export default function NotesReader({ note, drm, onClose }: any) {
   useEffect(() => {
     if (!note) return;
 
-    window.dispatchEvent(new CustomEvent("notes-reader:open", { detail: note }));
+    window.dispatchEvent(
+      new CustomEvent("notes-reader:open", { detail: note })
+    );
 
     (async () => {
       try {
@@ -127,17 +134,14 @@ export default function NotesReader({ note, drm, onClose }: any) {
     const t = setTimeout(async () => {
       if (!token) return;
       try {
-        await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({ last_page: currentPage })
-          }
-        );
+        await fetch(`https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ last_page: currentPage }),
+        });
       } catch (err) {}
     }, 500);
 
@@ -201,7 +205,6 @@ export default function NotesReader({ note, drm, onClose }: any) {
         theme === "dark" ? "bg-black text-white" : "bg-white text-black"
       }`}
     >
-
       {/* ============================
           DRM WATERMARK (Visible on screenshot)
       ============================ */}
@@ -235,12 +238,16 @@ export default function NotesReader({ note, drm, onClose }: any) {
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={onClose} variant="ghost">
-              <X />
-            </Button>
+   <Button onClick={onClose} variant="ghost">
+  <X />
+</Button>
+
+
 
             <div>
-              <h2 className={theme === "dark" ? "text-white" : "text-[#1d4d6a]"}>
+              <h2
+                className={theme === "dark" ? "text-white" : "text-[#1d4d6a]"}
+              >
                 {note.title}
               </h2>
               <p className="text-sm text-gray-500">{note.author}</p>
@@ -248,11 +255,17 @@ export default function NotesReader({ note, drm, onClose }: any) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} variant="ghost">
+            <Button
+              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+              variant="ghost"
+            >
               <ZoomOut />
             </Button>
 
-            <Button onClick={() => setZoom((z) => Math.min(3, z + 0.1))} variant="ghost">
+            <Button
+              onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
+              variant="ghost"
+            >
               <ZoomIn />
             </Button>
 
@@ -311,7 +324,9 @@ export default function NotesReader({ note, drm, onClose }: any) {
             Page {currentPage} / {totalPages}
           </span>
 
-          <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+          <Button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          >
             Next <ChevronRight />
           </Button>
         </div>

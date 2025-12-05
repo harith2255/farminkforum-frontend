@@ -80,7 +80,6 @@ book_id: entry.book_id,
             author: e.author,
             category: e.category,
             cover_url:
-              entry.cover_url ||
               e.cover_url ||
               e.cover ||
               e.image ||
@@ -154,7 +153,7 @@ book_id: entry.book_id,
 
       // 2. Load book ids for all collections
       const idsRes = await axios.get(
-        "https://ebook-backend-lxce.onrender.com/api/library/collection/book-ids",
+        "https://ebook-backend-lxce.onrender.com/api/library/collections/book-ids",
         { headers }
       );
 
@@ -206,6 +205,12 @@ book_id: entry.book_id,
   }
 };
 
+useEffect(() => {
+  const refresh = () => loadLibrary();
+  window.addEventListener("collections:changed", refresh);
+  return () => window.removeEventListener("collections:changed", refresh);
+}, []);
+
 
 
   // REMOVE BOOK FROM COLLECTION
@@ -249,7 +254,6 @@ async function loadLibrary() {
         author: e.author,
         category: e.category,
         cover_url:
-          entry.cover_url ||
           e.cover_url ||
           e.cover ||
           e.image ||
@@ -389,7 +393,6 @@ book_id: entry.book_id,
               author: e.author,
               category: e.category,
               cover_url:
-                entry.cover_url ||
                 e.cover_url ||
                 e.cover ||
                 e.image ||
@@ -439,7 +442,6 @@ book_id: entry.book_id,
               author: e.author,
               category: e.category,
               cover_url:
-                entry.cover_url ||
                 e.cover_url ||
                 e.cover ||
                 e.image ||
@@ -479,7 +481,6 @@ book_id: entry.book_id,
             author: e.author,
             category: e.category,
             cover_url:
-              entry.cover_url ||
               e.cover_url ||
               e.cover ||
               e.image ||
@@ -501,6 +502,27 @@ book_id: entry.book_id,
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     handleSearch(e.target.value);
   };
+
+  async function handleRemoveFromAllCollections(book) {
+  try {
+    const headers = getAuthHeaders();
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/library/collections/remove-book/${book.book_id || book.id}`,
+      { headers }
+    );
+
+    toast.success("Removed from collections");
+
+    setBooksInCollections(prev => {
+      const updated = new Set(prev);
+      updated.delete(String(book.book_id || book.id));
+      return updated;
+    });
+
+  } catch {
+    toast.error("Failed to remove from collections");
+  }
+}
 
   // ---------------------------------------------------
   // Remove book from library (not from collection)
@@ -613,8 +635,8 @@ book_id: entry.book_id,
                 {openCollectionView && (
                   <Button
                     variant="outline"
-                    className="w-full mt-2"
-                    onClick={() => handleRemoveFromCollection(openCollectionView.id, book.id)}
+                    className="w-full mt-2 bg-red-600 text-white"
+                    onClick={() => handleRemoveFromAllCollections(book)}
                   >
                     Remove from Collection
                   </Button>
@@ -679,7 +701,7 @@ if (openCollectionView) {
                     variant="outline"
                     className="w-full mt-2"
                     onClick={() =>
-                      handleRemoveFromCollection(openCollectionView.id, book.id)
+                      handleRemoveFromAllCollections(book)
                     }
                   >
                     Remove From Collection

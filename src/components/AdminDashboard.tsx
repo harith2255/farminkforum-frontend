@@ -51,14 +51,13 @@ type AdminSection =
   | 'settings';
 
 export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop collapse
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [avataropen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement | null>(null);
   const [writingNotification, setWritingNotification] = useState(false);
-
 
   const menuItems = [
     { id: 'dashboard' as AdminSection, icon: LayoutDashboard, label: 'Dashboard' },
@@ -74,7 +73,6 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 'jobs' as AdminSection, icon: Briefcase, label: 'Job Portal' },
     { id: 'settings' as AdminSection, icon: Settings, label: 'Settings' },
   ];
-
 
   const getInitialSection = (): AdminSection => {
     const path = window.location.pathname;
@@ -108,41 +106,54 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
       if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
         setAvatarOpen(false);
       }
+      // Close mobile sidebar if clicked outside
+      // We check if the click target is outside the sidebar AND we are on a mobile screen
+      const isMobile = window.innerWidth < 1024; // Tailwind's 'lg' breakpoint is 1024px
+      if (isMobile && (event.target as HTMLElement).closest('#sidebar') === null) {
+        setSidebarOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  
+  // *** NEW Function to handle button click across all screens ***
+  const handleMenuToggle = () => {
+    // Check screen width for mobile vs. desktop logic
+    if (window.innerWidth < 1024) {
+      // Mobile/Tablet View (less than lg breakpoint)
+      setSidebarOpen(!sidebarOpen);
+    } else {
+      // Desktop View (lg breakpoint and up)
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
+  };
+  // ***************************************************************
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
+
+      {/* Sidebar Overlay for mobile */}
+      <div className={`fixed inset-0 bg-black/40 z-40 transition-opacity ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} lg:hidden`} />
+
       {/* Sidebar */}
       <aside
-        className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-[#1d4d6a] text-white fixed h-screen flex flex-col transition-all duration-300`}
+        id="sidebar"
+        className={`fixed z-50 top-0 left-0 h-full bg-[#1d4d6a] text-white flex flex-col transition-all duration-300
+          ${sidebarCollapsed ? 'w-20' : 'w-64'}
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? '20' : '64'}`}
       >
-        <div className="p-6 border-b border-[#2a5f7f] flex items-center justify-center flex-col gap-2">
-
-          {/* --- Logo visible ALWAYS --- */}
-          <div
-            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 
-               backdrop-blur-md flex items-center justify-center shadow-lg"
-          >
-            <img
-              src="/logooutline.png"
-              alt="Logo"
-              className="w-10 h-10 object-contain drop-shadow-xl"
-            />
+        <div className="p-6 border-b border-[#2a5f7f] flex flex-col items-center gap-2">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md flex items-center justify-center shadow-lg">
+            <img src="/logooutline.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-xl" />
           </div>
-
-          {/* --- Only when expanded --- */}
           {!sidebarCollapsed && (
             <div className="flex flex-col items-center leading-tight text-center mt-2">
-              <span className="text-white font-semibold text-lg tracking-wide">
-                Admin Panel
-              </span>
+              <span className="text-white font-semibold text-lg tracking-wide">Admin Panel</span>
               <p className="text-xs text-gray-300">FarmInk Forum</p>
             </div>
           )}
-
         </div>
 
         <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent">
@@ -153,11 +164,8 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
                 onClick={() => {
                   setActiveSection(item.id);
                   window.history.pushState({}, "", `/admin-dashboard/${item.id}`);
-
-                  // When admin opens Writing Services, remove notification
-                  if (item.id === "writing") {
-                    setWritingNotification(false);
-                  }
+                  if (item.id === "writing") setWritingNotification(false);
+                  setSidebarOpen(false); // close sidebar on mobile after click
                 }}
                 className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'} rounded-lg mb-1 transition-all group ${activeSection === item.id
                   ? 'bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20'
@@ -167,12 +175,8 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
               >
                 <div className="relative">
                   <item.icon
-                    className={`transition-all duration-200 
-            ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} 
-            ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}`}
+                    className={`transition-all duration-200 ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}`}
                   />
-
-                  {/* 🔴 BLINKING NOTIFICATION DOT */}
                   {item.id === "writing" && writingNotification && (
                     <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping" />
                   )}
@@ -196,92 +200,43 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
       </aside>
 
       {/* Main Content */}
-      <div className={`flex-1 ${sidebarCollapsed ? 'ml-20' : 'ml-64'} transition-all duration-300`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-8 py-4 flex items-center justify-between">
+          <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} variant="ghost" size="sm">
+              {/* This is the single button for all screens */}
+              <Button onClick={handleMenuToggle} variant="ghost" size="sm" className="inline-flex">
                 <Menu className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-[#1d4d6a] mb-1">
+                <h1 className="text-[#1d4d6a] mb-1 text-sm sm:text-base">
                   {menuItems.find((item) => item.id === activeSection)?.label}
                 </h1>
-                <p className="text-sm text-gray-500">Manage your platform</p>
+                <p className="text-xs sm:text-sm text-gray-500">Manage your platform</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="relative w-32 sm:w-80">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-80"
+                  className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-full"
                 />
               </div>
-
-              {/* Notification Dropdown */}
-              {/* <div className="relative" ref={dropdownRef}>
-                <button
-                  className="relative p-2 hover:bg-gray-100 rounded-lg"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                >
-                  <Bell className="w-5 h-5 text-gray-600" />
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
-                  )}
-                </button>
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b border-gray-200 font-semibold text-gray-700">
-                      Notifications
-                    </div>
-                    <ul className="max-h-60 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.map((n) => (
-                          <li key={n.id} className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                            {n.message}
-                          </li>
-                        ))
-                      ) : (
-                        <li className="px-3 py-4 text-sm text-gray-400 text-center">
-                          No new notifications
-                        </li>
-                      )}
-                    </ul>
-                    <div className="text-center py-2 border-t border-gray-200">
-                      <button 
-                      onClick={()=>{
-                        setActiveSection("notificationview");
-                        setDropdownOpen(false)
-                      }}
-                      className="text-[#bf2026] text-sm font-medium hover:underline">
-                        View all
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div> */}
-
-              {/* Avatar Dropdown */}
               <div className="relative" ref={avatarRef}>
                 <button
-                  className="relative p-1 rounded-full transition-all duration-300 
-             hover:bg-gray-100/60 hover:shadow-md"
+                  className="relative p-1 rounded-full transition-all duration-300 hover:bg-gray-100/60 hover:shadow-md"
                   onClick={() => setAvatarOpen(!avataropen)}
                 >
-                  <Avatar
-                    className="w-9 h-9 bg-gradient-to-br from-[#1d4d6a] to-[#16384e] 
-               text-white flex items-center justify-center 
-               font-semibold tracking-wide rounded-xl shadow-sm"
-                  >
+                  <Avatar className="w-9 h-9 bg-gradient-to-br from-[#1d4d6a] to-[#16384e] text-white flex items-center justify-center font-semibold tracking-wide rounded-xl shadow-sm">
                     AD
                   </Avatar>
                 </button>
 
                 {avataropen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                  <div className="absolute right-0 mt-2 w-52 items-center bg-white shadow-lg rounded-xl border border-gray-100 z-50">
                     <div className="p-4 border-b border-gray-200">
                       <p className="text-sm font-medium text-gray-700">Super Admin</p>
                       <p className="text-xs text-gray-400">Superadmin@FarmInkForum.com</p>
@@ -312,7 +267,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
         </header>
 
         {/* Content */}
-        <main className="p-8">
+        <main className="p-4 sm:p-8">
           {activeSection === 'dashboard' && <AdminDashboardHome />}
           {activeSection === 'customers' && <CustomerManagement />}
           {activeSection === 'content' && <ContentManagement />}
