@@ -71,7 +71,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
         });
 
         const formatted = res.data.map((entry) => {
-          const e = entry.ebooks || entry;
+          const e = entry.ebooks ?? {};
           return {
             id: e.id,
 book_id: entry.book_id,
@@ -246,7 +246,7 @@ async function loadLibrary() {
     const libRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/library", { headers });
 
     const formatted = (libRes.data || []).map((entry: any) => {
-      const e = entry.ebooks || entry;
+      const e = entry.ebooks ?? {};
       return {
         id: e.id,
         book_id: entry.book_id,
@@ -325,7 +325,7 @@ async function loadLibrary() {
     };
 
    const onProgress = (e: any) => {
-  const { id, page, totalPages } = e.detail || {};
+  const { bookId:id, page, totalPages } = e.detail || {};
   if (!id || !page || !totalPages) return;
 
   const percent = Math.min(100, Math.round((page / totalPages) * 100));
@@ -333,7 +333,7 @@ async function loadLibrary() {
   // update UI immediately
   setBooks(prev =>
     prev.map(b =>
-      b.id === id ? { ...b, progress: percent } : b
+      b.id === id || b.book_id === id ? { ...b, progress: percent } : b
     )
   );
 
@@ -384,7 +384,7 @@ async function loadLibrary() {
           ]);
 
           const formatted = (libRes.data || []).map((entry: any) => {
-            const e = entry.ebooks || entry;
+            const e = entry.ebooks ?? {};
             return {
               id: e.id,
 book_id: entry.book_id,
@@ -433,7 +433,7 @@ book_id: entry.book_id,
           });
 
           const formatted = (res.data || []).map((entry: any) => {
-            const e = entry.ebooks || entry;
+            const e = entry.ebooks ?? {};
             return {
               id: e.id,
 book_id: entry.book_id,
@@ -472,7 +472,7 @@ book_id: entry.book_id,
         );
 
         const formatted = (res.data || []).map((entry: any) => {
-          const e = entry.ebooks || entry;
+          const e = entry.ebooks ?? {};
           return {
             id: e.id,
 book_id: entry.book_id,
@@ -598,8 +598,11 @@ book_id: entry.book_id,
   const readingBooks = books.filter((b) => b.progress > 0 && b.progress < 100);
   const completedBooks = books.filter((b) => b.progress >= 100);
   const recentBooks = [...books]
-    .sort((a, b) => new Date(b.purchased).getTime() - new Date(a.purchased).getTime())
-    .slice(0, 10);
+    .sort((a, b) => {
+  const dateA = a.purchased ? new Date(a.purchased).getTime() : 0;
+  const dateB = b.purchased ? new Date(b.purchased).getTime() : 0;
+  return dateB - dateA;
+})    .slice(0, 10);
 
   // ---------------------------------------------------
   // Render helpers
@@ -940,9 +943,9 @@ if (openCollectionView) {
           {completedBooks.length === 0 ? (
             <div className="text-center py-12 text-gray-500">No completed books yet.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {completedBooks.map((book) => (
-                <Card key={book.id} className="shadow-md">
+                <Card key={book.id} className="shadow-md ">
                   <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="w-20 h-28 overflow-hidden rounded">

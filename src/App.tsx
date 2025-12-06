@@ -57,6 +57,52 @@ export default function App() {
   const [previousPage, setPreviousPage] = useState<Page>("home");
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
+/* ============================================================
+   GLOBAL BOOK READING PROGRESS LISTENER
+============================================================ */
+useEffect(() => {
+  async function handleReaderProgress(e: any) {
+    const { id, page, totalPages } = e.detail || {};
+
+    if (!id || !page || !totalPages) {
+      console.warn("⚠️ Invalid progress event payload", e.detail);
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.warn("⚠️ No token — skipping progress update");
+      return;
+    }
+
+    const percent = Math.min(100, Math.round((page / totalPages) * 100));
+
+    console.log("📩 RECEIVED PROGRESS EVENT", {
+      id,
+      page,
+      percent,
+      totalPages,
+    });
+
+    try {
+      const res = await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
+        { progress: percent, last_page: page },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log("✅ Progress updated:", res.data);
+    } catch (err: any) {
+      console.error("❌ Progress update failed:", err.response?.data || err);
+    }
+  }
+
+  window.addEventListener("reader:progress", handleReaderProgress);
+
+  return () => {
+    window.removeEventListener("reader:progress", handleReaderProgress);
+  };
+}, []);
 
   /* ============================================================
      1) RESTORE TOKEN — FIXED (runs only once)

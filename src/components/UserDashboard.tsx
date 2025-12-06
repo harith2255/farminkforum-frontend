@@ -18,6 +18,7 @@ import {
   Settings,
   Navigation,
   ShoppingCart,
+  PenIcon,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -116,41 +117,41 @@ export function UserDashboard({
   /* --------------------------------------------------
      📚 READING PROGRESS & LAST PAGE SYNC
   -----------------------------------------------------*/
-  useEffect(() => {
-    async function handleProgress(e: any) {
-      const { id, page, totalPages } = e.detail;
-      if (!id || !page || !totalPages) return;
+  // useEffect(() => {
+  //   async function handleProgress(e: any) {
+  //     const { id, page, totalPages } = e.detail;
+  //     if (!id || !page || !totalPages) return;
 
-      const token = localStorage.getItem("token");
-      if (!token) return;
+  //     const token = localStorage.getItem("token");
+  //     if (!token) return;
 
-      const percent = Math.min(
-        100,
-        Math.round((page / totalPages) * 100)
-      );
+  //     const percent = Math.min(
+  //       100,
+  //       Math.round((page / totalPages) * 100)
+  //     );
 
-      // Save progress
-      await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
-        { progress: percent, last_page: page },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  //     // Save progress
+  //     await axios.put(
+  //       `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
+  //       { progress: percent, last_page: page },
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
 
 
-      // Save last page
-      await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
-        { last_page: page },
-        { headers: { Authorization: `Bearer ${token}` } }
-      ).catch(err => console.warn("last-page save failed:", err));
+  //     // Save last page
+  //     await axios.put(
+  //       `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
+  //       { last_page: page },
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     ).catch(err => console.warn("last-page save failed:", err));
 
-      // Refresh UI
-      window.dispatchEvent(new Event("dashboard:update"));
-    }
+  //     // Refresh UI
+  //     window.dispatchEvent(new Event("dashboard:update"));
+  //   }
 
-    window.addEventListener("reader:progress", handleProgress);
-    return () => window.removeEventListener("reader:progress", handleProgress);
-  }, []);
+  //   window.addEventListener("reader:progress", handleProgress);
+  //   return () => window.removeEventListener("reader:progress", handleProgress);
+  // }, []);
   useEffect(() => {
     const handler = () => {
       setActiveSection("notes");
@@ -361,7 +362,7 @@ export function UserDashboard({
 
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
-    { id: "writing", icon: FileText, label: "Writing Services" },
+    { id: "writing", icon: PenIcon, label: "Writing Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
     { id: "payments", icon: CreditCard, label: "Payments" },
     { id: "profile", icon: User, label: "Profile" },

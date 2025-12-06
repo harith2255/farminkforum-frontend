@@ -194,55 +194,55 @@ export function ContentManagementGrid() {
     }
   };
 
-const handleEditSave = async () => {
-  if (!editItem || editType !== "test") return;
+  const handleEditSave = async () => {
+    if (!editItem || editType !== "test") return;
 
-  try {
-    setEditSaving(true);
+    try {
+      setEditSaving(true);
 
-    const payload: any = {
-      title: editItem.title,
-      subject: editItem.subject,
-      difficulty: editItem.difficulty,
-      total_questions: Number(editItem.total_questions),
-      duration_minutes: Number(editItem.duration_minutes),
-      description: editItem.description,
-    };
+      const payload: any = {
+        title: editItem.title,
+        subject: editItem.subject,
+        difficulty: editItem.difficulty,
+        total_questions: Number(editItem.total_questions),
+        duration_minutes: Number(editItem.duration_minutes),
+        description: editItem.description,
+      };
 
-    // If start_time changed
-    if (editItem.start_time) {
-      payload.start_time = editItem.start_time;
+      // If start_time changed
+      if (editItem.start_time) {
+        payload.start_time = editItem.start_time;
 
-      // Auto calculate end_time
-      if (editItem.duration_minutes) {
-        const start = new Date(editItem.start_time);
-        const end = new Date(start.getTime() + editItem.duration_minutes * 60 * 1000);
-        payload.end_time = end.toISOString();
+        // Auto calculate end_time
+        if (editItem.duration_minutes) {
+          const start = new Date(editItem.start_time);
+          const end = new Date(start.getTime() + editItem.duration_minutes * 60 * 1000);
+          payload.end_time = end.toISOString();
+        }
       }
+
+      const headers = {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      };
+
+      await axios.put(
+        `${API}/admin/content/test/${editItem.id}`,
+        payload,
+        { headers }
+      );
+
+      alert("Updated successfully!");
+      setShowEditDialog(false);
+      fetchContent();
+
+    } catch (err) {
+      console.error("Edit error:", err);
+      alert("Failed to update.");
+    } finally {
+      setEditSaving(false);
     }
-
-    const headers = {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    };
-
-    await axios.put(
-      `${API}/admin/content/test/${editItem.id}`,
-      payload,
-      { headers }
-    );
-
-    alert("Updated successfully!");
-    setShowEditDialog(false);
-    fetchContent();
-
-  } catch (err) {
-    console.error("Edit error:", err);
-    alert("Failed to update.");
-  } finally {
-    setEditSaving(false);
-  }
-};
+  };
 
   // ---------- Upload Handlers ----------
   const uploadBook = async () => {
@@ -330,66 +330,66 @@ const handleEditSave = async () => {
     }
   };
 
-const uploadTest = async () => {
-  try {
-    setUploading(true);
+  const uploadTest = async () => {
+    try {
+      setUploading(true);
 
-    const data = new FormData();
-    
-    data.append("type", "Mock Test");
+      const data = new FormData();
 
-    // Required
-    data.append("title", testForm.title);
-    data.append("subject", testForm.subject || "");
-    data.append("difficulty", testForm.difficulty || "");
-    data.append("total_questions", testForm.total_questions || "");
-    data.append("duration_minutes", testForm.duration_minutes || "");
-    data.append("scheduled_date", testForm.scheduled_date || "");
-    data.append("description", testForm.description || "");
+      data.append("type", "Mock Test");
 
-    // Optional File
-    if (testForm.file) {
-      data.append("file", testForm.file);
+      // Required
+      data.append("title", testForm.title);
+      data.append("subject", testForm.subject || "");
+      data.append("difficulty", testForm.difficulty || "");
+      data.append("total_questions", testForm.total_questions || "");
+      data.append("duration_minutes", testForm.duration_minutes || "");
+      data.append("scheduled_date", testForm.scheduled_date || "");
+      data.append("description", testForm.description || "");
+
+      // Optional File
+      if (testForm.file) {
+        data.append("file", testForm.file);
+      }
+
+      // MCQs JSON
+      data.append("mcqs", JSON.stringify(mcqs));
+
+      const headers = {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      };
+
+      await axios.post(`${API}/admin/content/upload`, data, { headers });
+
+      alert("✅ Mock Test uploaded successfully!");
+
+
+
+      // reset form
+      setTestForm({
+        title: "",
+        subject: "Agriculture",
+        difficulty: "Easy",
+        total_questions: "",
+        duration_minutes: "",
+        scheduled_date: "",
+        description: "",
+        file: null,
+      });
+
+      // reset MCQs to one blank question after upload
+      setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
+      setMcqPage(0);
+
+      fetchContent();
+    } catch (err: any) {
+      console.error("uploadTest error", err);
+      alert(err?.response?.data?.error || "Upload failed");
+    } finally {
+      setUploading(false);
     }
-
-    // MCQs JSON
-    data.append("mcqs", JSON.stringify(mcqs));
-
-    const headers = {
-      ...getAuthHeaders(),
-      "Content-Type": "multipart/form-data",
-    };
-
-    await axios.post(`${API}/admin/content/upload`, data, { headers });
-
-    alert("✅ Mock Test uploaded successfully!");
-
-
-
-    // reset form
-    setTestForm({
-      title: "",
-      subject: "Agriculture",
-      difficulty: "Easy",
-      total_questions: "",
-      duration_minutes: "",
-      scheduled_date: "",
-      description: "",
-      file: null,
-    });
-
-    // reset MCQs to one blank question after upload
-    setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
-    setMcqPage(0);
-
-    fetchContent();
-  } catch (err: any) {
-    console.error("uploadTest error", err);
-    alert(err?.response?.data?.error || "Upload failed");
-  } finally {
-    setUploading(false);
-  }
-};
+  };
 
   const openEditModal = (item: any, type: "book" | "note" | "test") => {
     setEditItem(item);
@@ -418,37 +418,43 @@ const uploadTest = async () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+        {/* Left Section */}
         <div>
-          <h2 className="text-[#1d4d6a] mb-1 text-xl font-semibold">
-            Content Management — Grid
+          <h2 className="text-[#1d4d6a] mb-1">
+            Content Management
           </h2>
           <p className="text-sm text-gray-500">
             Upload and manage E-Books, Notes and Mock Tests
           </p>
         </div>
 
-        <div className="flex gap-2">
+        {/* Right Buttons */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:w-auto ">
           <Button
-            className="bg-[#1d4d6a] text-white"
+            className="bg-[#1d4d6a] text-white sm:w-auto py-2 text-base"
             onClick={() => setShowUploadBook(true)}
           >
             <Plus className="w-4 h-4 mr-2" /> Upload E-Book
           </Button>
+
           <Button
-            className="bg-[#bf2026] text-white"
+            className="bg-[#bf2026] text-white sm:w-auto"
             onClick={() => setShowUploadNote(true)}
           >
             <Upload className="w-4 h-4 mr-2" /> Upload Notes
           </Button>
+
           <Button
-            className="bg-[#153a4f] text-white"
+            className="bg-[#153a4f] text-white sm:w-auto"
             onClick={() => setShowUploadTest(true)}
           >
             <Upload className="w-4 h-4 mr-2" /> Upload Mock Test
           </Button>
         </div>
       </div>
+
 
       <Tabs defaultValue="books">
         <TabsList className="bg-white border border-gray-200">
@@ -524,8 +530,7 @@ const uploadTest = async () => {
         <TabsContent value="notes">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-4">
             {notes.map((note) => (
-              <Card key={note.id} className="overflow-hidden shadow-sm">
-                {renderCover(note)}
+              <Card key={note.id} className="overflow-hidden shadow-sm pt-5">
                 <CardContent>
                   <div className="flex items-start justify-between">
                     <div>
@@ -533,9 +538,7 @@ const uploadTest = async () => {
                         {note.title}
                       </h3>
                       <p className="text-xs text-gray-500">{note.author}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {note.category}
-                      </p>
+                      <p className="text-xs text-gray-400 mt-1">{note.category}</p>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium">
@@ -547,7 +550,8 @@ const uploadTest = async () => {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex gap-2">
+                  {/* Alignment Fix */}
+                  <div className="mt-3 flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -555,6 +559,7 @@ const uploadTest = async () => {
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -566,12 +571,13 @@ const uploadTest = async () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
+
                     {note.file_url && (
                       <a
                         href={note.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="ml-auto text-sm text-blue-600 underline"
+                        className="ml-auto text-sm text-blue-600 underline whitespace-nowrap"
                       >
                         Download
                       </a>
@@ -583,12 +589,13 @@ const uploadTest = async () => {
           </div>
         </TabsContent>
 
+
         {/* TESTS GRID */}
         <TabsContent value="tests">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-4">
             {tests.map((t) => (
-              <Card key={t.id} className="overflow-hidden shadow-sm">
-                {renderCover(t)}
+              <Card key={t.id} className="overflow-hidden shadow-sm pt-5">
+                {/* {renderCover(t)} */}
                 <CardContent>
                   <div className="flex items-start justify-between">
                     <div>
@@ -1098,13 +1105,12 @@ const uploadTest = async () => {
                     <Badge
                       key={index}
                       variant={index === mcqPage ? "default" : "outline"}
-                      className={`cursor-pointer ${
-                        index === mcqPage
-                          ? "bg-[#1d4d6a] text-white"
-                          : mcq.question
+                      className={`cursor-pointer ${index === mcqPage
+                        ? "bg-[#1d4d6a] text-white"
+                        : mcq.question
                           ? "bg-green-100 text-green-800"
                           : "bg-gray-100 text-gray-700"
-                      }`}
+                        }`}
                       onClick={() => setMcqPage(index)}
                     >
                       Q{index + 1}
@@ -1286,13 +1292,13 @@ const uploadTest = async () => {
                         value={
                           editItem.start_time
                             ? new Date(editItem.start_time)
-                                .toISOString()
-                                .slice(0, 16)
+                              .toISOString()
+                              .slice(0, 16)
                             : editItem.scheduled_date
-                            ? new Date(editItem.scheduled_date)
+                              ? new Date(editItem.scheduled_date)
                                 .toISOString()
                                 .slice(0, 16)
-                            : ""
+                              : ""
                         }
                         onChange={(e) =>
                           setEditItem({

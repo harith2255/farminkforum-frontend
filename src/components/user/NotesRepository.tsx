@@ -24,7 +24,8 @@ export default function NotesRepository({ onNavigate }: any) {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
 
-const token = useMemo(() => localStorage.getItem("token"), []);
+const token = localStorage.getItem("token");
+
 
 
   /* ----------------------------------------
@@ -78,6 +79,7 @@ const buyNow = (noteId: number) => {
   // 👇 Correct navigation + URL management
   onNavigate("purchase", String(noteId));
 };
+
 
 
   /* ----------------------------------------
@@ -209,10 +211,31 @@ setPurchased(purchasedIds);
     }
   };
 
-  const handlePreview = (note: any) => {
-    setSelectedNote(note);
+ const handlePreview = async (note: any) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await axios.get(
+      `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}`,
+      token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined
+    );
+
+    setSelectedNote({
+      ...note,
+      preview_content: res.data.preview_content
+    });
+
     setShowPreview(true);
-  };
+
+  } catch (err) {
+    console.error("Preview load failed:", err);
+    toast.error("Failed to load preview");
+  }
+};
+
+
 
   if (loading) return <p className="p-6 text-center">Loading notes...</p>;
 
@@ -347,8 +370,22 @@ setPurchased(purchasedIds);
           </DialogHeader>
 
           <div className="p-4 border rounded-lg">
-            {selectedNote?.preview_content || <p>No preview available.</p>}
-          </div>
+          {!selectedNote ? (
+  <p>Loading preview...</p>
+) : selectedNote.preview_content ? (
+  <div
+    className="prose max-w-none text-sm leading-relaxed"
+    dangerouslySetInnerHTML={{
+     __html: selectedNote?.preview_content?.trim()
+  ? selectedNote.preview_content
+  : "<p>No preview available.</p>"
+
+    }}
+  />
+) : (
+  <p className="text-gray-500">No preview available.</p>
+)}
+</div>
         </DialogContent>
       </Dialog>
     </div>

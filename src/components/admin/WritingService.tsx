@@ -497,7 +497,7 @@ LOAD ALL ORDERS (and compute unread_count)
 
       {/* COMPLETE WORK DIALOG */}
       <Dialog open={showWorkDialog} onOpenChange={setShowWorkDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-y-auto scroll-smooth">
 
           <DialogHeader>
             <DialogTitle>Complete Order</DialogTitle>
@@ -561,7 +561,7 @@ LOAD ALL ORDERS (and compute unread_count)
           <div className="space-y-4 py-4">
             <Label>Write Final Text</Label>
             <Textarea
-              rows={6}
+              rows={3}
               placeholder="Write the completed content here..."
               value={finalText}
               onChange={(e) => setFinalText(e.target.value)}

@@ -523,7 +523,7 @@ export default function AdminExamsPage(): JSX.Element {
   return (
     <div className="space-y-6 p-4">
       {/* header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-[#1d4d6a]">
             Exams & Notes

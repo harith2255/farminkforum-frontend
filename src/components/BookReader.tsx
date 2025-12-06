@@ -153,18 +153,20 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
   }
 
 function handlePageChange(pg: number) {
-  if (pg === currentPage) return; // prevents duplicates
+  // prevent invalid page numbers
+  if (pg < 1 || pg > totalPages) return;
 
+  // update UI
   setCurrentPage(pg);
 
-  if (!book || totalPages <= 1) return;
-
+  // send progress event
   window.dispatchEvent(
     new CustomEvent("reader:progress", {
       detail: { id: book.id, page: pg, totalPages },
     })
   );
 }
+
 
 
 

@@ -174,10 +174,9 @@ const handleAddJob = async () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-[#1d4d6a] mb-1">Job Portal Management</h2>
-          <p className="text-sm text-gray-500">Manage academic job postings for students and researchers</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
