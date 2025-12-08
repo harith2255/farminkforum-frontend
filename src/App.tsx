@@ -304,7 +304,7 @@ const handleOpenBook = (book: any) => {
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
       {/* HOME */}
-      {currentPage === "home" && <Home onNavigate={handleNavigate} />}
+      {currentPage === "home" && <Home onNavigate={handleNavigate} onOpenBook={handleOpenBook}/>}
 
       {/* USER DASHBOARD */}
       {currentPage === "user-dashboard" && (

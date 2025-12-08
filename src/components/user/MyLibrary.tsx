@@ -180,7 +180,7 @@ book_id: entry.book_id,
     const headers = getAuthHeaders();
     await axios.post(
       `https://ebook-backend-lxce.onrender.com/api/library/collections/${collectionId}/add`,
-      { book_id: bookToAdd.id },
+      { book_id: bookToAdd.book_id || bookToAdd.id },
       { headers }
     );
 
@@ -189,8 +189,8 @@ book_id: entry.book_id,
     // local UI update
     setBooksInCollections(prev => {
       const updated = new Set(prev);
-     updated.add(String(bookToAdd.id));
-     window.dispatchEvent(new Event("collections:changed"));
+     updated.add(String(bookToAdd.book_id || bookToAdd.id));
+      window.dispatchEvent(new Event("collections:changed"));
 
 
       return updated;
@@ -200,8 +200,9 @@ book_id: entry.book_id,
     setIsAddToCollectionOpen(false);
     setBookToAdd(null);
 
-  } catch {
+  } catch(err) {
     toast.error("Failed to add book");
+    console.error("ADD BOOK ERROR:", err?.response?.data || err);
   }
 };
 
@@ -255,8 +256,6 @@ async function loadLibrary() {
         category: e.category,
         cover_url:
           e.cover_url ||
-          e.cover ||
-          e.image ||
           "https://placehold.co/300x400",
         pages: e.pages,
         progress: Number(entry.progress ?? 0),
@@ -541,6 +540,25 @@ book_id: entry.book_id,
     }
   };
 
+  const handleResetProgress = async (bookId: number) => {
+  try {
+    const headers = getAuthHeaders();
+    await axios.put(`https://ebook-backend-lxce.onrender.com/api/library/reset/${bookId}`, {}, { headers });
+
+    toast.success("Removed from currently reading");
+
+    // UPDATE UI LOCALLY
+    setBooks(prev =>
+      prev.map(b =>
+        b.id === bookId ? { ...b, progress: 0 } : b
+      )
+    );
+
+  } catch {
+    toast.error("Failed to reset");
+  }
+};
+
   // ---------------------------------------------------
   // Delete Collection
   // ---------------------------------------------------
@@ -573,8 +591,14 @@ book_id: entry.book_id,
   // Read click — open reader and mark started
   // ---------------------------------------------------
   const handleReadClick = async (book: any) => {
-    window.dispatchEvent(new CustomEvent("reader:open", { detail: book }));
-    onOpenBook(book);
+window.dispatchEvent(
+  new CustomEvent("reader:open", {
+    detail: {
+      ...book,
+      start_page: book.last_page || 1,
+    },
+  })
+);    onOpenBook(book);
 
     try {
       const headers = getAuthHeaders();
@@ -639,7 +663,7 @@ book_id: entry.book_id,
                   <Button
                     variant="outline"
                     className="w-full mt-2 bg-red-600 text-white"
-                    onClick={() => handleRemoveFromAllCollections(book)}
+                    onClick={() => handleResetProgress(book.id)}
                   >
                     Remove from Collection
                   </Button>
@@ -810,12 +834,10 @@ if (openCollectionView) {
                         </div>
 
                         {/* Add to Collection button (everywhere) */}
-                      {booksInCollections.has(String(book.id))
-
- ? (
+                      {booksInCollections.has(String(book.book_id || book.id)) ? (  
   <Button
-    className="w-full mt-2 bg-red-600 text-white"
-    onClick={() => handleRemoveFromCollection(openCollectionView?.id, book.id)}
+    className="w-full mt-2 bg-[#bf2026] text-white"
+    onClick={() => handleRemoveFromAllCollections(book)}
   >
     Remove from Collection
   </Button>
@@ -1000,15 +1022,24 @@ if (openCollectionView) {
                     <h3 className="text-[#1d4d6a]">{book.title}</h3>
                     <p className="text-sm text-gray-500">{book.author}</p>
 
-                    <Button
-                      className="w-full mt-2 bg-[#1d4d6a] text-white"
-                      onClick={() => {
-                        setBookToAdd(book);
-                        setIsAddToCollectionOpen(true);
-                      }}
-                    >
-                      Add to Collection
-                    </Button>
+                    {booksInCollections.has(String(book.id)) ? (
+  <Button
+    className="w-full mt-2 bg-red-600 text-white"
+    onClick={() => handleRemoveFromCollection(openCollectionView?.id, book.id)}
+  >
+    Remove from Collection
+  </Button>
+) : (
+  <Button
+    className="w-full mt-2 bg-[#1d4d6a] text-white"
+    onClick={() => {
+      setBookToAdd(book);
+      setIsAddToCollectionOpen(true);
+    }}
+  >
+    Add to Collection
+  </Button>
+)}
                   </div>
                 </CardContent>
               </Card>

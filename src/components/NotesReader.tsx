@@ -1,12 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  X,
-  Sun,
-  Moon,
-  ZoomIn,
-  ZoomOut,
-  ChevronLeft,
-  ChevronRight,
+  X, Sun, Moon, ZoomIn, ZoomOut,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
@@ -14,9 +9,6 @@ import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
 export default function NotesReader({ note, drm, onClose }: any) {
-  /* ============================
-     SAFETY: NOTE NOT LOADED
-  ============================ */
   if (!note) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-400">
@@ -31,12 +23,29 @@ export default function NotesReader({ note, drm, onClose }: any) {
   const [totalPages, setTotalPages] = useState(1);
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlights, setHighlights] = useState<any[]>([]);
-
   const token = localStorage.getItem("token");
   const userEmail = localStorage.getItem("email") || "User";
 
   /* ============================
-     DRM: BLOCK COPY / SELECT / RIGHT-CLICK
+     ⚠️ FILE URL SAFETY CHECK
+  ============================ */
+  if (!note.file_url) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center text-gray-600">
+        <p className="mb-2">You need to purchase this note to read it.</p>
+
+        <Button
+          className="bg-[#bf2026] text-white"
+          onClick={() => window.history.back()}
+        >
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  /* ============================
+     DRM: COPY / RIGHT CLICK BLOCK
   ============================ */
   useEffect(() => {
     if (!drm?.copy_protection) return;
@@ -44,50 +53,33 @@ export default function NotesReader({ note, drm, onClose }: any) {
     const prevent = (e: any) => e.preventDefault();
 
     document.addEventListener("copy", prevent);
-    document.addEventListener("cut", prevent);
-    document.addEventListener("paste", prevent);
     document.addEventListener("contextmenu", prevent);
     document.addEventListener("selectstart", prevent);
 
     return () => {
       document.removeEventListener("copy", prevent);
-      document.removeEventListener("cut", prevent);
-      document.removeEventListener("paste", prevent);
       document.removeEventListener("contextmenu", prevent);
       document.removeEventListener("selectstart", prevent);
     };
   }, [drm]);
 
   /* ============================
-     DRM: BLOCK PRINTSCREEN
+     DRM: DETECT DEVTOOLS
   ============================ */
   useEffect(() => {
     if (!drm?.screenshot_prevention) return;
 
-    const handlePrint = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") {
-        navigator.clipboard.writeText("");
-        alert("Screenshots are disabled by DRM policy.");
-      }
-    };
-
-    window.addEventListener("keyup", handlePrint);
-    return () => window.removeEventListener("keyup", handlePrint);
-  }, [drm]);
-
-  /* ============================
-     DRM: SCREEN RECORDING / DEVTOOLS DETECTION
-  ============================ */
-  useEffect(() => {
-    if (!drm?.screenshot_prevention) return;
+    let locked = false;
 
     const interval = setInterval(() => {
-      // Detect devtools opening (browser gap changes)
+      if (locked) return;
+
       if (window.outerWidth - window.innerWidth > 160) {
+        locked = true;
         alert("Screen recording / devtools detected. Closing reader.");
         window.location.reload();
       }
-    }, 800);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [drm]);
@@ -96,16 +88,10 @@ export default function NotesReader({ note, drm, onClose }: any) {
      LOAD HIGHLIGHTS + LAST PAGE
   ============================ */
   useEffect(() => {
-    if (!note) return;
-
-    window.dispatchEvent(
-      new CustomEvent("notes-reader:open", { detail: note })
-    );
+    if (!note || !token) return;
 
     (async () => {
       try {
-        if (!token) return;
-
         const hres = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -116,23 +102,24 @@ export default function NotesReader({ note, drm, onClose }: any) {
           `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
         if (pres.ok) {
           const data = await pres.json();
           if (data?.last_page) setCurrentPage(Number(data.last_page));
         }
       } catch (err) {
-        console.warn("Failed loading reader info", err);
+        console.warn("Failed load highlights/last page", err);
       }
     })();
   }, [note]);
 
   /* ============================
-     SAVE LAST PAGE
+     SAVE LAST PAGE (debounced)
   ============================ */
   useEffect(() => {
-    if (!note) return;
+    if (!note || !token) return;
+
     const t = setTimeout(async () => {
-      if (!token) return;
       try {
         await fetch(`https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`, {
           method: "PUT",
@@ -142,14 +129,14 @@ export default function NotesReader({ note, drm, onClose }: any) {
           },
           body: JSON.stringify({ last_page: currentPage }),
         });
-      } catch (err) {}
+      } catch {}
     }, 500);
 
     return () => clearTimeout(t);
   }, [currentPage, note]);
 
   /* ============================
-     HIGHLIGHT FUNCTIONS
+     HIGHLIGHTS
   ============================ */
   const handleAddHighlight = async (h: any) => {
     try {
@@ -172,32 +159,34 @@ export default function NotesReader({ note, drm, onClose }: any) {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save highlight");
+      if (!res.ok) throw new Error();
 
       const saved = await res.json();
       setHighlights((prev) => [...prev, saved]);
     } catch (err) {
-      console.warn("add highlight failed", err);
+      console.warn("add highlight failed");
     }
   };
 
-  const handleDeleteHighlight = async (highlightId: number) => {
+  const handleDeleteHighlight = async (id: number) => {
     try {
       if (!token) return;
 
       const res = await fetch(
-        `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${highlightId}`,
+        `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${id}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      if (!res.ok) throw new Error("Failed to delete highlight");
+      if (!res.ok) throw new Error();
 
-      setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
-    } catch (err) {}
+      setHighlights((prev) => prev.filter((h) => h.id !== id));
+    } catch {}
   };
+
+  /* ============================================================= */
 
   return (
     <div
@@ -205,30 +194,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
         theme === "dark" ? "bg-black text-white" : "bg-white text-black"
       }`}
     >
-      {/* ============================
-          DRM WATERMARK (Visible on screenshot)
-      ============================ */}
-      {drm?.watermarking && (
-        <div
-          style={{
-            position: "fixed",
-            top: "35%",
-            left: "20%",
-            fontSize: "40px",
-            opacity: 0.18,
-            pointerEvents: "none",
-            zIndex: 999999,
-            transform: "rotate(-20deg)",
-            color: "#d00",
-          }}
-        >
-          {userEmail} • {new Date().toLocaleString()}
-        </div>
-      )}
-
-      {/* ============================
-          HEADER
-      ============================ */}
+      {/* HEADER */}
       <header
         className={`sticky top-0 z-10 border-b ${
           theme === "dark"
@@ -238,41 +204,29 @@ export default function NotesReader({ note, drm, onClose }: any) {
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-   <Button onClick={onClose} variant="ghost">
-  <X />
-</Button>
-
-
+            <Button onClick={onClose} variant="ghost">
+              <X />
+            </Button>
 
             <div>
-              <h2
-                className={theme === "dark" ? "text-white" : "text-[#1d4d6a]"}
-              >
+              <h2 className={theme === "dark" ? "text-white" : "text-[#1d4d6a]"}>
                 {note.title}
               </h2>
               <p className="text-sm text-gray-500">{note.author}</p>
             </div>
           </div>
 
+          {/* CONTROLS */}
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
-              variant="ghost"
-            >
+            <Button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} variant="ghost">
               <ZoomOut />
             </Button>
 
-            <Button
-              onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
-              variant="ghost"
-            >
+            <Button onClick={() => setZoom(Math.min(3, zoom + 0.1))} variant="ghost">
               <ZoomIn />
             </Button>
 
-            <Button
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              variant="ghost"
-            >
+            <Button onClick={() => setTheme(theme === "light" ? "dark" : "light")} variant="ghost">
               {theme === "light" ? <Moon /> : <Sun />}
             </Button>
 
@@ -287,9 +241,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
         </div>
       </header>
 
-      {/* ============================
-          PDF VIEWER
-      ============================ */}
+      {/* PDF VIEW */}
       <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
         <PDFJSViewer
           url={note.file_url}
@@ -305,9 +257,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
         />
       </div>
 
-      {/* ============================
-          FOOTER PAGINATION
-      ============================ */}
+      {/* FOOTER */}
       <div
         className={`fixed left-0 right-0 border-t ${
           theme === "dark"
@@ -316,7 +266,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+          <Button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}>
             <ChevronLeft /> Prev
           </Button>
 
@@ -324,9 +274,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
             Page {currentPage} / {totalPages}
           </span>
 
-          <Button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          >
+          <Button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}>
             Next <ChevronRight />
           </Button>
         </div>

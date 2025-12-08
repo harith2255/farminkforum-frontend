@@ -7,8 +7,9 @@ interface Notification {
   id: number;
   title: string;
   message: string;
-  time: string;
+  created_at: string;
   unread: boolean;
+  time: string;
 }
 
 export default function NotificationsPage() {
@@ -22,27 +23,38 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
       try {
         const token = localStorage.getItem("token");
+        if (!token) return;
+        setLoading(true);
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        setNotifications(
-          (res.data.notifications || []).map((n) => ({
-            id: n.id,
-            title: n.title,
-            message: n.message,
-            unread: !n.is_read,
-            time: new Date(n.created_at).toLocaleString(),
-          }))
-        );
+const raw = res.data.notifications || [];
+
+        // Normalize data
+        const items = raw.map((n: any) => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          created_at: n.created_at,
+          unread: !Boolean(n.is_read),
+          time: n.created_at ? new Date(n.created_at).toLocaleString() : "",
+        }));
+
+        setNotifications(items);
       } catch (err) {
-        console.error("Failed to fetch notifications:", err);
+        console.error("Failed to fetch notifications", err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchNotifications();
+       // Listen for refresh events from outside
+    const listener = () => fetchNotifications();
+    window.addEventListener("notifications:refresh", listener);
+
+    return () => window.removeEventListener("notifications:refresh", listener);
   }, []);
 
   // 🧹 Mark all as read
@@ -84,10 +96,13 @@ export default function NotificationsPage() {
     filter === "all" ? true : filter === "unread" ? n.unread : !n.unread
   );
 
-  // SORT
-  const sortedNotifications = [...filteredNotifications].sort((a, b) =>
-    sortOrder === "newest" ? b.id - a.id : a.id - b.id
-  );
+ // SORT (by created_at)
+  const sortedNotifications = [...filteredNotifications].sort((a, b) => {
+    const d1 = new Date(a.created_at).getTime();
+    const d2 = new Date(b.created_at).getTime();
+
+    return sortOrder === "newest" ? d2 - d1 : d1 - d2;
+  });
 
   if (loading) return <p className="text-center py-10">Loading...</p>;
 

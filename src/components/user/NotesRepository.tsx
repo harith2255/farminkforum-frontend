@@ -1,7 +1,6 @@
-import { useState, useEffect,useMemo } from "react";
+import { useState, useEffect,useRef } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -9,29 +8,37 @@ import {
   DialogTitle,
   DialogDescription,
 } from "../ui/dialog";
-import { Search, Eye, Star, CheckCircle, BookOpen } from "lucide-react";
+import { Search, Eye, Star, BookOpen } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
+import PDFJSViewer from "../PDFJSViewer";
 import * as React from "react";
 
-export default function NotesRepository({ onNavigate }: any) {
+interface NotesRepositoryProps {
+  onNavigate: (view: string, id?: string) => void;
+}
+
+export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   const [selectedNote, setSelectedNote] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [notes, setNotes] = useState<any[]>([]);
   const [downloaded, setDownloaded] = useState<number[]>([]);
-  const [purchased, setPurchased] = useState<number[]>([]); // ✅ NEW: Track purchased notes
+  const [purchased, setPurchased] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+const [currentPage, setCurrentPage] = useState(1);
+const [totalPages, setTotalPages] = useState(1);
 
-const token = localStorage.getItem("token");
 
 
+  const getToken = () => localStorage.getItem("token");
 
   /* ----------------------------------------
      ⭐ ADD TO CART FOR NOTES
   ---------------------------------------- */
   const addToCart = async (noteId: number) => {
+    const token = getToken();
     if (!token) return onNavigate("login");
 
     try {
@@ -44,43 +51,48 @@ const token = localStorage.getItem("token");
       toast.success("Note added to cart ✓");
       window.dispatchEvent(new CustomEvent("cart:changed"));
     } catch (err) {
-      console.error(err);
+      console.error("addToCart error:", err);
       toast.error("Failed to add note to cart");
     }
   };
 
-  /* ----------------------------------------
-     ⭐ BUY NOW - FIXED VERSION
-     - Sets ALL required purchase data
-     - Navigates to purchase page
-  ---------------------------------------- */
-const buyNow = (noteId: number) => {
-  const note = notes.find((n) => n.id === noteId);
-  if (!note) {
-    toast.error("Note not found");
-    return;
+const prevOpen = useRef(false);
+
+useEffect(() => {
+  if (showPreview && !prevOpen.current) {
+    setCurrentPage(1);
   }
-
-  // store purchase info
-  localStorage.setItem("purchaseType", "note");
-  localStorage.setItem("purchaseId", String(noteId));
-  localStorage.setItem(
-    "purchaseItems",
-    JSON.stringify([
-      {
-        type: "note",
-        id: noteId,
-        note,
-      },
-    ])
-  );
-  localStorage.setItem("previousSection", "notes");
-
-  // 👇 Correct navigation + URL management
-  onNavigate("purchase", String(noteId));
-};
+  prevOpen.current = showPreview;
+}, [showPreview]);
 
 
+
+  /* ----------------------------------------
+     ⭐ BUY NOW
+  ---------------------------------------- */
+  const buyNow = (noteId: number) => {
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) {
+      toast.error("Note not found");
+      return;
+    }
+
+    localStorage.setItem("purchaseType", "note");
+    localStorage.setItem("purchaseId", String(noteId));
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([
+        {
+          type: "note",
+          id: noteId,
+          note,
+        },
+      ])
+    );
+    localStorage.setItem("previousSection", "notes");
+
+    onNavigate("purchase", String(noteId));
+  };
 
   /* ----------------------------------------
      Fetch Notes + Downloaded Notes + Purchased Notes
@@ -88,55 +100,65 @@ const buyNow = (noteId: number) => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+
         const notesRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/notes", {
           params: {
             category: activeCategory !== "All" ? activeCategory : undefined,
             search: searchText || undefined,
           },
         });
-        setNotes(notesRes.data);
 
+        setNotes(Array.isArray(notesRes.data) ? notesRes.data : []);
+
+        const token = getToken();
         if (token) {
-          // Get downloaded notes
-          const downloadedRes = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/notes/downloaded",
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          const downloadedIds = downloadedRes.data.map((d: any) => d.note.id);
-          setDownloaded(downloadedIds);
+          try {
+            const downloadedRes = await axios.get(
+              "https://ebook-backend-lxce.onrender.com/api/notes/downloaded",
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
 
-        
-          // ✅ NEW: Get purchased notes
-        // Get purchased notes
-// purchased notes
-const purchasedRes = await axios.get(
-  "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
-  {
-    headers: { Authorization: `Bearer ${token}` },
-  }
-);
+            const ids = Array.isArray(downloadedRes.data)
+              ? downloadedRes.data
+                  .map((d: any) => d.note?.id)
+                  .filter((id: any) => typeof id === "number")
+              : [];
 
-console.log("Purchased Raw:", purchasedRes.data);
+            setDownloaded(ids);
+          } catch (err) {
+            console.error("Failed to load downloaded notes:", err);
+          }
 
-let purchasedIds: number[] = [];
+          try {
+            const purchasedRes = await axios.get(
+              "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
 
-// case: [1,2,3]
-if (Array.isArray(purchasedRes.data)) {
-  purchasedIds = purchasedRes.data.map((id) => Number(id));
-}
+            let purchasedIds: number[] = [];
 
-// case: { ids: [1,2,3] }
-else if (Array.isArray(purchasedRes.data?.ids)) {
-  purchasedIds = purchasedRes.data.ids.map((id) => Number(id));
-}
+            if (Array.isArray(purchasedRes.data)) {
+              purchasedIds = purchasedRes.data.map((id) => Number(id));
+            } else if (Array.isArray(purchasedRes.data?.ids)) {
+              purchasedIds = purchasedRes.data.ids.map((id: any) =>
+                Number(id)
+              );
+            }
 
-// fallback
-setPurchased(purchasedIds);
-
-
+            setPurchased(purchasedIds.filter((id) => !Number.isNaN(id)));
+          } catch (err) {
+            console.error("Failed to load purchased notes:", err);
+          }
+        } else {
+          setDownloaded([]);
+          setPurchased([]);
         }
       } catch (err) {
-        console.error("Failed to load data:", err);
+        console.error("Failed to load notes:", err);
+        toast.error("Failed to load notes");
       } finally {
         setLoading(false);
       }
@@ -144,59 +166,42 @@ setPurchased(purchasedIds);
 
     loadData();
 
-    // ✅ NEW: Listen for purchase events to refresh
     const handleRefresh = () => loadData();
     window.addEventListener("refresh-purchased", handleRefresh);
 
     return () => {
       window.removeEventListener("refresh-purchased", handleRefresh);
     };
-  }, [activeCategory, searchText, token]);
+  }, [activeCategory, searchText]);
 
   /* ----------------------------------------
-     ⭐ READ NOTE (for purchased notes)
-     Opens the note in a new tab or modal
+     ⭐ READ NOTE
   ---------------------------------------- */
- const readNote = async (noteId: number) => {
-  if (!token) return onNavigate("login");
+  const readNote = async (noteId: number) => {
+    const token = getToken();
+    if (!token) return onNavigate("login");
 
-  try {
-    // (optional) you can even skip this fetch, because ReadNotePage
-    // will call /api/notes/:id again anyway – but it's fine to keep
-    const res = await axios.get(`https://ebook-backend-lxce.onrender.com/api/notes/${noteId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const noteData = res.data?.note || res.data;
-
-    if (!noteData?.file_url) {
-      toast.error("Note file not found");
-      return;
-    }
-
-    // optional – if you want to reuse cached data
-    localStorage.setItem("currentNoteData", JSON.stringify(noteData));
-
-    // ✅ CORRECT: let App handle route + history
     onNavigate("reader-note", String(noteId));
-    // ❌ remove this manual pushState, App already does it:
-    // window.history.pushState({}, "", `/notes/read/${noteId}`);
-  } catch (err: any) {
-    console.error("Read note error:", err);
-    toast.error(err?.response?.data?.error || "Failed to read note");
-  }
-};
+  };
 
   /* ----------------------------------------
      ⭐ DOWNLOAD NOTE
   ---------------------------------------- */
   const downloadNote = async (noteId: number) => {
+    const token = getToken();
+    if (!token) return onNavigate("login");
+
     try {
       const res = await axios.post(
         `https://ebook-backend-lxce.onrender.com/api/notes/${noteId}/download`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      if (!res.data?.file_url) {
+        toast.error("Download not available");
+        return;
+      }
 
       window.open(res.data.file_url, "_blank");
 
@@ -205,37 +210,34 @@ setPurchased(purchasedIds);
       }
 
       toast.success("Download started");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Download failed:", err);
-      toast.error("Download failed");
+      toast.error(err?.response?.data?.error || "Download failed");
     }
   };
 
+  /* ----------------------------------------
+     ⭐ PREVIEW NOTE (PDF)
+  ---------------------------------------- */
  const handlePreview = async (note: any) => {
   try {
-    const token = localStorage.getItem("token");
+    setCurrentPage(1);
+    setTotalPages(null);
+    
 
-    const res = await axios.get(
-      `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}`,
-      token
-        ? { headers: { Authorization: `Bearer ${token}` } }
-        : undefined
-    );
+    const previewUrl = `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`;
 
     setSelectedNote({
       ...note,
-      preview_content: res.data.preview_content
+      previewUrl,
     });
 
     setShowPreview(true);
-
   } catch (err) {
     console.error("Preview load failed:", err);
-    toast.error("Failed to load preview");
+    toast.error("Preview not available");
   }
 };
-
-
 
   if (loading) return <p className="p-6 text-center">Loading notes...</p>;
 
@@ -265,7 +267,7 @@ setPurchased(purchasedIds);
         </div>
       </div>
 
-      {/* Category Buttons */}
+      {/* Categories */}
       <div className="flex gap-2 flex-wrap">
         {categories.map((category) => (
           <Button
@@ -281,7 +283,7 @@ setPurchased(purchasedIds);
         ))}
       </div>
 
-      {/* Notes List */}
+      {/* LIST */}
       <div className="space-y-3">
         {notes.map((note) => (
           <Card key={note.id} className="shadow-md">
@@ -297,15 +299,15 @@ setPurchased(purchasedIds);
 
                   <div className="flex gap-4 text-xs mt-2">
                     <span>{note.pages} pages</span>
-                    <span className="flex items-center gap-1">
+                    {/* <span className="flex items-center gap-1">
                       <Star className="w-3 h-3 text-yellow-400" /> {note.rating}
                     </span>
-                    <span>{note.downloads} downloads</span>
+                    <span>{note.purchased} purchased</span> */}
                   </div>
 
                   {/* ⭐ ACTION BUTTONS */}
                   <div className="flex gap-2 mt-3">
-                    {/* Preview */}
+                    {/* PREVIEW */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -314,43 +316,42 @@ setPurchased(purchasedIds);
                       <Eye className="w-3 h-3 mr-2" /> Preview
                     </Button>
 
-                    {/* ✅ PURCHASED - Show Read button */}
+                    {/* PURCHASED */}
                     {purchased.includes(note.id) ? (
-  <Button
-    size="sm"
-    className="bg-green-600 hover:bg-green-700 text-white"
-    onClick={() => readNote(note.id)}
-  >
-    <BookOpen className="w-3 h-3 mr-1" /> Read
-  </Button>
-) : note.price === "Free" || note.price === 0 ? (
-  <Button
-    size="sm"
-    className="bg-[#bf2026] text-white"
-    onClick={() => downloadNote(note.id)}
-  >
-    Download Free
-  </Button>
-) : (
-  <>
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={() => addToCart(note.id)}
-    >
-      Add to Cart
-    </Button>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => readNote(note.id)}
+                      >
+                        <BookOpen className="w-3 h-3 mr-1" /> Read
+                      </Button>
+                    ) : note.price === "Free" || note.price === 0 ? (
+                      <Button
+                        size="sm"
+                        className="bg-[#bf2026] text-white"
+                        onClick={() => downloadNote(note.id)}
+                      >
+                        Download Free
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => addToCart(note.id)}
+                        >
+                          Add to Cart
+                        </Button>
 
-    <Button
-      size="sm"
-      className="bg-[#bf2026] text-white"
-      onClick={() => buyNow(note.id)}
-    >
-      Buy ₹{note.price}
-    </Button>
-  </>
-)}
-
+                        <Button
+                          size="sm"
+                          className="bg-[#bf2026] text-white"
+                          onClick={() => buyNow(note.id)}
+                        >
+                          Buy ₹{note.price}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -359,35 +360,80 @@ setPurchased(purchasedIds);
         ))}
       </div>
 
-      {/* Preview Modal */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedNote?.title}</DialogTitle>
-            <DialogDescription>
-              {selectedNote?.author} • {selectedNote?.category}
-            </DialogDescription>
-          </DialogHeader>
+     {/* Preview Modal */}
+<Dialog open={showPreview} onOpenChange={setShowPreview}>
+  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>{selectedNote?.title}</DialogTitle>
+      <DialogDescription>
+        {selectedNote?.author} • {selectedNote?.category}
+      </DialogDescription>
+    </DialogHeader>
 
-          <div className="p-4 border rounded-lg">
-          {!selectedNote ? (
-  <p>Loading preview...</p>
-) : selectedNote.preview_content ? (
-  <div
-    className="prose max-w-none text-sm leading-relaxed"
-    dangerouslySetInnerHTML={{
-     __html: selectedNote?.preview_content?.trim()
-  ? selectedNote.preview_content
-  : "<p>No preview available.</p>"
+    <div className="p-4 border rounded-lg">
+      {!selectedNote ? (
+        <p>Loading preview...</p>
+      ) : selectedNote.previewUrl ? (
+        <>
+          {/* PDF VIEWER */}
+          <PDFJSViewer
+            url={selectedNote.previewUrl}
+            page={currentPage}
+            scale={1.2}
+            onTotalPages={setTotalPages}
+            onPageChange={setCurrentPage}
+            previewPages={2}
+            isLocked={true}
+            bookId={selectedNote.id}
+            onBuyClick={() => buyNow(selectedNote.id)}
+          />
 
-    }}
-  />
-) : (
-  <p className="text-gray-500">No preview available.</p>
-)}
+          {/* PAGINATION */}
+      <div className="flex items-center justify-between mt-3">
+  <Button
+  size="sm"
+  variant="outline"
+  disabled={currentPage <= 1}
+  onClick={() => setCurrentPage((p) => p - 1)}
+>
+  Prev
+</Button>
+
+
+  <p className="text-sm text-gray-500">
+    Page {currentPage} / {totalPages}
+  </p>
+
+  <Button
+  size="sm"
+  variant="outline"
+  disabled={currentPage >= totalPages}
+  onClick={() => setCurrentPage((p) => p + 1)}
+>
+  Next
+</Button>
+
 </div>
-        </DialogContent>
-      </Dialog>
+
+        </>
+      ) : (
+        <div className="text-center py-10">
+          <p className="text-gray-500 mb-4">No preview available.</p>
+
+          {selectedNote.price > 0 && (
+            <Button
+              className="bg-[#bf2026] text-white"
+              onClick={() => buyNow(selectedNote.id)}
+            >
+              Buy ₹{selectedNote.price}
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
+
     </div>
   );
 }

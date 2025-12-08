@@ -429,7 +429,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
       // Redirect to purchase page
       if (data.order && data.order.id) {
-        window.history.pushState({}, "", `/purchase/${data.order.id}`);
+window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); onNavigate("purchase");
         if (typeof onNavigate === "function") onNavigate("purchase");
       }
     } catch (err) {

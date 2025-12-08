@@ -3,7 +3,6 @@ import NotesReader from "./NotesReader";
 import * as React from "react";
 
 export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
-
   const [note, setNote] = useState<any>(null);
   const [drm, setDrm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -16,16 +15,25 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
     const load = async () => {
       try {
         const res = await fetch(`https://ebook-backend-lxce.onrender.com/api/notes/${noteId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
+
+        if (res.status === 401) {
+          onNavigate("login");
+          return;
+        }
 
         const data = await res.json();
 
-        // IMPORTANT: your API returns note inside "note" key
+        // API format: { note, isPurchased, preview_content }
         setNote(data.note || null);
         setDrm(data.drm || null);
+
+        // If not purchased, redirect
+        if (!data.note?.file_url) {
+          onNavigate("purchase", String(noteId));
+        }
+
       } catch (err) {
         console.error("Failed to load note:", err);
       } finally {
@@ -36,13 +44,13 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
     load();
   }, [noteId]);
 
-if (!token) {
-  onNavigate("notes");
-  return null;
-}
+  // no token → go login
+  if (!token) {
+    onNavigate("login");
+    return null;
+  }
 
-
-
+  // loading UI
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-gray-600">
@@ -51,23 +59,23 @@ if (!token) {
     );
   }
 
- if (!note && !loading) {
+  // final fallback
+  if (!note) {
+    return (
+      <div className="h-screen flex items-center justify-center text-red-500">
+        Note not found.
+        <button onClick={() => onNavigate("notes")} className="underline ml-2">
+          Back
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen flex items-center justify-center text-red-500">
-      Note not found or not purchased.
-      <button onClick={() => onNavigate("notes")} className="underline ml-2">
-        Back
-      </button>
-    </div>
+    <NotesReader
+      note={note}
+      drm={drm}
+      onClose={onClose}
+    />
   );
-}
-
-
- return (
-  <NotesReader
-    note={note}
-    drm={drm}
-    onClose={onClose} // ← use provided handler
-  />
-);
 }

@@ -97,7 +97,7 @@ export function CustomerManagement() {
       {
         title: emailSubject,
         message: emailMessage,
-        link: "dashboard",
+        // link: "dashboard",
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -121,6 +121,7 @@ export function CustomerManagement() {
       <Card className="border-none shadow-md">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            {/* search input */}
             <div className="relative sm:flex-1 w-full">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
@@ -136,7 +137,7 @@ export function CustomerManagement() {
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option value="">All Status</option>
+              <option value="">All Accounts</option>
               <option value="Active">Active</option>
               <option value="Suspended">Suspended</option>
             </select>
@@ -173,64 +174,131 @@ export function CustomerManagement() {
                       <TableHead>Customer</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Billing Status</TableHead>
+                      <TableHead>Account Status</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Total Spent</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
 
-                  <TableBody>
-                    {customers.map((c) => {
-                      const displayName =
-                        c.full_name?.trim() ||
-                        `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
-                        c.email?.split("@")[0] ||
-                        "Unnamed";
+                                <TableBody>
+                {customers.map((c) => {
+                  const displayName =
+                    c.full_name?.trim() ||
+                    c.email?.split("@")[0] ||
+                    "Unnamed";
 
-                      const initial = displayName[0]?.toUpperCase() || "U";
+                  const initial = displayName[0]?.toUpperCase() || "U";
 
-                      return (
-                        <TableRow key={c.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-8 h-8">
-                                <AvatarFallback className="bg-[#1d4d6a] text-white">{initial}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-[#1d4d6a] font-medium">{displayName}</span>
-                            </div>
-                          </TableCell>
+                  return (
+                    <TableRow key={c.id}>
+                      {/* customer name */}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-[#1d4d6a] text-white">
+                              {initial}
+                            </AvatarFallback>
+                          </Avatar>
 
-                          <TableCell>{c.email}</TableCell>
-                          <TableCell><Badge>{c.plan || "N/A"}</Badge></TableCell>
-                          <TableCell>
-                            <Badge className={c.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>{c.status}</Badge>
-                          </TableCell>
-                          <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</TableCell>
-                          <TableCell>₹{Number(c.total_spent ?? 0).toLocaleString()}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => { setSelectedCustomer(c); setShowEmailModal(true); }}>
-                                <Mail className="w-4 h-4" />
-                              </Button>
-                              {c.status === "Active" ? (
-                                <Button variant="ghost" size="sm" onClick={() => suspendCustomer(c.id)}>
-                                  <ShieldOff className="w-4 h-4 text-red-500" />
-                                </Button>
-                              ) : (
-                                <Button variant="ghost" size="sm" onClick={() => activateCustomer(c.id)}>
-                                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="sm" onClick={() => deleteCustomer(c.id)}>
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
+                          <span className="text-[#1d4d6a] font-medium">
+                            {displayName}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>{c.email}</TableCell>
+
+                      <TableCell>
+                        <Badge>{c.plan || "N/A"}</Badge>
+                      </TableCell>
+
+                      {/* Billing Status (subscription) */}
+                      <TableCell>
+                        <Badge
+                          className={
+                            c.subscription_status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }
+                        >
+                          {c.subscription_status}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Account Status (profile) */}
+                      <TableCell>
+                        <Badge
+                          className={
+                            c.account_status === "Active"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-red-100 text-red-700"
+                          }
+                        >
+                         {c.account_status}
+
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        {c.created_at
+                          ? new Date(c.created_at).toLocaleDateString()
+                          : "—"}
+                      </TableCell>
+
+                      <TableCell>
+                        ₹{Number(c.total_spent ?? 0).toLocaleString()}
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {/* Email */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedCustomer(c);
+                              setShowEmailModal(true);
+                            }}
+                          >
+                            <Mail className="w-4 h-4" />
+                          </Button>
+
+                          {/* Suspend / Activate */}
+                          {c.account_status === "active" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => suspendCustomer(c.id)}
+                            >
+                              <ShieldOff className="w-4 h-4 text-red-500" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => activateCustomer(c.id)}
+                            >
+                              <ShieldCheck className="w-4 h-4 text-green-500" />
+                            </Button>
+                          )}
+
+                          {/* Delete */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteCustomer(c.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
                 </Table>
               </div>
 

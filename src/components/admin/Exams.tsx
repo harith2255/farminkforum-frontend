@@ -168,6 +168,12 @@ export default function AdminExamsPage(): JSX.Element {
   >(() => () => {});
 
   const [loading, setLoading] = useState(false);
+  // ADD THESE STATES AT TOP OF COMPONENT
+
+const [multiNotesFiles, setMultiNotesFiles] = useState<File[]>([]);
+const [multiExamsFiles, setMultiExamsFiles] = useState<File[]>([]);
+
+
 
   // submissions state + dialog
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -182,6 +188,88 @@ export default function AdminExamsPage(): JSX.Element {
       mountedRef.current = false;
     };
   }, []);
+const uploadMultipleNotes = async () => {
+  if (!selectedSubject) return;
+  if (!multiNotesFiles.length) return alert("Choose files first");
+
+  try {
+    const token = getStoredToken();
+    const form = new FormData();
+
+    multiNotesFiles.forEach((file) => form.append("files", file));
+    form.append("subject_id", selectedSubject.id);
+
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/upload-multiple",
+      form,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setMultiNotesFiles([]);
+    await loadFolders();
+    alert("Files uploaded");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to upload");
+  }
+};
+const uploadMultipleExams = async () => {
+  if (!selectedSubject) return;
+  if (!multiExamsFiles.length) return alert("Choose files first");
+
+  try {
+    const token = getStoredToken();
+    const form = new FormData();
+
+    multiExamsFiles.forEach((file) => form.append("files", file));
+    form.append("subject_id", selectedSubject.id);
+
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/exams/exams/upload-multiple",
+      form,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setMultiExamsFiles([]);
+    await loadFolders();
+    alert("Files uploaded");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to upload");
+  }
+};
+const deleteNote = async (noteId: number) => {
+  if (!window.confirm("Delete file?")) return;
+
+  try {
+    const token = getStoredToken();
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/${noteId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    await loadFolders();
+    alert("Deleted");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete");
+  }
+};
+const deleteExam = async (examId: number) => {
+  if (!window.confirm("Delete file?")) return;
+
+  try {
+    const token = getStoredToken();
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/admin/exams/exams/${examId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    await loadFolders();
+    alert("Deleted");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete");
+  }
+};
 
   // ---------------------------- Utilities ----------------------------
   const normalizeFolderResponse = useCallback((raw: any[]): any[] => {
@@ -395,101 +483,120 @@ export default function AdminExamsPage(): JSX.Element {
   };
 
   const handleUpload = async () => {
-    try {
-      if (!uploadSubject.trim()) return alert("Enter subject name");
+  try {
+    if (!uploadSubject.trim()) return alert("Enter subject name");
 
-      const label = uploadSubject.trim();
-      const value = label.toLowerCase().replace(/\s+/g, "-");
-      const token = getStoredToken();
-      if (!token) {
-        console.warn("No token — aborting handleUpload()");
+    const label = uploadSubject.trim();
+    const value = label.toLowerCase().replace(/\s+/g, "-");
+    const token = getStoredToken();
+
+    if (!token) {
+      console.warn("No token — aborting handleUpload()");
+      return;
+    }
+
+    /** ----------------------------------------
+     * CASE 1: Only subject name, no files
+     * Create folder locally in UI immediately
+     * ----------------------------------------*/
+    if (!notePDF && !examPDF) {
+      // Prevent duplicate subject
+      if (folders.some((f) => f.subject.toLowerCase() === label.toLowerCase())) {
+        alert("Subject already exists");
         return;
       }
 
-      // 1️⃣ Upload Note (if provided). Backend will ensure subject exists
-      if (notePDF) {
-        const form = new FormData();
-        form.append("file", notePDF);
-        form.append("label", label);
-        form.append("value", value);
+      const newFolder = {
+        id: Date.now(), // temporary ID
+        subject: label,
+        notes: [],
+        exams: [],
+      };
+
+      setFolders((prev) => [...prev, newFolder]);
+      setUploadOpen(false);
+      setUploadSubject("");
+      alert("Subject created");
+      return;
+    }
+
+    /** ----------------------------------------
+     * CASE 2: Upload files (backend will auto-create subject if needed)
+     * ----------------------------------------*/
+
+    // Upload Notes
+    if (notePDF) {
+      const form = new FormData();
+      form.append("file", notePDF);
+      form.append("label", label);
+      form.append("value", value);
+
+      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/upload", form, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 30000,
+      });
+    }
+
+    // Upload Exam
+    let examId: number | null = null;
+    if (examPDF) {
+      const createRes = await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/admin/exams",
+        {
+          label,
+          value,
+          title: examPDF.name,
+          description: "Uploaded exam",
+          start_time: examStart ? examStart.toISOString() : null,
+          end_time: examEnd ? examEnd.toISOString() : null,
+        },
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+      );
+
+      examId = createRes.data.exam?.id ?? null;
+
+      if (examId) {
+        const formExam = new FormData();
+        formExam.append("file", examPDF);
 
         await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/upload",
-          form,
+          `https://ebook-backend-lxce.onrender.com/api/admin/exams/${examId}/upload-file`,
+          formExam,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              // NOTE: axios will set proper multipart boundary if you omit Content-Type here.
-              // Setting Content-Type manually sometimes breaks the boundary.
-            },
+            headers: { Authorization: `Bearer ${token}` },
             timeout: 30000,
           }
         );
       }
-
-      // 2️⃣ Create exam (if provided) and upload file
-      let examId: number | null = null;
-      if (examPDF) {
-        const createRes = await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/admin/exams",
-          {
-            label,
-            value,
-            title: examPDF.name,
-            description: "Uploaded exam",
-            start_time: examStart ? examStart.toISOString() : null,
-            end_time: examEnd ? examEnd.toISOString() : null,
-          },
-          { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
-        );
-
-        examId = createRes.data.exam?.id ?? null;
-
-        if (examId) {
-          const formExam = new FormData();
-          formExam.append("file", examPDF);
-          // backend route expects file param and req.params.id (we pass examId above)
-          await axios.post(
-            `https://ebook-backend-lxce.onrender.com/api/admin/exams/${examId}/upload-file`,
-            formExam,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                // omit explicit Content-Type to let browser set multipart boundary
-              },
-              timeout: 30000,
-            }
-          );
-        }
-      }
-
-      // small delay to ensure DB/storage consistency (backend writes)
-      await new Promise((r) => setTimeout(r, 1000));
-
-      await loadSubjects();
-      await loadFolders();
-
-      setScreen("main");
-      setSelectedSubject(null);
-      setUploadOpen(false);
-      setUploadSubject("");
-      setNotePDF(null);
-      setExamPDF(null);
-      setExamStart(null);
-      setExamEnd(null);
-
-      alert("Upload successful");
-    } catch (err: any) {
-      console.error("UPLOAD FAILED:", err?.message || err, err?.response?.data);
-      // show server message if available
-      const serverMsg =
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Upload failed — check console";
-      alert(serverMsg);
     }
-  };
+
+    // Small delay
+    await new Promise((r) => setTimeout(r, 500));
+
+    await loadFolders();
+
+    setScreen("main");
+    setSelectedSubject(null);
+    setUploadOpen(false);
+    setUploadSubject("");
+    setNotePDF(null);
+    setExamPDF(null);
+    setExamStart(null);
+    setExamEnd(null);
+
+    alert("Upload successful");
+  } catch (err: any) {
+    console.error("UPLOAD FAILED:", err?.message || err, err?.response?.data);
+
+    const msg =
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      err?.message ||
+      "Upload failed — check console";
+
+    alert(msg);
+  }
+};
 
   const saveEditExam = async () => {
     if (!editExam) return;
@@ -523,7 +630,7 @@ export default function AdminExamsPage(): JSX.Element {
   return (
     <div className="space-y-6 p-4">
       {/* header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-[#1d4d6a]">
             Exams & Notes
@@ -629,104 +736,122 @@ export default function AdminExamsPage(): JSX.Element {
       )}
 
       {/* notes list */}
-      {screen === "notes" && selectedSubject && (
-        <>
-          <Button variant="ghost" onClick={() => setScreen("subject")}>
-            <ArrowLeft /> Back
-          </Button>
+     {screen === "notes" && selectedSubject && (
+  <>
+    <Button variant="ghost" onClick={() => setScreen("subject")}>
+      <ArrowLeft /> Back
+    </Button>
 
-          <h3 className="text-lg font-semibold mt-2">
-            Notes – {selectedSubject.subject}
-          </h3>
+    <h3 className="text-lg font-semibold mt-2">
+      Notes – {selectedSubject.subject}
+    </h3>
 
-          <div className="space-y-3 mt-4">
-            {sortFiles(selectedSubject.notes || []).map((n) => (
-              <Card key={n.id}>
-                <CardContent className="flex justify-between items-center p-4">
-                  <div className="flex items-center gap-3">
-                    <FileText />
-                    {n.name}
-                  </div>
-                  <Button size="sm" onClick={() => setViewPDF(n.url)}>
-                    View
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
+    {/* multiple upload */}
+    <div className="mt-3 flex items-center gap-2">
+      <Input
+        type="file"
+        multiple
+        accept="application/pdf"
+        onChange={(e) =>
+          setMultiNotesFiles(Array.from(e.target.files || []))
+        }
+      />
+
+      <Button size="sm" onClick={uploadMultipleNotes}>
+        <Upload className="w-4 h-4 mr-1" />
+        Upload
+      </Button>
+    </div>
+
+    <div className="space-y-3 mt-4">
+      {sortFiles(selectedSubject.notes || []).map((n) => (
+        <Card key={n.id}>
+          <CardContent className="flex justify-between items-center p-4">
+            <div className="flex items-center gap-3">
+              <FileText />
+              {n.name}
+            </div>
+
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => setViewPDF(n.url)}>
+                View
+              </Button>
+
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => deleteNote(n.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </>
+)}
+
 
       {/* exams list */}
       {screen === "exams" && selectedSubject && (
-        <>
-          <Button variant="ghost" onClick={() => setScreen("subject")}>
-            <ArrowLeft /> Back
-          </Button>
+  <>
+    <Button variant="ghost" onClick={() => setScreen("subject")}>
+      <ArrowLeft /> Back
+    </Button>
 
-          <h3 className="text-lg font-semibold mt-2">
-            Exams – {selectedSubject.subject}
-          </h3>
+    <h3 className="text-lg font-semibold mt-2">
+      Exams – {selectedSubject.subject}
+    </h3>
 
-          <div className="space-y-3 mt-4">
-            {sortFiles(selectedSubject.exams || []).map((e) => (
-              <Card key={e.id}>
-                <CardContent className="flex justify-between items-center p-4">
-                  <div>
-                    <p className="font-medium">{e.name}</p>
+    {/* multiple upload */}
+    <div className="mt-3 flex items-center gap-2">
+      <Input
+        type="file"
+        multiple
+        accept="application/pdf"
+        onChange={(e) =>
+          setMultiExamsFiles(Array.from(e.target.files || []))
+        }
+      />
 
-                    <p className="text-xs text-gray-500 mt-1">
-                      {e.start_time && (
-                        <>
-                          Starts: {new Date(e.start_time).toLocaleString()}
-                          <br />
-                        </>
-                      )}
-                      {e.end_time && (
-                        <>Ends: {new Date(e.end_time).toLocaleString()}</>
-                      )}
-                    </p>
+      <Button size="sm" onClick={uploadMultipleExams}>
+        <Upload className="w-4 h-4 mr-1" />
+        Upload
+      </Button>
+    </div>
 
-                    {e.unlocked ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                        Unlocked
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Upcoming
-                      </span>
-                    )}
-                  </div>
+    <div className="space-y-3 mt-4">
+      {sortFiles(selectedSubject.exams || []).map((e) => (
+        <Card key={e.id}>
+          <CardContent className="flex justify-between items-center p-4">
+            <div>
+              <p className="font-medium">{e.name}</p>
+            </div>
 
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => setViewPDF(e.url)}>
-                      View
-                    </Button>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => setViewPDF(e.url)}>
+                View
+              </Button>
 
-                    <Button size="sm" onClick={() => openSubmissions(e.id)}>
-                      Submissions
-                    </Button>
+              <Button size="sm" onClick={() => openSubmissions(e.id)}>
+                Submissions
+              </Button>
 
-                    <Button
-                      size="sm"
-                      className="bg-blue-600 text-white"
-                      onClick={() =>
-                        setEditExam({
-                          ...e,
-                          start_time: e.start_time || null,
-                          end_time: e.end_time || null,
-                        })
-                      }
-                    >
-                      <Edit2 className="w-4 h-4 mr-1" /> Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => deleteExam(e.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </>
+)}
 
       {/* delete subject dialog */}
       <Dialog

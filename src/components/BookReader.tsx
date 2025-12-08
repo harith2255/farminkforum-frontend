@@ -19,9 +19,17 @@ interface BookReaderProps {
   bookId: string | number;
   drm?: any;
   onClose: () => void;
+
+  /** 🔒 How many pages are free in preview mode (for locked books). Default: 2 */
+  previewPages?: number;
 }
 
-export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
+export function BookReader({
+  bookId,
+  drm,
+  onClose,
+  previewPages,
+}: BookReaderProps) {
   const [book, setBook] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +47,14 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  // ✅ Configurable preview pages, safe fallback = 2
+  const effectivePreviewPages = React.useMemo(() => {
+    if (typeof previewPages === "number" && previewPages > 0) {
+      return Math.floor(previewPages);
+    }
+    return 2; // default preview length
+  }, [previewPages]);
 
   /* --------------------------------------------------
       1️⃣ Fetch Book Metadata + Purchase Status
@@ -64,6 +80,10 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
         const data = await res.json();
         setBook(data.book);
 
+        // ⭐️ resume at last_page
+        const start = data.book.last_page > 1 ? data.book.last_page : 1;
+        setCurrentPage(start);
+
         // check purchase
         const pres = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/purchase/check?bookId=${data.book.id}`,
@@ -72,7 +92,11 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
 
         if (pres.ok) {
           const pd = await pres.json();
+          // 🔒 locked = not purchased
           setIsLocked(!pd.purchased);
+        } else {
+          // If check fails, stay locked (secure-by-default)
+          setIsLocked(true);
         }
       } catch (err: any) {
         console.error(err);
@@ -84,11 +108,10 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
 
     loadBook();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId]);
+  }, [bookId, token]);
 
   /* --------------------------------------------------
-      OPTIONAL: load highlights (if you have API)
-      (kept simple; doesn't change UI)
+      OPTIONAL: load highlights
   -----------------------------------------------------*/
   useEffect(() => {
     if (!book || !token) return;
@@ -113,13 +136,10 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
   async function handleDeleteHighlight(id: number | string) {
     if (!token) return;
     try {
-      await fetch(
-        `https://ebook-backend-lxce.onrender.com/api/library/highlights/${id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await fetch(`https://ebook-backend-lxce.onrender.com/api/library/highlights/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setHighlights((prev) => prev.filter((h) => h.id !== id));
     } catch (err) {
       console.error("deleteHighlight error:", err);
@@ -131,11 +151,12 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
   -----------------------------------------------------*/
   const handleBuyNowRedirect = (id: number) => {
     if (!id) return;
+    // Client-side redirect, actual access still enforced by backend
     window.location.href = `/purchase/book/${id}`;
   };
 
   /* --------------------------------------------------
-      BUY MODAL (for Next/slider)
+      BUY MODAL (Unlock overlay)
   -----------------------------------------------------*/
   function handlePurchase() {
     if (!book) return;
@@ -152,23 +173,28 @@ export function BookReader({ bookId, drm, onClose }: BookReaderProps) {
     window.location.href = `/purchase/${book.id}`;
   }
 
-function handlePageChange(pg: number) {
-  // prevent invalid page numbers
-  if (pg < 1 || pg > totalPages) return;
+  function handlePageChange(pg: number) {
+    if (!book) return;
 
-  // update UI
-  setCurrentPage(pg);
+    // prevent invalid page numbers
+    if (pg < 1 || pg > totalPages) return;
 
-  // send progress event
-  window.dispatchEvent(
-    new CustomEvent("reader:progress", {
-      detail: { id: book.id, page: pg, totalPages },
-    })
-  );
-}
+    // 🔒 Locked books: block navigation beyond preview
+    if (isLocked && pg > effectivePreviewPages) {
+      setShowBuyModal(true);
+      return;
+    }
 
+    // update UI
+    setCurrentPage(pg);
 
-
+    // send progress event
+    window.dispatchEvent(
+      new CustomEvent("reader:progress", {
+        detail: { id: book.id, page: pg, totalPages },
+      })
+    );
+  }
 
   /* --------------------------------------------------
       CLOSE HANDLER
@@ -277,7 +303,8 @@ function handlePageChange(pg: number) {
           highlightMode={highlightMode}
           highlights={highlights}
           isLocked={isLocked}
-          previewPages={1}
+          // 🔒 pass consistent preview limit to viewer
+          previewPages={effectivePreviewPages}
           bookId={book.id}
           onBuyClick={handleBuyNowRedirect}
           onDeleteHighlight={handleDeleteHighlight}
@@ -308,7 +335,8 @@ function handlePageChange(pg: number) {
 
           <Button
             onClick={() => {
-              if (isLocked && currentPage >= 2) {
+              // 🔒 if locked & already at/after last preview page → show overlay
+              if (isLocked && currentPage >= effectivePreviewPages) {
                 setShowBuyModal(true);
                 return;
               }
@@ -324,11 +352,16 @@ function handlePageChange(pg: number) {
           className="px-4 pb-2"
           value={[currentPage]}
           min={1}
-          max={isLocked ? Math.min(totalPages, 2) : totalPages}
+          max={
+            isLocked
+              ? Math.min(totalPages, effectivePreviewPages)
+              : totalPages
+          }
           onValueChange={(v) => {
             const pg = v[0];
 
-            if (isLocked && pg > 1) {
+            // 🔒 Prevent sliding beyond preview
+            if (isLocked && pg > effectivePreviewPages) {
               setShowBuyModal(true);
               return;
             }
@@ -338,11 +371,19 @@ function handlePageChange(pg: number) {
         />
       </div>
 
-      {/* BUY MODAL */}
+      {/* BUY MODAL = Unlock Overlay */}
       {showBuyModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[999]">
-          <div className="bg-white p-6 rounded-xl text-black">
-            <h2 className="text-xl font-semibold mb-4">Unlock Full Book</h2>
+          <div className="bg-white p-6 rounded-xl text-black max-w-sm w-full">
+            <h2 className="text-xl font-semibold mb-2 text-center">
+              Unlock Full Book
+            </h2>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              You have reached the end of the free preview (
+              {effectivePreviewPages} page
+              {effectivePreviewPages > 1 ? "s" : ""}). Purchase to continue
+              reading.
+            </p>
 
             <Button className="w-full mb-3" onClick={handlePurchase}>
               Buy Now
@@ -353,7 +394,7 @@ function handlePageChange(pg: number) {
               className="w-full"
               onClick={() => setShowBuyModal(false)}
             >
-              Cancel
+              Continue Preview
             </Button>
           </div>
         </div>

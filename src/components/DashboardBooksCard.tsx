@@ -143,34 +143,50 @@ useEffect(() => {
   /* ---------------------------------------------------
                  BUY NOW
   --------------------------------------------------- */
-  const handleBuyNow = () => {
-    if (!isLoggedIn()) return onNavigate("login");
+const handleBuyNow = () => {
+  if (!isLoggedIn()) return onNavigate("login");
 
-    localStorage.setItem("purchaseType", "book");
-    localStorage.setItem("purchaseId", String(book.id));
-    localStorage.setItem(
-      "purchaseItems",
-      JSON.stringify([{ id: book.id, type: "book" }])
-    );
+  localStorage.setItem("purchaseType", "book");
+  localStorage.setItem("purchaseId", String(book.id));
+  localStorage.setItem("purchaseItems", JSON.stringify([{ id: book.id, type: "book" }]));
+  localStorage.setItem("previousSection", "explore");
 
-    localStorage.setItem("previousSection", "explore");
+  onNavigate("purchase", book.id);
 
-    onNavigate("purchase", book.id);
-    window.history.pushState({}, "", `/purchase/${book.id}`);
-  };
+};
 
   /* ---------------------------------------------------
               READ / VIEW DETAILS
   --------------------------------------------------- */
-  const handleReadNow = () => {
-    if (!isLoggedIn()) return onNavigate("login");
-    onOpenBook(book);
-  };
+const handleReadNow = () => {
+  if (!isLoggedIn()) return onNavigate("login");
 
-  const handleViewDetails = () => {
-    if (!isLoggedIn()) return onNavigate("login");
-    onOpenBook(book);
-  };
+  if (book.purchased) {
+    return onOpenBook(book, { preview: false });
+  }
+
+  return onOpenBook(book, {
+    preview: true,
+    previewPages: 2,
+  });
+};
+
+const handleViewDetails = () => {
+  if (!isLoggedIn()) return onNavigate("login");
+
+  // Purchased => open normally
+  if (book.purchased) {
+    return onOpenBook(book, { preview: false });
+  }
+
+  // Not purchased => open preview with X pages free
+  return onOpenBook(book, {
+    preview: true,
+    previewPages: 2, // configure free pages
+  });
+};
+
+
 
   return (
     <>
