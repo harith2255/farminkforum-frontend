@@ -248,17 +248,6 @@ export default function RegisterPage({
         </div>
 
           <div>
-            <Label>Last Name</Label>
-            <Input
-              name="lastName"
-              type="text"
-              placeholder="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
             <Label>Email</Label>
             <Input
               name="email"
