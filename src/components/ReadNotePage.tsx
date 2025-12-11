@@ -4,11 +4,36 @@ import * as React from "react";
 
 export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
   const [note, setNote] = useState<any>(null);
-  const [drm, setDrm] = useState<any>(null);
+  const [isPurchased, setIsPurchased] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [drm, setDrm] = useState<any>(null);
 
   const token = localStorage.getItem("token");
 
+  /* ---------------------------------------------------
+     🟦 Step 1: Register device for DRM
+  --------------------------------------------------- */
+  const registerDevice = async () => {
+    const deviceId =
+      localStorage.getItem("device_id") || crypto.randomUUID();
+
+    localStorage.setItem("device_id", deviceId);
+
+    await fetch("https://ebook-backend-lxce.onrender.com/api/admin/drm/register-device", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ device_id: deviceId }),
+    });
+
+    return deviceId;
+  };
+
+  /* ---------------------------------------------------
+     🟦 Step 2: Load Note Details + DRM Check
+  --------------------------------------------------- */
   useEffect(() => {
     if (!noteId) return;
 
@@ -24,16 +49,37 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
         }
 
         const data = await res.json();
-
-        // API format: { note, isPurchased, preview_content }
         setNote(data.note || null);
-        setDrm(data.drm || null);
+        setIsPurchased(data.isPurchased || false);
 
-        // If not purchased, redirect
-        if (!data.note?.file_url) {
-          onNavigate("purchase", String(noteId));
+        // ❗ Require purchase
+        if (!data.isPurchased && data.note?.price > 0) {
+          setLoading(false);
+          return;
         }
 
+        // 🔐 DRM PROCESS
+        const deviceId = await registerDevice();
+
+        const drmRes = await fetch(
+          `https://ebook-backend-lxce.onrender.com/api/admin/drm/check-access?note_id=${noteId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "X-Device-Id": deviceId,
+            },
+          }
+        );
+
+        const drmData = await drmRes.json();
+
+        if (!drmData.can_read) {
+          alert("Access Denied: " + drmData.reason);
+          onNavigate("notes");
+          return;
+        }
+
+        setDrm(drmData);
       } catch (err) {
         console.error("Failed to load note:", err);
       } finally {
@@ -44,14 +90,18 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
     load();
   }, [noteId]);
 
-  // no token → go login
+  /* ---------------------------------------------------
+     AUTH REQUIRED
+  --------------------------------------------------- */
   if (!token) {
     onNavigate("login");
     return null;
   }
 
-  // loading UI
-  if (loading) {
+  /* ---------------------------------------------------
+     LOADING
+  --------------------------------------------------- */
+  if (loading || drm === null) {
     return (
       <div className="h-screen flex items-center justify-center text-gray-600">
         Loading note...
@@ -59,7 +109,9 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
     );
   }
 
-  // final fallback
+  /* ---------------------------------------------------
+     NOTE NOT FOUND
+  --------------------------------------------------- */
   if (!note) {
     return (
       <div className="h-screen flex items-center justify-center text-red-500">
@@ -71,6 +123,37 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
     );
   }
 
+  /* ---------------------------------------------------
+     MUST PURCHASE FIRST
+  --------------------------------------------------- */
+  if (!isPurchased && note.price > 0) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center text-gray-700 p-6 space-y-4">
+        <h2 className="text-xl font-semibold">Purchase Required</h2>
+        <p className="text-center text-sm max-w-sm">
+          You need to purchase this note to access the full content.
+        </p>
+
+        <button
+          className="px-6 py-2 bg-[#bf2026] text-white rounded-lg"
+          onClick={() => onNavigate("purchase", String(noteId))}
+        >
+          Buy Now
+        </button>
+
+        <button
+          className="text-sm underline text-gray-500"
+          onClick={() => onNavigate("notes")}
+        >
+          Back to Notes
+        </button>
+      </div>
+    );
+  }
+
+  /* ---------------------------------------------------
+     ALLOW READING WITH DRM RULES
+  --------------------------------------------------- */
   return (
     <NotesReader
       note={note}

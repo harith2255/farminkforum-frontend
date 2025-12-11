@@ -35,29 +35,26 @@ const amount =
 
   const type = item?.type || "purchase";
 
- const confirmPayment = async () => {
+const confirmPayment = async () => {
   try {
     setLoading(true);
 
-    // simulate payment process
     await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    // 🔥 Determine what user is buying
     let purchaseItems = [];
 
     if (product.id) {
       purchaseItems = [{ id: product.id, type: item.type || "book" }];
     }
 
-    // 🧠 fallback for cart
     if (item?.type === "cart") {
-      purchaseItems = item.items?.map((i: any) => ({
+      purchaseItems = item.items?.map((i) => ({
         id: i.id,
         type: i.type,
       })) ?? [];
     }
 
-    // 🚀 CALL BACKEND PURCHASE API
+    // 1️⃣ Process unified purchase (books/notes/subscription)
     await fetch("https://ebook-backend-lxce.onrender.com/api/purchase/unified", {
       method: "POST",
       headers: {
@@ -67,9 +64,30 @@ const amount =
       body: JSON.stringify({ items: purchaseItems }),
     });
 
+
+    // 2️⃣ If writing order was pending → create it NOW
+    const pendingWriting = localStorage.getItem("pendingWritingOrder");
+
+    if (pendingWriting) {
+      const writingPayload = JSON.parse(pendingWriting);
+
+      await fetch("https://ebook-backend-lxce.onrender.com/api/writing/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          ...writingPayload,
+          payment_success: true,
+        }),
+      });
+
+      localStorage.removeItem("pendingWritingOrder");
+    }
+
     setLoading(false);
 
-    // UI callback
     onSuccess(item);
 
   } catch (err) {
@@ -78,6 +96,7 @@ const amount =
     alert("Payment failed, please try again.");
   }
 };
+
 
 
   return (

@@ -53,7 +53,7 @@ export function CustomerManagement() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [page]);
+  }, [page, search, status, plan]);
 
   const applyFilters = () => {
     setPage(1);
@@ -87,7 +87,7 @@ export function CustomerManagement() {
       `https://ebook-backend-lxce.onrender.com/api/admin/customers/${id}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    fetchCustomers();
+    await fetchCustomers();
   };
 
   const sendNotification = async () => {
@@ -138,8 +138,8 @@ export function CustomerManagement() {
               onChange={(e) => setStatus(e.target.value)}
             >
               <option value="">All Accounts</option>
-              <option value="Active">Active</option>
-              <option value="Suspended">Suspended</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
             </select>
 
             <select
@@ -231,7 +231,7 @@ export function CustomerManagement() {
                       <TableCell>
                         <Badge
                           className={
-                            c.account_status === "Active"
+                            c.account_status === "active"
                               ? "bg-blue-100 text-blue-700"
                               : "bg-red-100 text-red-700"
                           }

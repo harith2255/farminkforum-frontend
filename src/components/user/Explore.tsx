@@ -33,50 +33,46 @@ function Explore({ onOpenBook, onNavigate }) {
       /* ---------------------------------------------------
             2️⃣ Fetch purchased + collection book IDs
       --------------------------------------------------- */
-     let purchasedIds = [];
-let collectionIds = [];
+      let purchasedIds = [];
+      let collectionIds = [];
 
-if (token) {
-  try {
-    const pres = await axios.get(
-      "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    purchasedIds = Array.isArray(pres.data) ? pres.data : pres.data?.bookIds || [];
-  } catch (err) {
-    console.log("⚠️ Could not fetch purchased IDs", err);
-  }
+      if (token) {
+        try {
+          const pres = await axios.get(
+            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          purchasedIds = Array.isArray(pres.data) ? pres.data : pres.data?.bookIds || [];
+        } catch (err) {
+          console.log("⚠️ Could not fetch purchased IDs", err);
+        }
 
-  try {
-    const cres = await axios.get(
-      "https://ebook-backend-lxce.onrender.com/api/library/collections/book-ids",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+        try {
+          const cres = await axios.get(
+            "https://ebook-backend-lxce.onrender.com/api/library/collections/book-ids",
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
 
-    collectionIds = Array.isArray(cres.data)
-      ? cres.data
-      : cres.data?.bookIds || [];
+          collectionIds = Array.isArray(cres.data)
+            ? cres.data
+            : cres.data?.bookIds || [];
 
-  } catch (err) {
-    console.log("⚠️ Could not fetch collection IDs", err);
-  }
-}
+        } catch (err) {
+          console.log("⚠️ Could not fetch collection IDs", err);
+        }
+      }
 
-/* ---------------------------------------------------
-      3️⃣ Merge flags into books
---------------------------------------------------- */
+      /* ---------------------------------------------------
+            3️⃣ Merge flags into books
+      --------------------------------------------------- */
+      const normPurchased = purchasedIds.map(String);
+      const normCollection = collectionIds.map(String);
 
-const normPurchased = purchasedIds.map(String);
-const normCollection = collectionIds.map(String);
-
-const merged = list.map((b) => ({
-  ...b,
-  purchased: normPurchased.includes(String(b.id)),
-  inCollection: normCollection.includes(String(b.id)),
-}));
-
-
-      console.log("📘 MERGED BOOKS = ", merged);
+      const merged = list.map((b) => ({
+        ...b,
+        purchased: normPurchased.includes(String(b.id)),
+        inCollection: normCollection.includes(String(b.id)),
+      }));
 
       setBooks(merged);
     } catch (err) {
@@ -102,10 +98,11 @@ const merged = list.map((b) => ({
 
     return () => window.removeEventListener("refresh-library", refresh);
   }, [fetchBooks]);
-useEffect(() => {
-  window.addEventListener("collections:changed", fetchBooks);
-  return () => window.removeEventListener("collections:changed", fetchBooks);
-}, []);
+
+  useEffect(() => {
+    window.addEventListener("collections:changed", fetchBooks);
+    return () => window.removeEventListener("collections:changed", fetchBooks);
+  }, []);
 
   /* ---------------------------------------------------
         OPTIONAL GLOBAL REFRESH
@@ -134,10 +131,18 @@ useEffect(() => {
         RENDER
   --------------------------------------------------- */
   return (
-    <div className="space-y-6">
-      <h2 className="text-[#1d4d6a] mb-1">Explore Books</h2>
-      <p className="text-sm text-gray-500">Discover amazing books</p>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
+      {/* Header */}
+      <div>
+        <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">
+          Explore Books
+        </h2>
+        <p className="text-sm text-gray-500">
+          Discover amazing books
+        </p>
+      </div>
 
+      {/* Category Filter */}
       <CategoryFilter
         categories={categories}
         selectedCategory={selectedCategory}
@@ -146,11 +151,22 @@ useEffect(() => {
         layout="user"
       />
 
+      {/* Loading State */}
       {loading ? (
-        <p className="text-center text-gray-500">Loading books...</p>
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
+            <p className="text-gray-500 mt-2">Loading books...</p>
+          </div>
+        </div>
+      ) : filteredBooks.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500">
+            No books found in this category.
+          </p>
+        </div>
       ) : (
         <DashboardBooksGrid
-        
           books={filteredBooks}
           onOpenBook={onOpenBook}
           onNavigate={onNavigate}

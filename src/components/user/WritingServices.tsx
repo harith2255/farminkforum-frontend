@@ -37,6 +37,13 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  ChevronRight,
+  X,
+  Download,
+  Star,
+  Copy,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as React from "react";
@@ -46,7 +53,7 @@ interface Order {
   id: string;
   title: string;
   type: string;
-  academic_level?: string;  // <-- Add this
+  academic_level?: string;
   status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
   progress?: number;
   deadline?: string;
@@ -58,8 +65,13 @@ interface Order {
   additional_notes?: string;
   total_price?: number;
   created_at?: string;
+  final_text?: string;
+  notes_url?: string;
+  attachments_url?: string;
+  pages?: number;
+  subject_area?: string;
+  instructions?: string;
 }
-
 
 interface Service {
   id: string;
@@ -82,7 +94,7 @@ interface FormData {
 }
 
 interface WritingServicesProps {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, id?: string) => void;
 }
 
 // --- CONSTANTS ---
@@ -158,14 +170,34 @@ const getStatusBadgeVariant = (status: string) => {
   }
 };
 
+// --- RENDER LOADING SPINNER ---
+const renderSpinner = (text: string = "Loading...") => (
+  <div className="flex justify-center items-center py-12">
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-3"></div>
+      <p className="text-gray-500">{text}</p>
+    </div>
+  </div>
+);
+
 // --- MAIN COMPONENT ---
 export function WritingServices({ onNavigate }: WritingServicesProps) {
   // State Management
   const [services, setServices] = useState<Service[]>([]);
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState({
+    initial: true,
+    services: false,
+    activeOrders: false,
+    completedOrders: false,
+    submitting: false,
+    editing: false,
+    sendingMessage: false,
+    uploading: false,
+    cancelling: false,
+    rating: false,
+  });
 
   // Form State
   const [step, setStep] = useState(1);
@@ -194,14 +226,16 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
   // API Headers
   const getJsonHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");    return {
+    const token = localStorage.getItem("token");
+    return {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
   }, []);
 
   const getAuthHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");    return {
+    const token = localStorage.getItem("token");
+    return {
       Authorization: `Bearer ${token}`,
     };
   }, []);
@@ -211,11 +245,31 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  // Clear Form Function - MOVED HERE
+  const clearForm = useCallback(() => {
+    setFormData({
+      type: "",
+      academic_level: "",
+      title: "",
+      subject_area: "",
+      pages: "",
+      deadline: "",
+      instructions: "",
+    });
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setStep(1);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    toast.success("Form cleared");
+  }, []);
+
   // Validation
   const validateStep = useCallback((stepNumber: number): boolean => {
     switch (stepNumber) {
       case 1:
-        return !!(formData.type && formData.academic_level && formData.title && formData.pages);
+      return !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.pages && formData.deadline);      
       case 2:
         return !!(formData.instructions.trim());
       case 3:
@@ -288,17 +342,21 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
   const fetchServices = useCallback(async () => {
     try {
+      setLoading(prev => ({ ...prev, services: true }));
       const res = await fetch(`${API_BASE_URL}/services`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setServices(Array.isArray(data) ? data : []);
     } catch (err) {
       handleApiError(err, "Failed to load services");
+    } finally {
+      setLoading(prev => ({ ...prev, services: false }));
     }
   }, [handleApiError]);
 
   const fetchActiveOrders = useCallback(async () => {
     try {
+      setLoading(prev => ({ ...prev, activeOrders: true }));
       const res = await fetch(`${API_BASE_URL}/orders/active`, {
         method: "GET",
         headers: getJsonHeaders(),
@@ -309,11 +367,14 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       setActiveOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       handleApiError(err, "Failed to load active orders");
+    } finally {
+      setLoading(prev => ({ ...prev, activeOrders: false }));
     }
   }, [getJsonHeaders, handleApiError]);
 
   const fetchCompletedOrders = useCallback(async () => {
     try {
+      setLoading(prev => ({ ...prev, completedOrders: true }));
       const res = await fetch(`${API_BASE_URL}/orders/completed`, {
         method: "GET",
         headers: getJsonHeaders(),
@@ -324,70 +385,40 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       setCompletedOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       handleApiError(err, "Failed to load completed orders");
+    } finally {
+      setLoading(prev => ({ ...prev, completedOrders: false }));
     }
   }, [getJsonHeaders, handleApiError]);
 
-  const uploadFile = useCallback(async (file: File): Promise<string | null> => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const xhr = new XMLHttpRequest();
-
-      return new Promise((resolve, reject) => {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const progress = (e.loaded / e.total) * 100;
-            setUploadProgress(progress);
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            resolve(response.url || response.data?.url || null);
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status}`));
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Upload failed'));
-        });
-
-        xhr.open('POST', `${API_BASE_URL}/upload`);
-        const token = localStorage.getItem("token");        if (token) {
-          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        }
-        xhr.send(formData);
-      });
-    } catch (err) {
-      handleApiError(err, "File upload failed");
-      return null;
-    }
-  }, [handleApiError]);
-
+  // Adopt friend's payment flow
   const handleSubmitOrder = useCallback(async () => {
     if (!validateStep(1)) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    setSubmitting(true);
+    setLoading(prev => ({ ...prev, submitting: true }));
 
     try {
-      // Upload file if selected
       let attachments_url = null;
+
+      // Upload file if exists
       if (selectedFile) {
-        attachments_url = await uploadFile(selectedFile);
-        if (!attachments_url) {
-          setSubmitting(false);
-          return;
-        }
+        const fm = new FormData();
+        fm.append("file", selectedFile);
+
+        const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: fm,
+        });
+
+        const uploadData = await uploadRes.json();
+        attachments_url = uploadData.url || null;
       }
 
       // Prepare order payload
-      const payload = {
+      const orderPayload = {
         ...formData,
         pages: parseInt(formData.pages),
         deadline: formData.deadline || null,
@@ -395,64 +426,315 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
         attachments_url,
       };
 
-      const res = await fetch(`${API_BASE_URL}/order`, {
-        method: "POST",
-        headers: getJsonHeaders(),
-        body: JSON.stringify(payload),
-      });
+      // Save temporary order in localStorage (Friend's approach)
+      const tempId = "temp_" + Date.now();
+      localStorage.setItem("pendingWritingOrder", JSON.stringify(orderPayload));
+      localStorage.setItem("purchaseType", "writing");
+      localStorage.setItem("purchaseId", tempId);
 
-      const data = await res.json();
+      // Clear form
+      clearForm();
 
-      if (!res.ok || data.error) {
-        toast.error(data.error || "Failed to place order");
-        return;
+      // Navigate to payment page (Friend's approach)
+      if (typeof onNavigate === "function") {
+        onNavigate("purchase", tempId);
       }
 
-      toast.success("Order placed successfully!");
+      toast.success("Order prepared for payment!");
 
-      // Reset form
-      setFormData({
-        type: "",
-        academic_level: "",
-        title: "",
-        subject_area: "",
-        pages: "",
-        deadline: "",
-        instructions: "",
-      });
-      setSelectedFile(null);
-      setUploadProgress(0);
-      setStep(1);
-
-      // Refresh orders
-      await fetchActiveOrders();
-
-      // Redirect to purchase page
-      if (data.order && data.order.id) {
-window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); onNavigate("purchase");
-        if (typeof onNavigate === "function") onNavigate("purchase");
-      }
     } catch (err) {
-      handleApiError(err, "Failed to place the order");
+      handleApiError(err, "Failed to prepare order for payment");
     } finally {
-      setSubmitting(false);
+      setLoading(prev => ({ ...prev, submitting: false }));
     }
   }, [
     formData,
     selectedFile,
     calculatePrice,
-    getJsonHeaders,
-    fetchActiveOrders,
+    getAuthHeaders,
     onNavigate,
     handleApiError,
-    uploadFile,
-    validateStep
+    validateStep,
+    clearForm, // Now properly defined
   ]);
+
+  // Existing functions
+  const handleCancelOrder = useCallback(async (order: Order) => {
+    if (!confirm("Are you sure you want to cancel this order?")) {
+      return;
+    }
+
+    try {
+      setLoading(prev => ({ ...prev, cancelling: true }));
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/cancel`, {
+        method: "PUT",
+        headers: getJsonHeaders(),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to cancel order");
+        return;
+      }
+
+      toast.success("Order cancelled successfully");
+      fetchActiveOrders();
+    } catch (err) {
+      handleApiError(err, "Failed to cancel order");
+    } finally {
+      setLoading(prev => ({ ...prev, cancelling: false }));
+    }
+  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+
+  const handleDownloadDeliverable = useCallback(async (order: Order) => {
+    try {
+      if (order.final_text) {
+        const blob = new Blob([order.final_text], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${order.title.replace(/[^a-z0-9]/gi, "_")}_final.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Document downloaded");
+        return;
+      }
+
+      if (order.notes_url) {
+        window.open(order.notes_url, "_blank");
+        return;
+      }
+
+      toast.error("No deliverable available for this order");
+    } catch (err) {
+      handleApiError(err, "Failed to download deliverable");
+    }
+  }, [handleApiError]);
+
+  const handleRateOrder = useCallback(async (order: Order, rating: number) => {
+    try {
+      setLoading(prev => ({ ...prev, rating: true }));
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/rate`, {
+        method: "PUT",
+        headers: getJsonHeaders(),
+        body: JSON.stringify({ rating }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to submit rating");
+        return;
+      }
+
+      toast.success("Rating submitted successfully");
+      fetchCompletedOrders();
+    } catch (err) {
+      handleApiError(err, "Failed to submit rating");
+    } finally {
+      setLoading(prev => ({ ...prev, rating: false }));
+    }
+  }, [getJsonHeaders, fetchCompletedOrders, handleApiError]);
+
+  const handleUploadAdditionalFiles = useCallback(async (order: Order, files: FileList) => {
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append("files", file);
+      });
+
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/upload`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to upload files");
+        return;
+      }
+
+      toast.success("Files uploaded successfully");
+      fetchActiveOrders();
+    } catch (err) {
+      handleApiError(err, "Failed to upload additional files");
+    }
+  }, [getAuthHeaders, fetchActiveOrders, handleApiError]);
+
+  const handleRequestRevision = useCallback(async (order: Order, revisionNotes: string) => {
+    if (!revisionNotes.trim()) {
+      toast.error("Please provide revision notes");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/request-revision`, {
+        method: "POST",
+        headers: getJsonHeaders(),
+        body: JSON.stringify({
+          revision_notes: revisionNotes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to request revision");
+        return;
+      }
+
+      toast.success("Revision requested successfully");
+      fetchActiveOrders();
+    } catch (err) {
+      handleApiError(err, "Failed to request revision");
+    }
+  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+
+  const handleExtendDeadline = useCallback(async (order: Order, newDeadline: string, reason: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/extend-deadline`, {
+        method: "PUT",
+        headers: getJsonHeaders(),
+        body: JSON.stringify({
+          new_deadline: newDeadline,
+          reason: reason,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to extend deadline");
+        return;
+      }
+
+      toast.success("Deadline extension requested");
+      fetchActiveOrders();
+    } catch (err) {
+      handleApiError(err, "Failed to extend deadline");
+    }
+  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+
+  const handleViewOrderDetails = useCallback((order: Order) => {
+    toast.info(
+      `Order Details:
+      Title: ${order.title}
+      Type: ${order.type}
+      Status: ${order.status}
+      Deadline: ${formatDate(order.deadline || "")}
+      Writer: ${order.writer_name || "Not assigned yet"}
+      Progress: ${order.progress || 0}%`,
+      {
+        duration: 5000,
+      }
+    );
+  }, []);
+
+  const handleDuplicateOrder = useCallback(async (order: Order) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${order.id}/duplicate`, {
+        method: "POST",
+        headers: getJsonHeaders(),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to duplicate order");
+        return;
+      }
+
+      toast.success("Order duplicated successfully");
+      
+      if (data.new_order_id) {
+        fetchActiveOrders();
+      }
+    } catch (err) {
+      handleApiError(err, "Failed to duplicate order");
+    }
+  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+
+  const validateStep1 = useCallback((data: FormData): string | null => {
+    if (!data.type) return "Service type is required";
+    if (!data.academic_level) return "Academic level is required";
+    if (!data.title.trim()) return "Title is required";
+    if (!data.subject_area) return "Subject area is required";
+    if (!data.pages || parseInt(data.pages) < 1) return "Valid page count is required";
+    if (!data.deadline) return "Deadline is required";
+    //if (!data.instructions.trim()) return "Instructions are required";
+    
+    const today = new Date();
+    const deadline = new Date(data.deadline);
+    today.setHours(0, 0, 0, 0);
+    if (deadline < today) return "Deadline must be today or in the future";
+    
+    return null;
+  }, []);
+
+  const validateFormData = useCallback((data: FormData): string | null => {
+  const step1Error = validateStep1(data);
+  if (step1Error) return step1Error;
+  
+  if (!data.instructions.trim()) return "Instructions are required";
+  
+  return null;
+}, [validateStep1]);
+
+  const exportOrderData = useCallback((order: Order) => {
+    const exportData = {
+      title: order.title,
+      type: order.type,
+      academic_level: order.academic_level,
+      subject_area: order.subject_area,
+      pages: order.pages,
+      deadline: order.deadline,
+      status: order.status,
+      writer: order.writer_name,
+      progress: order.progress,
+      created_at: order.created_at,
+      completed_at: order.completed_date,
+      grade: order.grade,
+      rating: order.rating,
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `order_${order.id}_${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success("Order data exported");
+  }, []);
+
+  const calculateEstimatedCompletion = useCallback((order: Order): string => {
+    if (!order.deadline) return "Not available";
+    
+    const deadline = new Date(order.deadline);
+    const today = new Date();
+    const diffTime = deadline.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return "Overdue";
+    if (diffDays === 0) return "Due today";
+    if (diffDays === 1) return "Due tomorrow";
+    return `Due in ${diffDays} days`;
+  }, []);
 
   const handleSaveEdit = useCallback(async () => {
     if (!selectedOrder) return;
 
     try {
+      setLoading(prev => ({ ...prev, editing: true }));
       const res = await fetch(`${API_BASE_URL}/orders/${selectedOrder.id}`, {
         method: "PUT",
         headers: getJsonHeaders(),
@@ -474,6 +756,8 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
       fetchActiveOrders();
     } catch (err) {
       handleApiError(err, "Failed to save changes");
+    } finally {
+      setLoading(prev => ({ ...prev, editing: false }));
     }
   }, [selectedOrder, updatedDeadline, additionalNotes, getJsonHeaders, fetchActiveOrders, handleApiError]);
 
@@ -484,6 +768,7 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
     }
 
     try {
+      setLoading(prev => ({ ...prev, sendingMessage: true }));
       const res = await fetch(`${API_BASE_URL}/feedback`, {
         method: "POST",
         headers: getJsonHeaders(),
@@ -506,10 +791,11 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
       setFeedback("");
     } catch (err) {
       handleApiError(err, "Failed to send message");
+    } finally {
+      setLoading(prev => ({ ...prev, sendingMessage: false }));
     }
   }, [selectedOrder, feedback, getJsonHeaders, handleApiError]);
 
-  // Dialog Handlers
   const handleEditOrder = useCallback((order: Order) => {
     setSelectedOrder(order);
     setUpdatedDeadline(order.deadline || "");
@@ -523,10 +809,17 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
     setIsFeedbackDialogOpen(true);
   }, []);
 
-  // Effects
+  const handleRemoveFile = useCallback(() => {
+    setSelectedFile(null);
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    toast.info("File removed");
+  }, []);
+
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
       try {
         await Promise.all([
           fetchServices(),
@@ -536,32 +829,25 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
       } catch (err) {
         handleApiError(err, "Failed to load data");
       } finally {
-        setLoading(false);
+        setLoading(prev => ({ ...prev, initial: false }));
       }
     };
 
     loadData();
   }, [fetchServices, fetchActiveOrders, fetchCompletedOrders, handleApiError]);
 
-  // Memoized Values
   const calculatedPrice = useMemo(() => calculatePrice(), [calculatePrice]);
   const isStepValid = useMemo(() => validateStep(step), [step, validateStep]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#bf2026]" />
-          <p className="mt-2 text-gray-600">Loading writing services...</p>
-        </div>
-      </div>
-    );
+  if (loading.initial) {
+    return renderSpinner("Loading writing services...");
   }
-  // UI STARTS (UNCHANGED layout-wise)
+
+  // UI remains the same (unchanged)
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[#1d4d6a] mb-1">Writing Services</h2>
+        <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Writing Services</h2>
         <p className="text-sm text-gray-500">
           Professional academic writing assistance from expert writers
         </p>
@@ -572,9 +858,16 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
           <TabsTrigger value="new-order">New Order</TabsTrigger>
           <TabsTrigger value="active">
             Active Orders ({activeOrders.length})
+            {loading.activeOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
           </TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="completed">
+            Completed
+            {loading.completedOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
+          </TabsTrigger>
+          <TabsTrigger value="services">
+            Services
+            {loading.services && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
+          </TabsTrigger>
         </TabsList>
 
         {/* ----------------------- NEW ORDER ----------------------- */}
@@ -583,8 +876,7 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
             <CardHeader>
               <CardTitle className="text-[#1d4d6a]">Place a New Order</CardTitle>
               <CardDescription>
-                Tell us about your writing needs and we'll match you with an
-                expert
+                Tell us about your writing needs and we'll match you with an expert
               </CardDescription>
             </CardHeader>
 
@@ -613,16 +905,13 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                 {/* ----------------------- STEP 1 ----------------------- */}
                 {step === 1 && (
                   <div className="space-y-4">
-
-                    {/* Service Type + Academic Level */}
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Service Type */}
                       <div>
                         <Label>Type of Service<span className="text-red-500">*</span></Label>
                         <Select
                           value={formData.type}
                           onValueChange={(value) => updateForm("type", value)}
-                          required 
+                          required
                         >
                           <SelectTrigger className="mt-1">
                             <SelectValue placeholder="Select Service Type" />
@@ -637,13 +926,12 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                         </Select>
                       </div>
 
-                      {/* Academic Level */}
                       <div>
                         <Label>Academic Level<span className="text-red-500">*</span></Label>
                         <Select
                           value={formData.academic_level}
                           onValueChange={(value) => updateForm("academic_level", value)}
-                          required 
+                          required
                         >
                           <SelectTrigger className="mt-1">
                             <SelectValue placeholder="Select Academic Level" />
@@ -659,7 +947,6 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                       </div>
                     </div>
 
-                    {/* Title */}
                     <div>
                       <Label>Title<span className="text-red-500">*</span></Label>
                       <Input
@@ -667,13 +954,11 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                         placeholder="Enter Title"
                         value={formData.title}
                         onChange={(e) => updateForm("title", e.target.value)}
-                        required 
+                        required
                       />
                     </div>
 
-                    {/* Subject Area + Pages */}
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Subject Area */}
                       <div>
                         <Label>Subject Area<span className="text-red-500">*</span></Label>
                         <Select
@@ -694,7 +979,6 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                         </Select>
                       </div>
 
-                      {/* Pages */}
                       <div>
                         <Label>Pages Required<span className="text-red-500">*</span></Label>
                         <Input
@@ -709,7 +993,6 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                       </div>
                     </div>
 
-                    {/* Deadline */}
                     <div>
                       <Label>Deadline<span className="text-red-500">*</span></Label>
                       <div className="flex items-center gap-2">
@@ -723,34 +1006,36 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                         <Calendar className="text-gray-500" size={18} />
                       </div>
                     </div>
-                                        <Button
-      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
-      onClick={() => {
-        if (
-          !formData.type ||
-          !formData.academic_level ||
-          !formData.title ||
-          !formData.subject_area ||
-          !formData.pages ||
-          !formData.deadline
-        ) {
-          alert("Please fill all fields before continuing.");
-          return;
-        }
-        setStep(2);
-      }}
-    >
-      Continue to Details
-    </Button>
 
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={clearForm}
+                      >
+                        Clear Form
+                      </Button>
+                      <Button
+                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
+                        onClick={() => {
+                          const validationError = validateStep1(formData);
+                          if (validationError) {
+                            toast.error(validationError);
+                            return;
+                          }
+                          setStep(2);
+                        }}
+                      >
+                        Continue to Details
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
-
 
                 {/* ----------------------- STEP 2 ----------------------- */}
                 {step === 2 && (
                   <div className="space-y-4">
-                    {/* Instructions */}
                     <div>
                       <Label>Detailed Instructions<span className="text-red-500">*</span></Label>
                       <Textarea
@@ -761,53 +1046,96 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                       />
                     </div>
 
-
-
-                    {/* Optional Upload */}
                     <div>
                       <Label>Additional Materials (Optional)</Label>
 
-                      {/* dashed box (clickable) - triggers hidden input */}
                       <div
-                        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#bf2026] transition-colors cursor-pointer"
-                        onClick={handleUploadBoxClick}
+                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${loading.uploading
+                            ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-[#bf2026]'
+                          }`}
+                        onClick={!loading.uploading ? handleUploadBoxClick : undefined}
                       >
-                        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-600">
-                          Click to upload or drag and drop
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          PDF, DOC, DOCX up to 10MB
-                        </p>
+                        {loading.uploading ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-2"></div>
+                            <p className="text-sm text-gray-600">
+                              Uploading... {uploadProgress.toFixed(0)}%
+                            </p>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                              <div
+                                className="bg-[#bf2026] h-1.5 rounded-full transition-all"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-600">
+                              Click to upload or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              PDF, DOC, DOCX up to 10MB
+                            </p>
 
-                        {/* show filename small, no layout change */}
-                        {selectedFile && (
-                          <p className="text-xs text-gray-600 mt-2">
-                            Selected: {selectedFile.name}
-                          </p>
+                            {selectedFile && (
+                              <div className="mt-4 flex items-center justify-center gap-2">
+                                <FileText className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{selectedFile.name}</span>
+                                <span className="text-xs text-gray-500">
+                                  ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveFile();
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-red-50"
+                                >
+                                  <X className="w-3 h-3 text-red-500" />
+                                </Button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
 
-                      {/* Hidden file input */}
                       <input
                         ref={fileInputRef}
                         type="file"
                         accept=".pdf,.doc,.docx"
                         className="hidden"
                         onChange={handleFileChange}
+                        disabled={loading.uploading}
                       />
                     </div>
 
                     <div className="flex gap-3">
-                      <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setStep(1)}
+                        disabled={loading.uploading}
+                      >
                         Back
                       </Button>
                       <Button
-                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                        onClick={() => setStep(3)}
-                        disabled={!isStepValid}
+                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
+                          onClick={() => {
+    if (!formData.instructions.trim()) {
+      toast.error("Instructions are required");
+      return;
+    }
+    setStep(3);
+  }}
+                        disabled={!isStepValid || loading.uploading}
                       >
                         Continue to Review
+                        <ChevronRight className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -816,7 +1144,6 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                 {/* ----------------------- STEP 3 ----------------------- */}
                 {step === 3 && (
                   <div className="space-y-4">
-                    {/* SUMMARY BOX */}
                     <div className="bg-gray-50 rounded-lg p-6 space-y-3">
                       <h4 className="text-[#1d4d6a]">Order Summary</h4>
 
@@ -836,7 +1163,16 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                         </div>
                         <div>
                           <p className="text-gray-500">Deadline</p>
-                          <p className="text-gray-900">{formData.deadline}</p>
+                          <p className="text-gray-900">{formatDate(formData.deadline)}</p>
+                          <p className="text-xs text-gray-500">
+                            {calculateEstimatedCompletion({
+                              deadline: formData.deadline,
+                              id: '',
+                              title: '',
+                              type: '',
+                              status: 'Pending'
+                            })}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -844,7 +1180,7 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                     <div className="bg-[#bf2026] bg-opacity-10 border border-[#bf2026] rounded-lg p-6">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-700">Subtotal</span>
-                        <span className="text-gray-900">₹{formData.pages * 10}</span>
+                        <span className="text-gray-900">₹{calculatedPrice - 20}</span>
                       </div>
 
                       <div className="flex justify-between items-center mb-2">
@@ -853,21 +1189,34 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                       </div>
 
                       <div className="border-t border-[#bf2026] my-3 pt-3 flex justify-between items-center">
-                        <span className="text-[#1d4d6a]">Total</span>
-                        <span className="text-[#1d4d6a]">₹{formData.pages * 10 + 20}</span>
+                        <span className="text-[#1d4d6a] font-semibold">Total</span>
+                        <span className="text-[#1d4d6a] font-bold text-lg">₹{calculatedPrice}</span>
                       </div>
                     </div>
 
                     <div className="flex gap-3">
-                      <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setStep(2)}
+                        disabled={loading.submitting}
+                      >
                         Back
                       </Button>
 
                       <Button
-                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white"
+                        className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
                         onClick={handleSubmitOrder}
+                        disabled={loading.submitting}
                       >
-                        Submit Order & Pay
+                        {loading.submitting ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Order & Pay"
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -879,209 +1228,279 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
 
         {/* ----------------------- ACTIVE ORDERS ----------------------- */}
         <TabsContent value="active" className="mt-6">
-          <div className="space-y-4">
-            {activeOrders.map((order) => (
-              <Card key={order.id} className="border-none shadow-md">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-[#1d4d6a] mb-1">{order.title}</h3>
-                      <p className="text-sm text-gray-500">{order.type}</p>
+          {loading.activeOrders ? (
+            renderSpinner("Loading active orders...")
+          ) : activeOrders.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No active orders. Start a new writing project!
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activeOrders.map((order) => (
+                <Card key={order.id} className="border-none shadow-md">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold">{order.title}</h3>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewOrderDetails(order)}
+                              className="h-8 w-8 p-0"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDuplicateOrder(order)}
+                              className="h-8 w-8 p-0"
+                              title="Duplicate Order"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={getStatusBadgeVariant(order.status)}>
+                            {order.status}
+                          </Badge>
+                          <span className="text-sm text-gray-500">{order.type}</span>
+                          {order.academic_level && (
+                            <span className="text-sm text-gray-500">• {order.academic_level}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    <Badge
-                      className={
-                        order.status === "In Progress"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }
-                    >
-                      {order.status}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* PROGRESS BAR */}
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Progress</span>
-                      <span>{order.progress || 0}%</span>
-                    </div>
-
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-[#bf2026] h-2 rounded-full transition-all"
-                        style={{ width: `${order.progress || 0}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-4 h-4" />
-                          {order.writer_name || "Assigned Writer"}
-                        </span>
-
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          Due: {new Date(order.deadline).toLocaleDateString()}
-                        </span>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Progress</span>
+                        <span>{order.progress || 0}%</span>
                       </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleProvideFeedback(order)}
-                        >
-                          <MessageSquare className="w-4 h-4 mr-1" />
-                          Message
-                        </Button>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-[#bf2026] h-2 rounded-full transition-all"
+                          style={{ width: `${order.progress || 0}%` }}
+                        />
+                      </div>
 
-                        {/* only allow editing when Pending (keeps parity with backend) */}
-                        {order.status === "Pending" && (
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            {order.writer_name || "Assigned Writer"}
+                          </span>
+
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>Due: {formatDate(order.deadline || "")}</span>
+                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded">
+                              {calculateEstimatedCompletion(order)}
+                            </span>
+                          </span>
+                        </div>
+
+                        <div className="flex gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEditOrder(order)}
+                            onClick={() => handleProvideFeedback(order)}
+                            disabled={loading.sendingMessage}
+                            className="flex items-center gap-1"
                           >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
+                            <MessageSquare className="w-4 h-4" />
+                            Message
                           </Button>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* show uploaded attachment if any */}
-                    {order.attachments_url && (
-                      <div className="text-sm mt-2">
-                        <a
-                          href={order.attachments_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 underline"
-                        >
-                          View your uploaded attachment
-                        </a>
+                          {order.status === "Pending" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditOrder(order)}
+                                disabled={loading.editing}
+                                className="flex items-center gap-1"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCancelOrder(order)}
+                                disabled={loading.cancelling}
+                                className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Cancel
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                      {order.attachments_url && (
+                        <div className="text-sm mt-2 flex items-center gap-2">
+                          <span className="text-gray-600">Attachments:</span>
+                          <a
+                            href={order.attachments_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 underline hover:text-blue-700"
+                          >
+                            View uploaded files
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* ----------------------- COMPLETED ORDERS ----------------------- */}
         <TabsContent value="completed" className="mt-6">
-          <div className="space-y-4">
-            {completedOrders.map((order) => (
-              <Card key={order.id} className="border-none shadow-md">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-[#1d4d6a] mb-1">{order.title}</h3>
-                          <p className="text-sm text-gray-500">
-                            {order.type} • Completed{" "}
-                            {new Date(order.completed_at).toLocaleDateString()}
-                          </p>
-                        </div>
+          {loading.completedOrders ? (
+            renderSpinner("Loading completed orders...")
+          ) : completedOrders.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No completed orders yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {completedOrders.map((order) => (
+                <Card key={order.id} className="border-none shadow-md">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold mb-1">{order.title}</h3>
+                            <p className="text-sm text-gray-500">
+                              {order.type} • Completed {formatDate(order.completed_date || "")}
+                            </p>
+                          </div>
 
-                        <Badge className="bg-green-100 text-green-700">Completed</Badge>
-                      </div>
-
-                      <div className="flex items-center gap-6 text-sm">
-                        <div className="bg-gray-50 rounded-lg px-4 py-2">
-                          <p className="text-xs text-gray-500 mb-1">Grade Received</p>
-                          <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-lg px-4 py-2">
-                          <p className="text-xs text-gray-500 mb-1">Your Rating</p>
-                          <p className="text-yellow-500">
-                            {"⭐".repeat(order.rating || 0)}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          {/* Show final written text */}
-                          {order.final_text && (
+                          <div className="flex gap-2">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                const blob = new Blob([order.final_text], {
-                                  type: "text/plain",
-                                });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `${order.title}-final.txt`;
-                                a.click();
-                              }}
+                              onClick={() => exportOrderData(order)}
+                              className="h-8 w-8 p-0"
+                              title="Export Data"
                             >
-                              View Text
+                              <Download className="w-4 h-4" />
                             </Button>
-                          )}
+                            <Badge className="bg-green-100 text-green-700">Completed</Badge>
+                          </div>
+                        </div>
 
-                          {/* Show file download button */}
-                          {order.notes_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(order.notes_url, "_blank")}
-                            >
-                              Download File
-                            </Button>
-                          )}
+                        <div className="flex items-center gap-6 text-sm">
+                          <div className="bg-gray-50 rounded-lg px-4 py-2">
+                            <p className="text-xs text-gray-500 mb-1">Grade Received</p>
+                            <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
+                          </div>
 
-                          {/* If both missing */}
-                          {!order.final_text && !order.notes_url && (
-                            <p className="text-xs text-gray-500">No delivered content yet</p>
-                          )}
+                          <div className="bg-gray-50 rounded-lg px-4 py-2">
+                            <p className="text-xs text-gray-500 mb-1">Your Rating</p>
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Button
+                                  key={star}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-4 w-4 p-0"
+                                  onClick={() => handleRateOrder(order, star)}
+                                  disabled={loading.rating}
+                                >
+                                  <Star
+                                    className={`w-3 h-3 ${star <= (order.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                                  />
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            {(order.final_text || order.notes_url) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadDeliverable(order)}
+                                className="flex items-center gap-1"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </Button>
+                            )}
+
+                            {!order.final_text && !order.notes_url && (
+                              <p className="text-xs text-gray-500">No delivered content yet</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* ----------------------- SERVICES ----------------------- */}
         <TabsContent value="services" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {services.map((service) => (
-              <Card
-                key={service.id}
-                className="border-none shadow-md hover:shadow-lg transition-all"
-              >
-                <CardHeader>
-                  <CardTitle className="text-[#1d4d6a]">{service.name}</CardTitle>
-                  <CardDescription>{service.description}</CardDescription>
-                </CardHeader>
+          {loading.services ? (
+            renderSpinner("Loading services...")
+          ) : services.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No services available at the moment.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {services.map((service) => (
+                <Card
+                  key={service.id}
+                  className="border-none shadow-md hover:shadow-lg transition-all"
+                >
+                  <CardHeader>
+                    <CardTitle className="text-[#1d4d6a]">{service.name}</CardTitle>
+                    <CardDescription>{service.description}</CardDescription>
+                  </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>{service.turnaround}</span>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{service.turnaround || "Flexible deadline"}</span>
+                      </div>
+
+                      <div className="text-[#bf2026] font-semibold">
+                        {service.price ? `₹${service.price}` : "Starting ₹49"}
+                      </div>
                     </div>
 
-                    <div className="text-[#bf2026]">
-                      {service.price ? `₹${service.price}` : "Starting ₹49"}
-                    </div>
-                  </div>
-
-                  <Button className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white">
-                    Order Now
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <Button 
+                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
+                      onClick={() => {
+                        updateForm("type", service.name);
+                        onNavigate?.("new-order");
+                      }}
+                    >
+                      Order Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -1114,8 +1533,8 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
                   <Textarea
                     placeholder="Add any additional instructions or changes..."
                     rows={4}
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
+                    value={additionalNotes}
+                    onChange={(e) => setAdditionalNotes(e.target.value)}
                   />
                 </div>
               </>
@@ -1128,10 +1547,18 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
             </Button>
 
             <Button
-              className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
+              className="bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
               onClick={handleSaveEdit}
+              disabled={loading.editing}
             >
-              Save Changes
+              {loading.editing ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1176,14 +1603,22 @@ window.history.pushState({}, "", `/user-dashboard/purchase/${data.order.id}`); o
             </Button>
 
             <Button
-              className="bg-[#bf2026] hover:bg-[#a01c22] text-white"
+              className="bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
               onClick={handleSubmitFeedback}
+              disabled={loading.sendingMessage}
             >
-              Send Message
+              {loading.sendingMessage ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Sending...
+                </>
+              ) : (
+                "Send Message"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 }

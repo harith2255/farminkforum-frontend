@@ -20,32 +20,30 @@ import {
   Trash2,
   Shield,
   Lock,
+  ChevronLeft,
+  Loader2,
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 
-/**
- * PaymentsSubscriptions
- * - Fully wired to backend
- * - No UI changes from your original
- *
- * Backend expectations:
- * - GET  ${API_BASE}/api/subscriptions/plans
- * - GET  ${API_BASE}/api/subscriptions/active
- * - POST ${API_BASE}/api/subscriptions/upgrade  { planId }
- * - POST ${API_BASE}/api/subscriptions/cancel
- * - GET  ${API_BASE}/api/payments/transactions
- * - GET  ${API_BASE}/api/payments/methods
- * - POST ${API_BASE}/api/payments/methods
- * - POST ${API_BASE}/api/payments/methods/:id/default
- * - DELETE ${API_BASE}/api/payments/methods/:id
- */
-
-const API_BASE = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com/api";
 
 export function PaymentsSubscriptions({ onNavigate }: any) {
   // UI / modal state
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({
+    initial: true,
+    plans: false,
+    activePlan: false,
+    transactions: false,
+    methods: false,
+    upgrading: false,
+    cancelling: false,
+    addingMethod: false,
+    updatingBilling: false,
+    deletingMethod: false,
+    settingDefault: false
+  });
+  
   const [showManagePlan, setShowManagePlan] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showEditBilling, setShowEditBilling] = useState(false);
@@ -56,7 +54,7 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [apiMethods, setApiMethods] = useState<any[]>([]);
 
-  // Local sample methods (kept, but merged with API)
+  // Local sample methods
   const [localMethods] = useState<any[]>([
     {
       id: "local_1",
@@ -80,7 +78,7 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
     },
   ]);
 
-  // Billing info (editable)
+  // Billing info
   const [billingInfo, setBillingInfo] = useState({
     name: "Alex Rodriguez",
     email: "alex.rodriguez@email.com",
@@ -100,23 +98,26 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
     saveCard: true,
   });
 
-  // token (if needed for protected calls)
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-  // Combined & normalized methods shown in UI
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const [methods, setMethods] = useState<any[]>([]);
 
-  // -----------------------------
+  // Render loading spinner
+  const renderSpinner = (text: string = "Loading...") => (
+    <div className="flex justify-center items-center py-12">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-3"></div>
+        <p className="text-gray-500">{text}</p>
+      </div>
+    </div>
+  );
+
   // Normalizer
-  // -----------------------------
   const normalizeMethod = (raw: any) => {
     if (!raw) return null;
     if (raw && raw._normalized) return raw;
 
     const m: any = { _normalized: true, raw };
 
-    // If backend returns display_name (as your addPaymentMethod does), map it
     if (raw.display_name || raw.displayName) {
       m.id = raw.id ?? raw.method_id ?? String(Math.random());
       m.displayName = raw.display_name ?? raw.displayName;
@@ -130,7 +131,6 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
       return m;
     }
 
-    // Stripe-like / SQL row
     if (raw.brand && raw.last4) {
       m.id = raw.id ?? String(Math.random());
       m.brand = raw.brand;
@@ -145,7 +145,6 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
       return m;
     }
 
-    // Razorpay-ish card in raw.card
     if (raw.card && (raw.card.last4 || raw.card.network)) {
       const card = raw.card;
       m.id = raw.id ?? card.id ?? String(Math.random());
@@ -162,7 +161,6 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
       return m;
     }
 
-    // Fallback
     m.id = raw.id ?? String(Math.random());
     m.displayName = raw.displayName ?? `Method ${m.id}`;
     m.brand = raw.brand ?? "";
@@ -174,38 +172,32 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
     return m;
   };
 
-  // -----------------------------
   // Load data
-  // -----------------------------
   const loadData = useCallback(async () => {
-    setLoading(true);
+    setLoading(prev => ({ ...prev, initial: true, plans: true, activePlan: true, transactions: true, methods: true }));
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [plansRes, activeRes, txRes, methodsRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/subscriptions/plans`),
+        axios.get(`${API_BASE}/subscriptions/plans`),
         axios
-          .get(`${API_BASE}/api/subscriptions/active`, { headers })
+          .get(`${API_BASE}/subscriptions/active`, { headers })
           .catch(() => ({ data: null })),
         axios
-          .get(`${API_BASE}/api/payments/transactions`, { headers })
+          .get(`${API_BASE}/payments/transactions`, { headers })
           .catch(() => ({ data: [] })),
         axios
-          .get(`${API_BASE}/api/payments/methods`, { headers })
+          .get(`${API_BASE}/payments/methods`, { headers })
           .catch(() => ({ data: [] })),
       ]);
 
       setPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
       setActivePlan(activeRes.data || null);
-      // transactions from backend might be array or object — your controller returns array
-      setTransactions(
-        Array.isArray(txRes.data) ? txRes.data : txRes.data || []
-      );
+      setTransactions(Array.isArray(txRes.data) ? txRes.data : txRes.data || []);
 
       const apiRaw = Array.isArray(methodsRes.data) ? methodsRes.data : [];
       const normalizedApi = apiRaw.map(normalizeMethod).filter(Boolean);
 
-      // merge with local methods (prefer API entries when last4 matches)
       const merged: any[] = [...normalizedApi];
       localMethods.forEach((lm) => {
         const exists = normalizedApi.some(
@@ -214,7 +206,6 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
         if (!exists) merged.push(normalizeMethod(lm));
       });
 
-      // ensure default exists
       if (!merged.some((m) => m.isDefault)) {
         if (merged.length) merged[0].isDefault = true;
       }
@@ -223,8 +214,16 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
       setMethods(merged);
     } catch (err) {
       console.error("Failed to load payment data:", err);
+      toast.error("Failed to load payment data");
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ 
+        ...prev, 
+        initial: false, 
+        plans: false, 
+        activePlan: false, 
+        transactions: false, 
+        methods: false 
+      }));
     }
   }, [token, localMethods]);
 
@@ -232,7 +231,6 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
     loadData();
   }, [loadData]);
 
-  // refresh on focus (e.g., after purchase)
   useEffect(() => {
     const handler = () => {
       if (localStorage.getItem("refreshSubscription") === "true") {
@@ -244,100 +242,91 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
     return () => window.removeEventListener("focus", handler);
   }, [loadData]);
 
-  // -----------------------------
-  // Actions: upgrade / cancel
-  // -----------------------------
-const handleUpgrade = async (planId: any) => {
-  try {
-    setLoading(true);
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  // Actions
+  const handleUpgrade = async (planId: any) => {
+    try {
+      setLoading(prev => ({ ...prev, upgrading: true }));
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const res = await axios.post(
-      `${API_BASE}/api/subscriptions/upgrade`,
-      { planId },
-      { headers }
-    );
+      const res = await axios.post(
+        `${API_BASE}/subscriptions/upgrade`,
+        { planId },
+        { headers }
+      );
 
-    if (res.data && res.data.subscription) {
-      setActivePlan(res.data.subscription);
-    } else {
-      try {
-        const activeRes = await axios.get(
-          `${API_BASE}/api/subscriptions/active`,
-          { headers }
-        );
-        setActivePlan(activeRes.data || null);
-      } catch (e) {
-        console.warn("Upgrade: failed to re-fetch active subscription", e);
+      if (res.data && res.data.subscription) {
+        setActivePlan(res.data.subscription);
+      } else {
+        try {
+          const activeRes = await axios.get(
+            `${API_BASE}/subscriptions/active`,
+            { headers }
+          );
+          setActivePlan(activeRes.data || null);
+        } catch (e) {
+          console.warn("Upgrade: failed to re-fetch active subscription", e);
+        }
       }
+
+      await loadData();
+      setShowManagePlan(false);
+
+      toast.success("Subscription upgraded!");
+      window.dispatchEvent(new CustomEvent("subscription:updated"));
+
+      onNavigate("exams");
+      window.history.pushState({}, "", "/user-dashboard/exams");
+    } catch (err: any) {
+      console.error("Upgrade failed:", err);
+      const message =
+        err?.response?.data?.error || err?.message || "Upgrade failed";
+      toast.error(message);
+    } finally {
+      setLoading(prev => ({ ...prev, upgrading: false }));
     }
-
-    await loadData();
-    setShowManagePlan(false);
-
-    toast.success("Subscription upgraded!");
-
-    // 🔥 ADD THIS
-    window.dispatchEvent(new CustomEvent("subscription:updated"));
-
-    onNavigate("exams");
-    window.history.pushState({}, "", "/user-dashboard/exams");
-  } catch (err: any) {
-    console.error("Upgrade failed:", err);
-    const message =
-      err?.response?.data?.error || err?.message || "Upgrade failed";
-    alert(message);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleCancel = async () => {
     if (!confirm("Are you sure you want to cancel your subscription?")) return;
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, cancelling: true }));
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post(
-        `${API_BASE}/api/subscriptions/cancel`,
+        `${API_BASE}/subscriptions/cancel`,
         {},
         { headers }
       );
-      alert(
-        res.data?.message ?? "Canceled. You will retain access until expiry."
-      );
+      
+      toast.success(res.data?.message ?? "Canceled. You will retain access until expiry.");
       localStorage.setItem("refreshSubscription", "true");
       await loadData();
       setShowManagePlan(false);
     } catch (err) {
       console.error("Cancel failed:", err);
-      alert("Failed to cancel subscription");
+      toast.error("Failed to cancel subscription");
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, cancelling: false }));
     }
   };
 
-  // -----------------------------
-  // Payment methods: add / default / delete
-  // -----------------------------
+  // Payment methods
   const handleAddPaymentMethod = async () => {
     const { cardNumber, expiryDate, cvv, cardholderName } = newPaymentMethod;
     if (!cardNumber || !expiryDate || !cvv || !cardholderName) {
-      alert("Please fill all card details");
+      toast.error("Please fill all card details");
       return;
     }
 
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, addingMethod: true }));
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const last4 = cardNumber.slice(-4);
       const displayName = `${
         cardholderName ? cardholderName + " • " : ""
       }Card •••• ${last4}`;
 
-      // persist to backend
       const res = await axios.post(
-        `${API_BASE}/api/payments/methods`,
+        `${API_BASE}/payments/methods`,
         {
           provider: "card",
           displayName,
@@ -347,7 +336,6 @@ const handleUpgrade = async (planId: any) => {
         { headers }
       );
 
-      // backend returns the row; normalize & append
       const saved = normalizeMethod(res.data) ?? {
         id: `local_${Date.now()}`,
         displayName,
@@ -359,7 +347,6 @@ const handleUpgrade = async (planId: any) => {
       };
 
       setMethods((prev) => {
-        // if saved.isDefault true, clear others
         const updated = prev.map((p) => ({
           ...p,
           isDefault: saved.isDefault ? false : p.isDefault,
@@ -375,32 +362,32 @@ const handleUpgrade = async (planId: any) => {
         saveCard: true,
       });
       setShowAddPayment(false);
+      toast.success("Payment method added successfully");
     } catch (err) {
       console.error("Add method failed:", err);
-      alert("Failed to add payment method");
+      toast.error("Failed to add payment method");
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, addingMethod: false }));
     }
   };
 
   const setDefaultPaymentMethod = async (id: string) => {
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, settingDefault: true }));
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      // call backend to set default (implement server route to set is_default on DB)
       await axios.post(
-        `${API_BASE}/api/payments/methods/${id}/default`,
+        `${API_BASE}/payments/methods/${id}/default`,
         {},
         { headers }
       );
 
-      // local update
       setMethods((prev) => prev.map((m) => ({ ...m, isDefault: m.id === id })));
+      toast.success("Default payment method updated");
     } catch (err) {
       console.error("Set default failed:", err);
-      alert("Failed to set default");
+      toast.error("Failed to set default");
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, settingDefault: false }));
     }
   };
 
@@ -408,43 +395,47 @@ const handleUpgrade = async (planId: any) => {
     try {
       const m = methods.find((x) => x.id === id);
       if (m?.isDefault) {
-        alert(
-          "Cannot delete default payment method. Set another default first."
-        );
+        toast.error("Cannot delete default payment method. Set another default first.");
         return;
       }
       if (!confirm("Delete this saved payment method?")) return;
 
-      setLoading(true);
+      setLoading(prev => ({ ...prev, deletingMethod: true }));
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await axios.delete(`${API_BASE}/api/payments/methods/${id}`, { headers });
+      await axios.delete(`${API_BASE}/payments/methods/${id}`, { headers });
 
       setMethods((prev) => prev.filter((x) => x.id !== id));
+      toast.success("Payment method deleted");
     } catch (err) {
       console.error("Delete method failed:", err);
-      alert("Failed to delete payment method");
+      toast.error("Failed to delete payment method");
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, deletingMethod: false }));
     }
   };
 
-  const handleUpdateBillingInfo = (updatedInfo: any) => {
-    setBillingInfo(updatedInfo);
-    setShowEditBilling(false);
+  const handleUpdateBillingInfo = () => {
+    setLoading(prev => ({ ...prev, updatingBilling: true }));
+    
+    setTimeout(() => {
+      setBillingInfo(billingInfo);
+      setShowEditBilling(false);
+      toast.success("Billing information updated");
+      setLoading(prev => ({ ...prev, updatingBilling: false }));
+    }, 800);
   };
 
-  // helpers
   const formatPrice = (p: any) => {
     if (typeof p === "number") return `₹${p}`;
     if (typeof p === "string" && p.startsWith("₹")) return p;
     return p ? `₹${p}` : "—";
   };
 
-  if (loading) return <p className="text-gray-600 p-6">Loading...</p>;
+  if (loading.initial) {
+    return renderSpinner("Loading payment information...");
+  }
 
-  // -----------------------------
-  // Modals (UI unchanged)
-  // -----------------------------
+  // Modals
   const AddPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md">
@@ -545,14 +536,23 @@ const handleUpgrade = async (planId: any) => {
             variant="outline"
             className="flex-1"
             onClick={() => setShowAddPayment(false)}
+            disabled={loading.addingMethod}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 bg-[#bf2026] hover:bg-[#a81c21] text-white"
+            className="flex-1 bg-[#bf2026] hover:bg-[#a81c21] text-white flex items-center justify-center gap-2"
             onClick={handleAddPaymentMethod}
+            disabled={loading.addingMethod}
           >
-            Add Card
+            {loading.addingMethod ? (
+              <>
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Adding...
+              </>
+            ) : (
+              "Add Card"
+            )}
           </Button>
         </div>
 
@@ -654,21 +654,30 @@ const handleUpgrade = async (planId: any) => {
             variant="outline"
             className="flex-1"
             onClick={() => setShowEditBilling(false)}
+            disabled={loading.updatingBilling}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 bg-[#bf2026] hover:bg-[#a81c21] text-white"
-            onClick={() => handleUpdateBillingInfo(billingInfo)}
+            className="flex-1 bg-[#bf2026] hover:bg-[#a81c21] text-white flex items-center justify-center gap-2"
+            onClick={handleUpdateBillingInfo}
+            disabled={loading.updatingBilling}
           >
-            Update Info
+            {loading.updatingBilling ? (
+              <>
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Updating...
+              </>
+            ) : (
+              "Update Info"
+            )}
           </Button>
         </div>
       </div>
     </div>
   );
 
-  // Manage plan UI (identical)
+  // Manage plan UI
   if (showManagePlan) {
     return (
       <div className="space-y-6">
@@ -678,180 +687,202 @@ const handleUpgrade = async (planId: any) => {
             size="sm"
             onClick={() => setShowManagePlan(false)}
             className="flex items-center gap-2"
+            disabled={loading.cancelling || loading.upgrading}
           >
-            ← Back to Subscription
+            <ChevronLeft className="w-4 h-4" />
+            Back to Subscription
           </Button>
           <div>
-            <h2 className="text-[#1d4d6a] mb-1">Manage Subscription Plan</h2>
+            <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Manage Subscription Plan</h2>
             <p className="text-sm text-gray-500">
               Switch plans or cancel your subscription
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Current Plan Summary */}
-          <Card className="border-2 border-[#bf2026]">
-            <CardContent className="p-6">
-              <Badge className="bg-[#bf2026] text-white mb-3">
-                Current Plan
-              </Badge>
-              <h3 className="text-xl font-semibold text-[#1d4d6a] mb-2">
-                {activePlan?.name ?? "—"}
-              </h3>
+        {loading.plans ? (
+          renderSpinner("Loading subscription plans...")
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Current Plan Summary */}
+            <Card className="border-2 border-[#bf2026]">
+              <CardContent className="p-6">
+                <Badge className="bg-[#bf2026] text-white mb-3">
+                  Current Plan
+                </Badge>
+                <h3 className="text-xl font-semibold text-[#1d4d6a] mb-2">
+                  {activePlan?.name ?? "—"}
+                </h3>
 
-              <div className="flex items-center gap-1 text-sm text-gray-600 mb-4">
-                <Calendar className="w-4 h-4" />
-                Renews on{" "}
-                {activePlan?.renewsOn
-                  ? new Date(activePlan.renewsOn).toLocaleDateString()
-                  : "—"}
-              </div>
+                <div className="flex items-center gap-1 text-sm text-gray-600 mb-4">
+                  <Calendar className="w-4 h-4" />
+                  Renews on{" "}
+                  {activePlan?.renewsOn
+                    ? new Date(activePlan.renewsOn).toLocaleDateString()
+                    : "—"}
+                </div>
 
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl text-[#1d4d6a]">
-                  {formatPrice(activePlan?.price ?? "—")}
-                </span>
-                <span className="text-gray-500">
-                  {activePlan?.period ?? ""}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl text-[#1d4d6a]">
+                    {formatPrice(activePlan?.price ?? "—")}
+                  </span>
+                  <span className="text-gray-500">
+                    {activePlan?.period ?? ""}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Plan Comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">
-                Switch Subscription Plan
-              </CardTitle>
-              <CardDescription>
-                Choose the plan that works best for you
-              </CardDescription>
-            </CardHeader>
+            {/* Plan Comparison */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-[#1d4d6a]">
+                  Switch Subscription Plan
+                </CardTitle>
+                <CardDescription>
+                  Choose the plan that works best for you
+                </CardDescription>
+              </CardHeader>
 
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {plans.map((plan: any, index: number) => (
-                  <Card
-                    key={plan.id ?? index}
-                    className={`border-2 ${
-                      activePlan?.id === plan.id
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 hover:border-[#bf2026] cursor-pointer"
-                    }`}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <CardTitle className="text-[#1d4d6a] text-lg">
-                          {plan.name}
-                        </CardTitle>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {plans.map((plan: any, index: number) => (
+                    <Card
+                      key={plan.id ?? index}
+                      className={`border-2 ${
+                        activePlan?.id === plan.id
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200 hover:border-[#bf2026] cursor-pointer"
+                      }`}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="text-[#1d4d6a] text-lg">
+                            {plan.name}
+                          </CardTitle>
 
-                        {plan.popular && !(activePlan?.id === plan.id) && (
-                          <Badge className="bg-yellow-500 text-white">
-                            Popular
+                          {plan.popular && !(activePlan?.id === plan.id) && (
+                            <Badge className="bg-yellow-500 text-white">
+                              Popular
+                            </Badge>
+                          )}
+                          {activePlan?.id === plan.id && (
+                            <Badge className="bg-green-500 text-white">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex items-baseline gap-1 mt-1">
+                          <span className="text-2xl font-bold text-[#1d4d6a]">
+                            {formatPrice(plan.price)}
+                          </span>
+                          <span className="text-gray-500 text-sm">
+                            {plan.period}
+                          </span>
+                        </div>
+
+                        {plan.savings && (
+                          <Badge className="bg-green-100 text-green-700 w-fit mt-2">
+                            {plan.savings}
                           </Badge>
                         )}
-                        {activePlan?.id === plan.id && (
-                          <Badge className="bg-green-500 text-white">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
+                      </CardHeader>
 
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-2xl font-bold text-[#1d4d6a]">
-                          {formatPrice(plan.price)}
-                        </span>
-                        <span className="text-gray-500 text-sm">
-                          {plan.period}
-                        </span>
-                      </div>
+                      <CardContent className="space-y-3">
+                        <ul className="space-y-2">
+                          {Array.isArray(plan.features) &&
+                            plan.features.map((feature: string, i: number) => (
+                              <li
+                                key={i}
+                                className="flex items-start gap-2 text-sm"
+                              >
+                                <Check className="w-4 h-4 text-[#bf2026] mt-0.5" />
+                                <span className="text-gray-700">{feature}</span>
+                              </li>
+                            ))}
+                        </ul>
 
-                      {plan.savings && (
-                        <Badge className="bg-green-100 text-green-700 w-fit mt-2">
-                          {plan.savings}
-                        </Badge>
-                      )}
-                    </CardHeader>
+                        <Button
+                          className={`w-full flex items-center justify-center gap-2 ${
+                            activePlan?.id === plan.id
+                              ? "bg-gray-400 cursor-not-allowed"
+                              : "bg-[#bf2026] hover:bg-[#a01c22]"
+                          } text-white`}
+                          disabled={activePlan?.id === plan.id || loading.upgrading}
+                          onClick={() => handleUpgrade(plan.id)}
+                        >
+                          {loading.upgrading ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Processing...
+                            </>
+                          ) : activePlan?.id === plan.id ? (
+                            "Current Plan"
+                          ) : (
+                            "Switch to Plan"
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-                    <CardContent className="space-y-3">
-                      <ul className="space-y-2">
-                        {Array.isArray(plan.features) &&
-                          plan.features.map((feature: string, i: number) => (
-                            <li
-                              key={i}
-                              className="flex items-start gap-2 text-sm"
-                            >
-                              <Check className="w-4 h-4 text-[#bf2026] mt-0.5" />
-                              <span className="text-gray-700">{feature}</span>
-                            </li>
-                          ))}
-                      </ul>
-
-                      <Button
-                        className={`w-full ${
-                          activePlan?.id === plan.id
-                            ? "bg-gray-400"
-                            : "bg-[#bf2026] hover:bg-[#a01c22]"
-                        } text-white`}
-                        disabled={activePlan?.id === plan.id}
-                        onClick={() => handleUpgrade(plan.id)}
-                      >
-                        {activePlan?.id === plan.id
-                          ? "Current Plan"
-                          : "Switch to Plan"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cancel Subscription Section */}
-          <Card className="border-2 border-red-200">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-red-600 mb-2">
-                Cancel Subscription
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Your subscription will remain active until{" "}
-                {activePlan?.renewsOn
-                  ? new Date(activePlan.renewsOn).toLocaleDateString()
-                  : "the renewal date"}
-                . After cancellation, you'll lose access to premium features on
-                your renewal date.
-              </p>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
-                  onClick={() => setShowManagePlan(false)}
-                >
-                  Keep My Plan
-                </Button>
-
-                <Button
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                  onClick={handleCancel}
-                >
+            {/* Cancel Subscription Section */}
+            <Card className="border-2 border-red-200">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-red-600 mb-2">
                   Cancel Subscription
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Your subscription will remain active until{" "}
+                  {activePlan?.renewsOn
+                    ? new Date(activePlan.renewsOn).toLocaleDateString()
+                    : "the renewal date"}
+                  . After cancellation, you'll lose access to premium features on
+                  your renewal date.
+                </p>
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowManagePlan(false)}
+                    disabled={loading.cancelling}
+                  >
+                    Keep My Plan
+                  </Button>
+
+                  <Button
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
+                    onClick={handleCancel}
+                    disabled={loading.cancelling}
+                  >
+                    {loading.cancelling ? (
+                      <>
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Cancelling...
+                      </>
+                    ) : (
+                      "Cancel Subscription"
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Main subscription view (UI preserved)
+  // Main subscription view
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[#1d4d6a] mb-1">Payments & Subscriptions</h2>
+        <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Payments & Subscriptions</h2>
         <p className="text-sm text-gray-500">
           Manage your subscription and view transaction history
         </p>
@@ -859,9 +890,18 @@ const handleUpgrade = async (planId: any) => {
 
       <Tabs defaultValue="subscription" className="w-full">
         <TabsList className="bg-white border border-gray-200">
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="payment-methods">Payment Methods</TabsTrigger>
+          <TabsTrigger value="subscription">
+            Subscription
+            {loading.activePlan && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+          </TabsTrigger>
+          <TabsTrigger value="transactions">
+            Transactions
+            {loading.transactions && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+          </TabsTrigger>
+          <TabsTrigger value="payment-methods">
+            Payment Methods
+            {loading.methods && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+          </TabsTrigger>
         </TabsList>
 
         {/* Subscription */}
@@ -873,7 +913,7 @@ const handleUpgrade = async (planId: any) => {
                   <Badge className="bg-[#bf2026] text-white mb-2">
                     Active Plan
                   </Badge>
-                  <h3 className="text-[#1d4d6a] mb-1">
+                  <h3 className="text-[#1d4d6a] text-lg sm:text-xl font-semibold mb-1">
                     {activePlan?.name ?? "No active subscription"}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
@@ -911,87 +951,102 @@ const handleUpgrade = async (planId: any) => {
           {/* Available Plans */}
           <div>
             <h3 className="text-[#1d4d6a] mb-4">Available Plans</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plans.map((plan: any, index: number) => (
-                <Card
-                  key={plan.id ?? index}
-                  className={`border-none shadow-md ${
-                    plan.popular ? "ring-2 ring-[#bf2026]" : ""
-                  } ${
-                    activePlan?.id === plan.id
-                      ? "opacity-50"
-                      : "hover:shadow-xl transition-all"
-                  }`}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between mb-2">
-                      <CardTitle className="text-[#1d4d6a]">
-                        {plan.name}
-                      </CardTitle>
-                      {plan.popular && (
-                        <Badge className="bg-yellow-500 text-white">
-                          Popular
-                        </Badge>
-                      )}
-                      {activePlan?.id === plan.id && (
-                        <Badge className="bg-green-500 text-white">
-                          Active
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="mb-4">
-                      <span className="text-3xl text-[#1d4d6a]">
-                        {formatPrice(plan.price)}
-                      </span>
-                      <span className="text-gray-500 text-sm ml-2">
-                        {plan.period}
-                      </span>
-                      {plan.savings && (
-                        <Badge className="bg-green-100 text-green-700 ml-2">
-                          {plan.savings}
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <ul className="space-y-3">
-                      {Array.isArray(plan.features) &&
-                        plan.features.map((feature: string, fIndex: number) => (
-                          <li
-                            key={fIndex}
-                            className="flex items-start gap-2 text-sm"
-                          >
-                            <Check className="w-4 h-4 text-[#bf2026] shrink-0 mt-0.5" />
-                            <span className="text-gray-700">{feature}</span>
-                          </li>
-                        ))}
-                    </ul>
+            {loading.plans ? (
+              renderSpinner("Loading available plans...")
+            ) : plans.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No subscription plans available at the moment.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.map((plan: any, index: number) => (
+                  <Card
+                    key={plan.id ?? index}
+                    className={`border-none shadow-md ${
+                      plan.popular ? "ring-2 ring-[#bf2026]" : ""
+                    } ${
+                      activePlan?.id === plan.id
+                        ? "opacity-50"
+                        : "hover:shadow-xl transition-all"
+                    }`}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        <CardTitle className="text-[#1d4d6a]">
+                          {plan.name}
+                        </CardTitle>
+                        {plan.popular && (
+                          <Badge className="bg-yellow-500 text-white">
+                            Popular
+                          </Badge>
+                        )}
+                        {activePlan?.id === plan.id && (
+                          <Badge className="bg-green-500 text-white">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mb-4">
+                        <span className="text-3xl text-[#1d4d6a]">
+                          {formatPrice(plan.price)}
+                        </span>
+                        <span className="text-gray-500 text-sm ml-2">
+                          {plan.period}
+                        </span>
+                        {plan.savings && (
+                          <Badge className="bg-green-100 text-green-700 ml-2">
+                            {plan.savings}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <ul className="space-y-3">
+                        {Array.isArray(plan.features) &&
+                          plan.features.map((feature: string, fIndex: number) => (
+                            <li
+                              key={fIndex}
+                              className="flex items-start gap-2 text-sm"
+                            >
+                              <Check className="w-4 h-4 text-[#bf2026] shrink-0 mt-0.5" />
+                              <span className="text-gray-700">{feature}</span>
+                            </li>
+                          ))}
+                      </ul>
 
-                    <Button
-                      className={`w-full bg-[#bf2026] text-white`}
-                      disabled={activePlan?.id === plan.id}
-                      onClick={() => {
-                        localStorage.setItem("purchaseType", "subscription");
-                        localStorage.setItem("purchaseId", plan.id);
-                        if (onNavigate) onNavigate("purchase");
-                        else {
-                          if (
-                            confirm(
-                              "Proceed to upgrade via server-side (test)?"
+                      <Button
+                        className={`w-full bg-[#bf2026] text-white flex items-center justify-center gap-2`}
+                        disabled={activePlan?.id === plan.id || loading.upgrading}
+                        onClick={() => {
+                          localStorage.setItem("purchaseType", "subscription");
+                          localStorage.setItem("purchaseId", plan.id);
+                          if (onNavigate) onNavigate("purchase");
+                          else {
+                            if (
+                              confirm(
+                                "Proceed to upgrade via server-side (test)?"
+                              )
                             )
-                          )
-                            handleUpgrade(plan.id);
-                        }
-                      }}
-                    >
-                      {activePlan?.id === plan.id
-                        ? "Current Plan"
-                        : "Upgrade Now"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                              handleUpgrade(plan.id);
+                          }
+                        }}
+                      >
+                        {loading.upgrading ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Processing...
+                          </>
+                        ) : activePlan?.id === plan.id ? (
+                          "Current Plan"
+                        ) : (
+                          "Upgrade Now"
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -1016,47 +1071,51 @@ const handleUpgrade = async (planId: any) => {
             </CardHeader>
 
             <CardContent>
-              <div className="space-y-3">
-                {transactions.length === 0 && (
-                  <p className="text-gray-500">No transactions yet</p>
-                )}
+              {loading.transactions ? (
+                renderSpinner("Loading transactions...")
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  No transactions yet
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {transactions.map((t: any) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 rounded-lg flex items-center justify-center">
+                          <CreditCard className="w-6 h-6 text-[#bf2026]" />
+                        </div>
 
-                {transactions.map((t: any) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="w-12 h-12 rounded-lg flex items-center justify-center">
-                        <CreditCard className="w-6 h-6 text-[#bf2026]" />
-                      </div>
-
-                      <div className="flex-1">
-                        <h4 className="text-[#1d4d6a] mb-1">{t.description}</h4>
-                        <div className="flex items-center gap-3 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {t.created_at
-                              ? new Date(t.created_at).toLocaleDateString()
-                              : t.date
-                              ? new Date(t.date).toLocaleDateString()
-                              : "—"}
-                          </span>
-                          <span>•</span>
-                          <span>{t.method ?? ""}</span>
+                        <div className="flex-1">
+                          <h4 className="text-[#1d4d6a] mb-1">{t.description}</h4>
+                          <div className="flex items-center gap-3 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {t.created_at
+                                ? new Date(t.created_at).toLocaleDateString()
+                                : t.date
+                                ? new Date(t.date).toLocaleDateString()
+                                : "—"}
+                            </span>
+                            <span>•</span>
+                            <span>{t.method ?? ""}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="text-right">
-                      <p className="text-[#1d4d6a] mb-1">{t.amount}</p>
-                      <Badge className="bg-green-100 text-green-700">
-                        {t.status}
-                      </Badge>
+                      <div className="text-right">
+                        <p className="text-[#1d4d6a] mb-1">{t.amount}</p>
+                        <Badge className="bg-green-100 text-green-700">
+                          {t.status}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1075,68 +1134,90 @@ const handleUpgrade = async (planId: any) => {
               </CardHeader>
 
               <CardContent className="space-y-3">
-                {methods.length === 0 && (
-                  <p className="text-gray-500">No saved payment methods</p>
-                )}
+                {loading.methods ? (
+                  renderSpinner("Loading payment methods...")
+                ) : methods.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    No saved payment methods
+                  </div>
+                ) : (
+                  methods.map((method: any) => (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <CreditCard className="w-6 h-6 text-[#bf2026]" />
+                        </div>
 
-                {methods.map((method: any) => (
-                  <div
-                    key={method.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                        <CreditCard className="w-6 h-6 text-[#bf2026]" />
+                        <div>
+                          <h4 className="text-[#1d4d6a] mb-1">
+                            {method.displayName ??
+                              `${method.brand} ending in ${method.last4}`}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            Expires {method.expiry ?? "—"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {method.cardholder ?? ""}
+                          </p>
+                        </div>
                       </div>
 
-                      <div>
-                        <h4 className="text-[#1d4d6a] mb-1">
-                          {method.displayName ??
-                            `${method.brand} ending in ${method.last4}`}
-                        </h4>
-                        <p className="text-sm text-gray-500">
-                          Expires {method.expiry ?? "—"}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {method.cardholder ?? ""}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      {method.isDefault && (
-                        <Badge className="bg-green-100 text-green-700">
-                          Default
-                        </Badge>
-                      )}
-                      {!method.isDefault && (
+                      <div className="flex gap-2">
+                        {method.isDefault && (
+                          <Badge className="bg-green-100 text-green-700">
+                            Default
+                          </Badge>
+                        )}
+                        {!method.isDefault && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDefaultPaymentMethod(method.id)}
+                            disabled={loading.settingDefault}
+                            className="flex items-center gap-1"
+                          >
+                            {loading.settingDefault ? (
+                              <>
+                                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                                Setting...
+                              </>
+                            ) : (
+                              "Set Default"
+                            )}
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setDefaultPaymentMethod(method.id)}
+                          onClick={() =>
+                            alert("Edit card flow not implemented server-side")
+                          }
                         >
-                          Set Default
+                          <Edit className="w-3 h-3" />
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          alert("Edit card flow not implemented server-side")
-                        }
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deletePaymentMethod(method.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deletePaymentMethod(method.id)}
+                          disabled={loading.deletingMethod}
+                          className="flex items-center gap-1"
+                        >
+                          {loading.deletingMethod ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                              Deleting...
+                            </>
+                          ) : (
+                            <Trash2 className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
 
                 {/* Digital Wallet Options */}
                 <div className="mt-6 space-y-3">
@@ -1161,7 +1242,6 @@ const handleUpgrade = async (planId: any) => {
                     onClick={() => alert("Apple Pay integration placeholder")}
                   >
                     <div className="w-6 h-6 bg-black rounded flex items-center justify-center text-white">
-                      {/* svg */}
                       <svg
                         className="w-4 h-4"
                         viewBox="0 0 24 24"
@@ -1186,10 +1266,12 @@ const handleUpgrade = async (planId: any) => {
                 </div>
 
                 <Button
-                  className="w-full mt-4 border-2 border-dashed border-gray-300 bg-transparent text-gray-700 hover:border-[#bf2026] hover:text-[#bf2026] hover:bg-transparent"
+                  className="w-full mt-4 border-2 border-dashed border-gray-300 bg-transparent text-gray-700 hover:border-[#bf2026] hover:text-[#bf2026] hover:bg-transparent flex items-center justify-center gap-2"
                   onClick={() => setShowAddPayment(true)}
+                  disabled={loading.addingMethod}
                 >
-                  <Plus className="w-4 h-4 mr-2" /> Add New Payment Method
+                  <Plus className="w-4 h-4" />
+                  Add New Payment Method
                 </Button>
 
                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-4">
@@ -1200,47 +1282,55 @@ const handleUpgrade = async (planId: any) => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Billing Info */}
+            <Card className="border-none shadow-md">
+              <CardHeader>
+                <CardTitle className="text-[#1d4d6a]">
+                  Billing Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Name</span>
+                    <span className="text-gray-900">{billingInfo.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Email</span>
+                    <span className="text-gray-900">{billingInfo.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Address</span>
+                    <span className="text-gray-900 text-right">
+                      {billingInfo.address}
+                      <br />
+                      {billingInfo.city}, {billingInfo.state}{" "}
+                      {billingInfo.zipCode}
+                      <br />
+                      {billingInfo.country}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full mt-4 flex items-center justify-center gap-2"
+                  onClick={() => setShowEditBilling(true)}
+                  disabled={loading.updatingBilling}
+                >
+                  {loading.updatingBilling ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Billing Info"
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-
-          {/* Billing Info */}
-          <Card className="border-none shadow-md">
-            <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">
-                Billing Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Name</span>
-                  <span className="text-gray-900">{billingInfo.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Email</span>
-                  <span className="text-gray-900">{billingInfo.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Address</span>
-                  <span className="text-gray-900 text-right">
-                    {billingInfo.address}
-                    <br />
-                    {billingInfo.city}, {billingInfo.state}{" "}
-                    {billingInfo.zipCode}
-                    <br />
-                    {billingInfo.country}
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => setShowEditBilling(true)}
-              >
-                Update Billing Info
-              </Button>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 

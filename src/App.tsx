@@ -11,29 +11,63 @@ import * as React from "react";
 import axios from "axios";
 import ReadNotePage from "./components/ReadNotePage";
 
+
+
 /* ============================================================
-   AXIOS INTERCEPTOR – CLEAN & SAFE
+   AXIOS INTERCEPTOR – 401 + 403 BAN + TOKEN REVOKE LOGOUT
 ============================================================ */
+
+/* ============================================================
+   AXIOS INTERCEPTOR – AUTO LOGOUT ON BAN + EXPIRED TOKEN
+============================================================ */
+
 axios.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err?.response?.status;
-    if (status === 401) {
-      const path = window.location.pathname;
-      if (
-        path.startsWith("/user-dashboard") ||
-        path.startsWith("/admin-dashboard")
-      ) {
-        localStorage.removeItem("isLoggedIn");
-        localStorage.removeItem("role");
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
+    const msg = err?.response?.data?.error?.toLowerCase() || "";
+    const path = window.location.pathname;
+
+    const isDashboard =
+      path.startsWith("/user-dashboard") ||
+      path.startsWith("/admin-dashboard");
+
+    /* ========================================================
+       1. SUSPENDED / BANNED USER
+       - Backend should return 403 with message "suspended" or "ban"
+    ========================================================= */
+    if (
+      status === 403 &&
+      (msg.includes("suspend") || msg.includes("ban"))
+    ) {
+      console.warn("⚠ Suspended/Banned — force logout");
+
+      // Clear session
+      localStorage.clear();
+
+      // Redirect without back button
+      window.location.replace("/login?reason=suspended");
+      return Promise.reject(err);
     }
+
+    /* ========================================================
+       2. TOKEN EXPIRED / REVOKED
+       - Supabase often returns 401 on revoked tokens
+    ========================================================= */
+    if (status === 401 && isDashboard) {
+      console.warn("⚠ Token expired / invalid — force logout");
+
+      localStorage.clear();
+
+      window.location.replace("/login?reason=expired");
+      return Promise.reject(err);
+    }
+
     return Promise.reject(err);
   }
-  
 );
+
+
 
 type Page =
   | "home"
@@ -304,7 +338,7 @@ const handleOpenBook = (book: any) => {
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
       {/* HOME */}
-      {currentPage === "home" && <Home onNavigate={handleNavigate} onOpenBook={handleOpenBook}/>}
+      {currentPage === "home" && <Home onNavigate={handleNavigate} />}
 
       {/* USER DASHBOARD */}
       {currentPage === "user-dashboard" && (

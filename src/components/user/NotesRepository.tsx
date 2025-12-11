@@ -1,4 +1,4 @@
-import { useState, useEffect,useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import {
@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "../ui/dialog";
-import { Search, Eye, Star, BookOpen } from "lucide-react";
+import { Search, Eye, BookOpen, Loader2 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 import PDFJSViewer from "../PDFJSViewer";
@@ -25,23 +25,45 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   const [notes, setNotes] = useState<any[]>([]);
   const [downloaded, setDownloaded] = useState<number[]>([]);
   const [purchased, setPurchased] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({
+    initial: true,
+    notes: false,
+    preview: false,
+    cart: false,
+    download: false,
+    purchase: false
+  });
   const [searchText, setSearchText] = useState("");
-const [currentPage, setCurrentPage] = useState(1);
-const [totalPages, setTotalPages] = useState(1);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
+  const previewLimit = 2; // lock after page 2
 
   const getToken = () => localStorage.getItem("token");
 
-  /* ----------------------------------------
-     ⭐ ADD TO CART FOR NOTES
-  ---------------------------------------- */
+  /* ---------------------------------------------------------
+      RESET PAGE WHEN MODAL OPENS
+  ----------------------------------------------------------*/
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (showPreview && !wasOpen.current) {
+      setCurrentPage(1);
+    }
+    wasOpen.current = showPreview;
+  }, [showPreview]);
+
+  /* ---------------------------------------------------------
+      ADD TO CART
+  ----------------------------------------------------------*/
   const addToCart = async (noteId: number) => {
     const token = getToken();
     if (!token) return onNavigate("login");
 
     try {
+      setLoading(prev => ({ ...prev, cart: true }));
       await axios.post(
         "https://ebook-backend-lxce.onrender.com/api/cart/add",
         { note_id: noteId, quantity: 1 },
@@ -53,23 +75,14 @@ const [totalPages, setTotalPages] = useState(1);
     } catch (err) {
       console.error("addToCart error:", err);
       toast.error("Failed to add note to cart");
+    } finally {
+      setLoading(prev => ({ ...prev, cart: false }));
     }
   };
 
-const prevOpen = useRef(false);
-
-useEffect(() => {
-  if (showPreview && !prevOpen.current) {
-    setCurrentPage(1);
-  }
-  prevOpen.current = showPreview;
-}, [showPreview]);
-
-
-
-  /* ----------------------------------------
-     ⭐ BUY NOW
-  ---------------------------------------- */
+  /* ---------------------------------------------------------
+      BUY NOW
+  ----------------------------------------------------------*/
   const buyNow = (noteId: number) => {
     const note = notes.find((n) => n.id === noteId);
     if (!note) {
@@ -81,102 +94,84 @@ useEffect(() => {
     localStorage.setItem("purchaseId", String(noteId));
     localStorage.setItem(
       "purchaseItems",
-      JSON.stringify([
-        {
-          type: "note",
-          id: noteId,
-          note,
-        },
-      ])
+      JSON.stringify([{ type: "note", id: noteId, note }])
     );
     localStorage.setItem("previousSection", "notes");
 
     onNavigate("purchase", String(noteId));
   };
 
-  /* ----------------------------------------
-     Fetch Notes + Downloaded Notes + Purchased Notes
-  ---------------------------------------- */
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
+  /* ---------------------------------------------------------
+      FETCH NOTES + PURCHASED + DOWNLOADED
+  ----------------------------------------------------------*/
+  const loadNotes = async () => {
+    try {
+      setLoading(prev => ({ ...prev, notes: true }));
+      const notesRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/notes", {
+        params: {
+          category: activeCategory !== "All" ? activeCategory : undefined,
+          search: searchText || undefined,
+        },
+      });
 
-        const notesRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/notes", {
-          params: {
-            category: activeCategory !== "All" ? activeCategory : undefined,
-            search: searchText || undefined,
-          },
-        });
+      setNotes(notesRes.data || []);
 
-        setNotes(Array.isArray(notesRes.data) ? notesRes.data : []);
+      const token = getToken();
 
-        const token = getToken();
-        if (token) {
-          try {
-            const downloadedRes = await axios.get(
-              "https://ebook-backend-lxce.onrender.com/api/notes/downloaded",
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
+      if (token) {
+        try {
+          const purchasedRes = await axios.get(
+            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
 
-            const ids = Array.isArray(downloadedRes.data)
-              ? downloadedRes.data
-                  .map((d: any) => d.note?.id)
-                  .filter((id: any) => typeof id === "number")
-              : [];
+          const ids = Array.isArray(purchasedRes.data)
+            ? purchasedRes.data.map(Number)
+            : [];
 
-            setDownloaded(ids);
-          } catch (err) {
-            console.error("Failed to load downloaded notes:", err);
-          }
-
-          try {
-            const purchasedRes = await axios.get(
-              "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-
-            let purchasedIds: number[] = [];
-
-            if (Array.isArray(purchasedRes.data)) {
-              purchasedIds = purchasedRes.data.map((id) => Number(id));
-            } else if (Array.isArray(purchasedRes.data?.ids)) {
-              purchasedIds = purchasedRes.data.ids.map((id: any) =>
-                Number(id)
-              );
-            }
-
-            setPurchased(purchasedIds.filter((id) => !Number.isNaN(id)));
-          } catch (err) {
-            console.error("Failed to load purchased notes:", err);
-          }
-        } else {
-          setDownloaded([]);
-          setPurchased([]);
+          setPurchased(ids.filter((id) => !Number.isNaN(id)));
+        } catch (err) {
+          console.error("Failed purchased:", err);
         }
-      } catch (err) {
-        console.error("Failed to load notes:", err);
-        toast.error("Failed to load notes");
-      } finally {
-        setLoading(false);
+      } else {
+        setPurchased([]);
       }
-    };
+    } catch (err) {
+      console.error("Failed to load notes:", err);
+      toast.error("Failed to load notes");
+    } finally {
+      setLoading(prev => ({ 
+        ...prev, 
+        notes: false,
+        initial: false 
+      }));
+    }
+  };
 
-    loadData();
+  useEffect(() => {
+    loadNotes();
+  }, [activeCategory]);
 
-    const handleRefresh = () => loadData();
-    window.addEventListener("refresh-purchased", handleRefresh);
+  /* ---------------------------------------------------------
+      SEARCH WITH DEBOUNCE
+  ----------------------------------------------------------*/
+  useEffect(() => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    setLoading(prev => ({ ...prev, notes: true }));
+    
+    const timeout = setTimeout(() => {
+      loadNotes();
+    }, 500);
+    
+    setSearchTimeout(timeout);
+    
+    return () => clearTimeout(timeout);
+  }, [searchText]);
 
-    return () => {
-      window.removeEventListener("refresh-purchased", handleRefresh);
-    };
-  }, [activeCategory, searchText]);
-
-  /* ----------------------------------------
-     ⭐ READ NOTE
-  ---------------------------------------- */
+  /* ---------------------------------------------------------
+      READ NOTE
+  ----------------------------------------------------------*/
   const readNote = async (noteId: number) => {
     const token = getToken();
     if (!token) return onNavigate("login");
@@ -184,14 +179,15 @@ useEffect(() => {
     onNavigate("reader-note", String(noteId));
   };
 
-  /* ----------------------------------------
-     ⭐ DOWNLOAD NOTE
-  ---------------------------------------- */
+  /* ---------------------------------------------------------
+      DOWNLOAD NOTE
+  ----------------------------------------------------------*/
   const downloadNote = async (noteId: number) => {
     const token = getToken();
     if (!token) return onNavigate("login");
 
     try {
+      setLoading(prev => ({ ...prev, download: true }));
       const res = await axios.post(
         `https://ebook-backend-lxce.onrender.com/api/notes/${noteId}/download`,
         {},
@@ -204,50 +200,83 @@ useEffect(() => {
       }
 
       window.open(res.data.file_url, "_blank");
-
-      if (!downloaded.includes(noteId)) {
-        setDownloaded((prev) => [...prev, noteId]);
-      }
-
       toast.success("Download started");
     } catch (err: any) {
-      console.error("Download failed:", err);
       toast.error(err?.response?.data?.error || "Download failed");
+    } finally {
+      setLoading(prev => ({ ...prev, download: false }));
     }
   };
 
-  /* ----------------------------------------
-     ⭐ PREVIEW NOTE (PDF)
-  ---------------------------------------- */
- const handlePreview = async (note: any) => {
-  try {
-    setCurrentPage(1);
-    setTotalPages(null);
-    
+  /* ---------------------------------------------------------
+      PREVIEW NOTE
+  ----------------------------------------------------------*/
+  const handlePreview = async (note: any) => {
+    try {
+      setLoading(prev => ({ ...prev, preview: true }));
+      setSelectedNote(null);
+      setShowPreview(true);
+      setCurrentPage(1);
+      setTotalPages(1);
 
-    const previewUrl = `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`;
+      const url = `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`;
+      const res = await fetch(url);
 
-    setSelectedNote({
-      ...note,
-      previewUrl,
-    });
+      const total = Number(res.headers.get("X-Total-Pages")) || 1;
+      setTotalPages(total);
 
-    setShowPreview(true);
-  } catch (err) {
-    console.error("Preview load failed:", err);
-    toast.error("Preview not available");
+      const blob = await res.blob();
+      const pdfUrl = URL.createObjectURL(blob);
+
+      setSelectedNote({
+        ...note,
+        previewUrl: pdfUrl,
+        purchased: purchased.includes(note.id),
+      });
+    } catch (err) {
+      console.error("Preview error:", err);
+      toast.error("Failed to load preview");
+    } finally {
+      setLoading(prev => ({ ...prev, preview: false }));
+    }
+  };
+
+  /* ---------------------------------------------------------
+      PAGE CHANGE (ENFORCE LOCK)
+  ----------------------------------------------------------*/
+  function changePage(pg: number) {
+    if (pg < 1 || pg > totalPages) return;
+
+    if (!selectedNote?.purchased && pg > previewLimit) {
+      toast.error("Preview limit reached. Purchase to continue.");
+      return;
+    }
+
+    setCurrentPage(pg);
   }
-};
 
-  if (loading) return <p className="p-6 text-center">Loading notes...</p>;
+  /* ---------------------------------------------------------
+      RENDER LOADING SPINNER
+  ----------------------------------------------------------*/
+  const renderSpinner = (text: string = "Loading...") => (
+    <div className="flex justify-center items-center py-12">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-3"></div>
+        <p className="text-gray-500">{text}</p>
+      </div>
+    </div>
+  );
 
+  /* =========================================================
+      UI RENDER
+  ==========================================================*/
   const categories = ["All", ...new Set(notes.map((n) => n.category))];
 
   return (
     <div className="space-y-6">
       {/* HEADER */}
       <div>
-        <h2 className="text-[#1d4d6a] mb-1">Notes Repository</h2>
+        <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Notes Repository</h2>
         <p className="text-sm text-gray-500">
           Access high-quality academic notes
         </p>
@@ -264,6 +293,11 @@ useEffect(() => {
             placeholder="Search notes..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
           />
+          {loading.notes && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -274,8 +308,11 @@ useEffect(() => {
             key={category}
             variant="outline"
             onClick={() => setActiveCategory(category)}
+            disabled={loading.notes}
             className={
-              activeCategory === category ? "bg-[#bf2026] text-white" : ""
+              activeCategory === category 
+                ? "bg-[#bf2026] text-white hover:bg-[#a01c22]" 
+                : "hover:bg-gray-100"
             }
           >
             {category}
@@ -283,157 +320,212 @@ useEffect(() => {
         ))}
       </div>
 
-      {/* LIST */}
-      <div className="space-y-3">
-        {notes.map((note) => (
-          <Card key={note.id} className="shadow-md">
-            <CardContent className="p-4">
-              <div className="flex gap-4">
-                <div className="w-20 h-24 bg-gradient-to-br from-[#1d4d6a] to-[#2a5f7f] rounded flex items-center justify-center text-3xl">
-                  📝
-                </div>
-
-                <div className="flex-1">
-                  <h4 className="text-[#1d4d6a]">{note.title}</h4>
-                  <p className="text-sm text-gray-500">by {note.author}</p>
-
-                  <div className="flex gap-4 text-xs mt-2">
-                    <span>{note.pages} pages</span>
-                    {/* <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-yellow-400" /> {note.rating}
-                    </span>
-                    <span>{note.purchased} purchased</span> */}
-                  </div>
-
-                  {/* ⭐ ACTION BUTTONS */}
-                  <div className="flex gap-2 mt-3">
-                    {/* PREVIEW */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePreview(note)}
-                    >
-                      <Eye className="w-3 h-3 mr-2" /> Preview
-                    </Button>
-
-                    {/* PURCHASED */}
-                    {purchased.includes(note.id) ? (
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => readNote(note.id)}
-                      >
-                        <BookOpen className="w-3 h-3 mr-1" /> Read
-                      </Button>
-                    ) : note.price === "Free" || note.price === 0 ? (
-                      <Button
-                        size="sm"
-                        className="bg-[#bf2026] text-white"
-                        onClick={() => downloadNote(note.id)}
-                      >
-                        Download Free
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addToCart(note.id)}
-                        >
-                          Add to Cart
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          className="bg-[#bf2026] text-white"
-                          onClick={() => buyNow(note.id)}
-                        >
-                          Buy ₹{note.price}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-     {/* Preview Modal */}
-<Dialog open={showPreview} onOpenChange={setShowPreview}>
-  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-    <DialogHeader>
-      <DialogTitle>{selectedNote?.title}</DialogTitle>
-      <DialogDescription>
-        {selectedNote?.author} • {selectedNote?.category}
-      </DialogDescription>
-    </DialogHeader>
-
-    <div className="p-4 border rounded-lg">
-      {!selectedNote ? (
-        <p>Loading preview...</p>
-      ) : selectedNote.previewUrl ? (
-        <>
-          {/* PDF VIEWER */}
-          <PDFJSViewer
-            url={selectedNote.previewUrl}
-            page={currentPage}
-            scale={1.2}
-            onTotalPages={setTotalPages}
-            onPageChange={setCurrentPage}
-            previewPages={2}
-            isLocked={true}
-            bookId={selectedNote.id}
-            onBuyClick={() => buyNow(selectedNote.id)}
-          />
-
-          {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-3">
-  <Button
-  size="sm"
-  variant="outline"
-  disabled={currentPage <= 1}
-  onClick={() => setCurrentPage((p) => p - 1)}
->
-  Prev
-</Button>
-
-
-  <p className="text-sm text-gray-500">
-    Page {currentPage} / {totalPages}
-  </p>
-
-  <Button
-  size="sm"
-  variant="outline"
-  disabled={currentPage >= totalPages}
-  onClick={() => setCurrentPage((p) => p + 1)}
->
-  Next
-</Button>
-
-</div>
-
-        </>
+      {/* INITIAL LOADING */}
+      {loading.initial ? (
+        renderSpinner("Loading notes...")
+      ) : notes.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          {searchText 
+            ? `No notes found for "${searchText}"` 
+            : "No notes available yet."}
+        </div>
+      ) : loading.notes ? (
+        renderSpinner("Searching notes...")
       ) : (
-        <div className="text-center py-10">
-          <p className="text-gray-500 mb-4">No preview available.</p>
+        /* LIST */
+        <div className="space-y-3">
+          {notes.map((note) => (
+            <Card key={note.id} className="shadow-md hover:shadow-lg transition">
+              <CardContent className="p-4">
+                <div className="flex gap-4">
+                  <div className="w-20 h-24 bg-gradient-to-br from-[#1d4d6a] to-[#2a5f7f] rounded flex items-center justify-center text-3xl">
+                    📝
+                  </div>
 
-          {selectedNote.price > 0 && (
-            <Button
-              className="bg-[#bf2026] text-white"
-              onClick={() => buyNow(selectedNote.id)}
-            >
-              Buy ₹{selectedNote.price}
-            </Button>
-          )}
+                  <div className="flex-1">
+                    <h4 className="text-[#1d4d6a] text-base sm:text-lg font-semibold">{note.title}</h4>
+                    <p className="text-sm text-gray-500">by {note.author}</p>
+                    <span className="text-xs text-gray-500">{note.pages} pages</span>
+
+                    {/* ⭐ ACTION BUTTONS */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {/* PREVIEW */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePreview(note)}
+                        disabled={loading.preview}
+                        className="flex items-center gap-1"
+                      >
+                        {loading.preview ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3 h-3" />
+                            Preview
+                          </>
+                        )}
+                      </Button>
+
+                      {/* PURCHASED */}
+                      {purchased.includes(note.id) ? (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
+                          onClick={() => readNote(note.id)}
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          Read
+                        </Button>
+                      ) : note.price === "Free" || note.price === 0 ? (
+                        <Button
+                          size="sm"
+                          className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex items-center gap-1"
+                          onClick={() => downloadNote(note.id)}
+                          disabled={loading.download}
+                        >
+                          {loading.download ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              Downloading...
+                            </>
+                          ) : (
+                            "Download Free"
+                          )}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => addToCart(note.id)}
+                            disabled={loading.cart}
+                            className="flex items-center gap-1"
+                          >
+                            {loading.cart ? (
+                              <>
+                                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                                Adding...
+                              </>
+                            ) : (
+                              "Add to Cart"
+                            )}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex items-center gap-1"
+                            onClick={() => buyNow(note.id)}
+                            disabled={loading.purchase}
+                          >
+                            Buy ₹{note.price}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
-    </div>
-  </DialogContent>
-</Dialog>
 
+      {/* Preview Modal */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-[#1d4d6a] text-lg sm:text-xl">
+              {selectedNote?.title || "Preview"}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {selectedNote?.author} • {selectedNote?.category}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 border rounded-lg bg-white h-[55vh] overflow-auto">
+            {loading.preview ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-3"></div>
+                  <p className="text-gray-500">Loading preview...</p>
+                </div>
+              </div>
+            ) : !selectedNote ? (
+              <p className="text-center py-10 text-gray-600">No preview available</p>
+            ) : selectedNote.previewUrl ? (
+              <>
+                {/* PDF VIEWER */}
+                <PDFJSViewer
+                  url={selectedNote.previewUrl}
+                  page={currentPage}
+                  scale={1.1}
+                  purchased={selectedNote.purchased}
+                  isLocked={!selectedNote.purchased}
+                  previewPages={2}
+                  isLocked={true}
+                  bookId={selectedNote.id}
+                  onBuyClick={() => buyNow(selectedNote.id)}
+                  onTotalPages={setTotalPages}
+                  onPageChange={setCurrentPage}
+                />
+
+                {/* PAGINATION */}
+                <div className="flex items-center justify-between mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="flex items-center gap-1"
+                  >
+                    Prev
+                  </Button>
+
+                  <p className="text-sm text-gray-500">
+                    Page {currentPage} / {totalPages}
+                  </p>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => {
+                      const next = currentPage + 1;
+
+                      if (!selectedNote.purchased && next > 2) {
+                        setCurrentPage(next);
+                        return;
+                      }
+
+                      setCurrentPage(next);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-gray-500 mb-4">No preview available</p>
+
+                {selectedNote.price > 0 && (
+                  <Button
+                    className="bg-[#bf2026] text-white hover:bg-[#a01c22]"
+                    onClick={() => buyNow(selectedNote.id)}
+                  >
+                    Buy ₹{selectedNote.price}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -145,6 +145,32 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
       return null;
     }
   };
+  const createWritingOrder = async () => {
+  const payload = JSON.parse(localStorage.getItem("pendingWritingOrder"));
+  if (!payload) return;
+
+  const res = await fetch("https://ebook-backend-lxce.onrender.com/api/writing/order", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    toast.error("Order creation failed");
+    return;
+  }
+
+  // clear temp save
+  localStorage.removeItem("pendingWritingOrder");
+
+  toast.success("Order placed successfully!");
+};
+
 
   // ---------------- MAIN LOADER ----------------
   useEffect(() => {
@@ -206,12 +232,33 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
         const effectiveId = purchaseId || id;
 
-        if (purchaseType && effectiveId) {
-          const fetched = await fetchProductById(purchaseType, effectiveId);
-          if (!cancelled && fetched)
-            setItem({ ...fetched, type: purchaseType });
-          return;
-        }
+        if (purchaseType === "writing") {
+  const payload = JSON.parse(localStorage.getItem("pendingWritingOrder") || "{}");
+
+  if (!payload || !payload.title) {
+    toast.error("Writing order data missing. Start again.");
+    onNavigate("user-dashboard");
+    return;
+  }
+
+  // Convert local storage payload into UI item format
+  if (!cancelled) {
+    setItem({
+      type: "writing",
+      title: payload.title,
+      price: payload.total_price,
+      pages: payload.pages,
+      subject: payload.subject_area,
+      deadline: payload.deadline,
+      instructions: payload.instructions,
+      attachments_url: payload.attachments_url,
+    });
+  }
+
+  setLoading(false);
+  return;
+}
+
 
         throw new Error("No purchase data found.");
       } catch (err) {
@@ -229,81 +276,91 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
   }, []);
 
   // ---------------- PAYMENT SUCCESS ----------------
-  const handleSuccess = async () => {
-    const token = getToken();
+const handleSuccess = async () => {
+  const token = getToken();
 
-    if (!token) {
-      toast.error("Login required");
-      onNavigate("login");
-      return;
-    }
+  if (!token) {
+    toast.error("Login required");
+    onNavigate("login");
+    return;
+  }
 
-    try {
-      if (!item) throw new Error("No item found");
+  try {
+    if (!item) throw new Error("No item found");
+    const headers = { Authorization: `Bearer ${token}` };
 
-      const headers = { Authorization: `Bearer ${token}` };
-
-      // ⭐ If this is a subscription purchase, call upgrade endpoint
-      if (item.type === "subscription") {
-        await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
-          { planId: item.id },
-          { headers }
-        );
-
-        toast.success("Subscription upgraded successfully! 🎉");
-
-        // Refresh subscription UI
-        localStorage.setItem("refreshSubscription", "true");
-
-        // Clear any old purchase data
-        localStorage.removeItem("purchaseType");
-        localStorage.removeItem("purchaseId");
-
-        // Redirect user back
-        onNavigate("user-dashboard");
-        return;
-      }
-
-      // ⭐ For NON-subscription purchases → use unified endpoint
-      let purchaseData;
-
-      if (item.type === "cart") {
-        purchaseData = {
-          items: item.items
-  .map((entry: any) => {
-    const p = getProductFromEntry(entry);
-    if (!p?.id) return null; // skip invalid
-    return { type: p.type || "book", id: p.id };
-  })
-  .filter(Boolean)
-
-        };
-      } else {
-        purchaseData = { items: [{ type: item.type, id: item.id }] };
-      }
-
+    // ⭐ 1) SUBSCRIPTIONS
+    if (item.type === "subscription") {
       await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/purchase/unified",
-        purchaseData,
+        "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
+        { planId: item.id },
         { headers }
       );
 
-      toast.success("Payment successful!");
-
-      localStorage.removeItem("purchaseType");
-      localStorage.removeItem("purchaseId");
-      localStorage.removeItem("purchaseItems");
-      localStorage.removeItem("cartItems");
-window.dispatchEvent(new Event("refresh-library"));
-window.dispatchEvent(new Event("refresh-explore"));
-
+      toast.success("Subscription upgraded!");
+      localStorage.clear();
       onNavigate("user-dashboard");
-    } catch (err) {
-      console.error("Payment error:", err);
-      toast.error("Payment failed.");
+      return;
     }
-  };
+
+    // ⭐ 2) BOOKS / NOTES PURCHASE
+    let purchaseData;
+    if (item.type === "cart") {
+      purchaseData = {
+        items: item.items
+          .map((entry) => {
+            const p = getProductFromEntry(entry);
+            if (!p?.id) return null;
+            return { type: p.type || "book", id: p.id };
+          })
+          .filter(Boolean),
+      };
+    } else {
+      purchaseData = { items: [{ type: item.type, id: item.id }] };
+    }
+
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/purchase/unified",
+      purchaseData,
+      { headers }
+    );
+
+    // ⭐ 3) WRITING ORDER CREATION
+    const pendingWriting = localStorage.getItem("pendingWritingOrder");
+
+    if (pendingWriting) {
+      const writingPayload = JSON.parse(pendingWriting);
+
+      await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/writing/order",
+        {
+          ...writingPayload,
+          payment_success: true,
+          paid_at: new Date().toISOString(),
+        },
+        { headers }
+      );
+
+      localStorage.removeItem("pendingWritingOrder");
+      toast.success("✍️ Writing order created successfully!");
+    }
+
+    // ⭐ 4) CLEAR PURCHASE CONTEXT
+    localStorage.removeItem("purchaseType");
+    localStorage.removeItem("purchaseId");
+    localStorage.removeItem("purchaseItems");
+    localStorage.removeItem("cartItems");
+
+    window.dispatchEvent(new Event("refresh-library"));
+    window.dispatchEvent(new Event("refresh-explore"));
+
+    onNavigate("user-dashboard");
+  } catch (err) {
+    console.error("Payment error:", err);
+    toast.error("Payment failed.");
+  }
+};
+
 
   if (loading) return <p className="text-center p-6">Loading...</p>;
   if (!item)

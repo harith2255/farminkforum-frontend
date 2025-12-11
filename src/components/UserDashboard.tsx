@@ -964,9 +964,29 @@ export default function DashboardHome({
   error,
 }) {
   if (loading)
-    return <p className="text-center text-gray-500">Loading dashboard...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
+          <p className="text-gray-600 mt-3">Loading dashboard...</p>
+        </div>
+      </div>
+    );
 
+  if (error)
+    return (
+      <div className="flex justify-center items-center py-12">
+        <p className="text-red-600 font-medium">{error}</p>
+      </div>
+    );
+
+  if (!dashboardData)
+    return (
+      <div className="text-center py-12 text-gray-500">
+        No dashboard data found.
+      </div>
+    );
+    
   const stats = dashboardData?.stats || {};
   const recentBooks = dashboardData?.recentBooks || [];
 

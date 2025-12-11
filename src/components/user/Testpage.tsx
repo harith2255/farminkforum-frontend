@@ -8,6 +8,7 @@ interface Question {
   question: string;
   options: string[];
   answer?: string;
+    explanation?: string; // <-- NEW
 }
 
 export default function TestPage() {
@@ -35,7 +36,8 @@ export default function TestPage() {
     if (!attemptId || !testId) return;
 
     try {
-      const res = await axios.get(`${API_TEST}/test/${testId}`, {
+     const res = await axios.get(`${API_ACTION}/questions/${testId}`, {
+
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -46,15 +48,20 @@ export default function TestPage() {
         window.location.href = "/user-dashboard";
         return;
       }
+console.log("🔥 Loaded questions:", test.mock_test_questions);
 
       const mcqs = test.mock_test_questions;
 
-      const formatted = mcqs.map((q: any) => ({
-        id: q.id,
-        question: q.question,
-        options: [q.option_a, q.option_b, q.option_c, q.option_d].filter(Boolean),
-        answer: q.correct_option,
-      }));
+  const formatted = mcqs.map((q: any) => ({
+  id: q.id,
+  question: q.question,
+  options: q.options || [],   // <-- correct
+  answer: q.correct_option,
+  explanation: q.explanation || ""
+}));
+
+
+
 
       setQuestions(formatted);
 
@@ -218,6 +225,11 @@ export default function TestPage() {
                   {option}
                 </label>
               ))}
+              {answers[q.id] && (
+  <p className="mt-2 text-sm text-blue-700 bg-blue-50 p-2 rounded">
+    <strong>Explanation:</strong> {q.explanation}
+  </p>
+)}
             </div>
           </div>
         ))}

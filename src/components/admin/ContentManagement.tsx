@@ -26,6 +26,13 @@ type Book = any;
 type Note = any;
 type Test = any;
 
+type MCQ = {
+  question: string;
+  options: string[];
+  answer: string;
+  explanation: string; // Added explanation field
+};
+
 const API = import.meta.env.VITE_API_BASE || "https://ebook-backend-lxce.onrender.com/api";
 
 function getAuthHeaders() {
@@ -39,14 +46,26 @@ export function ContentManagementGrid() {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [mcqs, setMcqs] = useState([
-    { question: "", options: ["", "", "", ""], answer: "" },
+  // MCQ Management State
+  const [mcqs, setMcqs] = useState<MCQ[]>([
+    {
+      question: "",
+      options: ["", ""], // Start with 2 empty options
+      answer: "",
+      explanation: "" // Initialize with empty explanation
+    }
   ]);
 
   const [mcqPage, setMcqPage] = useState(0);
 
+  // MCQ Helper Functions
   const addQuestion = () => {
-    setMcqs([...mcqs, { question: "", options: ["", "", "", ""], answer: "" }]);
+    setMcqs([...mcqs, {
+      question: "",
+      options: ["", ""],
+      answer: "",
+      explanation: ""
+    }]);
     setMcqPage(mcqs.length);
   };
 
@@ -57,9 +76,8 @@ export function ContentManagementGrid() {
     setMcqPage(Math.max(0, index - 1));
   };
 
-  const updateQuestion = (index: number, field: string, value: string) => {
+  const updateQuestion = (index: number, field: keyof MCQ, value: string) => {
     const updated = [...mcqs];
-    // @ts-ignore
     updated[index][field] = value;
     setMcqs(updated);
   };
@@ -69,6 +87,49 @@ export function ContentManagementGrid() {
     updated[qIndex].options[optionIndex] = value;
     setMcqs(updated);
   };
+
+  // Add option to a specific question
+  const addOption = (questionIndex: number) => {
+    setMcqs(prev => {
+      const updated = [...prev];
+      if (updated[questionIndex].options.length < 6) {
+        updated[questionIndex].options.push("");
+      }
+      return updated;
+    });
+  };
+
+  // Remove option from a specific question
+  const removeOption = (questionIndex: number, optionIndex: number) => {
+    setMcqs(prev => {
+      const updated = [...prev];
+      if (updated[questionIndex].options.length > 2) {
+        const removedOption = updated[questionIndex].options[optionIndex];
+        updated[questionIndex].options.splice(optionIndex, 1);
+        // If the removed option was the correct answer, clear the answer
+        if (updated[questionIndex].answer === removedOption) {
+          updated[questionIndex].answer = "";
+        }
+      }
+      return updated;
+    });
+  };
+
+  // Set an option as the correct answer
+  const setAsCorrectAnswer = (questionIndex: number, optionIndex: number) => {
+    const optionValue = mcqs[questionIndex].options[optionIndex];
+    if (optionValue.trim()) {
+      updateQuestion(questionIndex, "answer", optionValue);
+    }
+  };
+
+  // // Auto-detect correct answer (finds first non-empty option)
+  // const autoDetectCorrectAnswer = (questionIndex: number) => {
+  //   const nonEmptyOption = mcqs[questionIndex].options.find(opt => opt.trim() !== "");
+  //   if (nonEmptyOption) {
+  //     updateQuestion(questionIndex, "answer", nonEmptyOption);
+  //   }
+  // };
 
   // Upload dialogs
   const [showUploadBook, setShowUploadBook] = useState(false);
@@ -330,66 +391,148 @@ export function ContentManagementGrid() {
     }
   };
 
-  const uploadTest = async () => {
-    try {
-      setUploading(true);
+const uploadTest = async () => {
+  // Enhanced validation
+  if (!testForm.title.trim()) {
+    alert("❌ Title is required for Mock Test");
+    return;
+  }
+  
+  // Validate duration as a positive number
+  const duration = parseInt(testForm.duration_minutes);
+  if (!testForm.duration_minutes || isNaN(duration) || duration <= 0) {
+    alert("❌ Please enter a valid duration in minutes (e.g., 30)");
+    return;
+  }
+  
+  // Validate MCQs exist
+  if (mcqs.length === 0) {
+    alert("❌ At least one MCQ is required");
+    return;
+  }
 
-      const data = new FormData();
-
-      data.append("type", "Mock Test");
-
-      // Required
-      data.append("title", testForm.title);
-      data.append("subject", testForm.subject || "");
-      data.append("difficulty", testForm.difficulty || "");
-      data.append("total_questions", testForm.total_questions || "");
-      data.append("duration_minutes", testForm.duration_minutes || "");
-      data.append("scheduled_date", testForm.scheduled_date || "");
-      data.append("description", testForm.description || "");
-
-      // Optional File
-      if (testForm.file) {
-        data.append("file", testForm.file);
-      }
-
-      // MCQs JSON
-      data.append("mcqs", JSON.stringify(mcqs));
-
-      const headers = {
-        ...getAuthHeaders(),
-        "Content-Type": "multipart/form-data",
-      };
-
-      await axios.post(`${API}/admin/content/upload`, data, { headers });
-
-      alert("✅ Mock Test uploaded successfully!");
-
-
-
-      // reset form
-      setTestForm({
-        title: "",
-        subject: "Agriculture",
-        difficulty: "Easy",
-        total_questions: "",
-        duration_minutes: "",
-        scheduled_date: "",
-        description: "",
-        file: null,
-      });
-
-      // reset MCQs to one blank question after upload
-      setMcqs([{ question: "", options: ["", "", "", ""], answer: "" }]);
-      setMcqPage(0);
-
-      fetchContent();
-    } catch (err: any) {
-      console.error("uploadTest error", err);
-      alert(err?.response?.data?.error || "Upload failed");
-    } finally {
-      setUploading(false);
+  // Validate each MCQ has required fields
+  const validationErrors = [];
+  mcqs.forEach((mcq, index) => {
+    if (!mcq.question.trim()) {
+      validationErrors.push(`Question ${index + 1}: Question text is required`);
     }
-  };
+    if (!mcq.answer.trim()) {
+      validationErrors.push(`Question ${index + 1}: Correct answer is required`);
+    }
+    // Check for at least 2 non-empty options
+    const validOptions = mcq.options.filter(opt => opt && opt.trim() !== "").length;
+    if (validOptions < 2) {
+      validationErrors.push(`Question ${index + 1}: At least 2 valid options are required`);
+    }
+    // Optional: ensure answer matches one of the options
+    if (mcq.answer.trim() && !mcq.options.includes(mcq.answer)) {
+      validationErrors.push(`Question ${index + 1}: Correct answer must match one of the options`);
+    }
+  });
+
+  if (validationErrors.length > 0) {
+    alert("❌ Please fix the following errors:\n\n" + validationErrors.join("\n"));
+    return;
+  }
+
+  try {
+    setUploading(true);
+
+    const data = new FormData();
+    
+    // Append all data
+    data.append("type", "Mock Test");
+    data.append("title", testForm.title);
+    data.append("subject", testForm.subject || "Agriculture");
+    data.append("difficulty", testForm.difficulty || "Easy");
+    
+    // CRITICAL FIX: Send as number, not string
+    data.append("total_questions", mcqs.length); // No .toString()
+    
+    data.append("duration_minutes", testForm.duration_minutes);
+    
+    // Only append scheduled_date if it has a value
+    if (testForm.scheduled_date && testForm.scheduled_date.trim()) {
+      data.append("scheduled_date", testForm.scheduled_date);
+    }
+    
+    data.append("description", testForm.description || "");
+
+    // Only append file if it exists
+    if (testForm.file) {
+      data.append("file", testForm.file);
+    }
+
+    // Ensure mcqs is valid JSON
+    data.append("mcqs", JSON.stringify(mcqs));
+
+    // DEBUGGING: Log what we're sending
+    console.log("📤 Sending FormData contents:");
+    for (let [key, value] of data.entries()) {
+      console.log(key + ":", value);
+    }
+
+    const headers = {
+      ...getAuthHeaders(),
+      // Let Axios set Content-Type automatically for FormData
+    };
+
+    const response = await axios.post(`${API}/admin/content/upload`, data, { headers });
+    
+    console.log("✅ Upload successful:", response.data);
+    alert("✅ Mock Test uploaded successfully!");
+
+    // Reset form
+    setTestForm({
+      title: "",
+      subject: "Agriculture",
+      difficulty: "Easy",
+      total_questions: "",
+      duration_minutes: "",
+      scheduled_date: "",
+      description: "",
+      file: null,
+    });
+
+    setMcqs([{
+      question: "",
+      options: ["", ""],
+      answer: "",
+      explanation: ""
+    }]);
+    setMcqPage(0);
+    
+    // Close dialog
+    setShowUploadTest(false);
+    
+    // Refresh content list
+    fetchContent();
+
+  } catch (err: any) {
+    console.error("❌ Upload failed:", err);
+    
+    // Extract specific error message
+    let errorMessage = "Upload failed. ";
+    
+    if (err.response) {
+      // The server responded with an error
+      console.error("Server response:", err.response.data);
+      errorMessage += `Server error: ${JSON.stringify(err.response.data)}`;
+    } else if (err.request) {
+      // Request was made but no response
+      console.error("No response received:", err.request);
+      errorMessage += "No response from server.";
+    } else {
+      // Something else happened
+      errorMessage += err.message;
+    }
+    
+    alert(errorMessage);
+  } finally {
+    setUploading(false);
+  }
+};
 
   const openEditModal = (item: any, type: "book" | "note" | "test") => {
     setEditItem(item);
@@ -939,18 +1082,29 @@ export function ContentManagementGrid() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              {/* AUTOMATED TOTAL QUESTIONS FIELD */}
               <div>
-                <Label>Total Questions</Label>
-                <Input
-                  type="number"
-                  value={testForm.total_questions}
-                  onChange={(e) =>
-                    setTestForm({
-                      ...testForm,
-                      total_questions: e.target.value,
-                    })
-                  }
-                />
+                <Label className="flex items-center gap-2 mb-1">
+                  Total Questions
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                    Auto-calculated
+                  </span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={mcqs.length}
+                    readOnly
+                    className="bg-gray-50 font-semibold cursor-not-allowed"
+                  />
+                  <div className="text-sm text-gray-600 whitespace-nowrap">
+                    from {mcqs.length} MCQ{mcqs.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  Automatically updated when you add/remove questions
+                </div>
               </div>
 
               <div>
@@ -964,6 +1118,8 @@ export function ContentManagementGrid() {
                       duration_minutes: e.target.value,
                     })
                   }
+                  min="1"
+                  placeholder="e.g., 30"
                 />
               </div>
             </div>
@@ -995,7 +1151,7 @@ export function ContentManagementGrid() {
                 <div>
                   <h2 className="text-lg font-semibold">MCQ Section</h2>
                   <p className="text-sm text-gray-500">
-                    Add multiple choice questions for the test
+                    Add multiple choice questions for the test. Total questions will auto-update.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1008,6 +1164,24 @@ export function ContentManagementGrid() {
                     <Plus className="w-4 h-4" />
                     Add Question
                   </Button>
+                </div>
+              </div>
+
+              {/* Question Count Summary */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-blue-700">Question Statistics</div>
+                    <div className="text-sm text-blue-600">
+                      {mcqs.filter(q => q.question.trim()).length} filled •{' '}
+                      {mcqs.filter(q => q.answer && q.answer.trim()).length} with answers •{' '}
+                      {mcqs.filter(q => q.explanation && q.explanation.trim()).length} with explanations
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-[#1d4d6a]">{mcqs.length}</div>
+                    <div className="text-sm text-gray-600">Total Questions</div>
+                  </div>
                 </div>
               </div>
 
@@ -1042,32 +1216,103 @@ export function ContentManagementGrid() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    {mcqs[mcqPage].options.map((opt, i) => (
-                      <div key={i} className="relative">
-                        <Label>Option {i + 1}</Label>
-                        <Input
-                          value={opt}
-                          onChange={(e) =>
-                            updateOption(mcqPage, i, e.target.value)
-                          }
-                          placeholder={`Option ${i + 1}`}
-                          className="mt-1"
-                        />
+                  {/* Options Section with Add Option Button */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <Label>Options</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addOption(mcqPage)}
+                        className="flex items-center gap-1 text-xs"
+                        disabled={mcqs[mcqPage].options.length >= 6}
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Option
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {mcqs[mcqPage].options.map((opt, i) => (
+                        <div key={i} className="relative group">
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-sm">Option {i + 1}</Label>
+                            {mcqs[mcqPage].options.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => removeOption(mcqPage, i)}
+                                className="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              value={opt}
+                              onChange={(e) =>
+                                updateOption(mcqPage, i, e.target.value)
+                              }
+                              placeholder={`Option ${i + 1}`}
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setAsCorrectAnswer(mcqPage, i)}
+                              className={`px-3 py-2 rounded border ${mcqs[mcqPage].answer === opt
+                                ? 'bg-green-100 text-green-700 border-green-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+                                }`}
+                              title="Mark as correct answer"
+                            >
+                              ✓
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {mcqs[mcqPage].options.length < 6 && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        You can add up to 6 options per question
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <div>
                     <Label>Correct Answer</Label>
-                    <Input
-                      value={mcqs[mcqPage].answer}
-                      onChange={(e) =>
-                        updateQuestion(mcqPage, "answer", e.target.value)
-                      }
-                      placeholder="Enter correct answer (must match one of the options)"
-                      className="mt-1"
-                    />
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        value={mcqs[mcqPage].answer}
+                        onChange={(e) =>
+                          updateQuestion(mcqPage, "answer", e.target.value)
+                        }
+                        placeholder="Enter correct answer (must match one of the options)"
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Tip: Click the ✓ button next to an option to mark it as correct
+                    </div>
+                  </div>
+
+                  {/* Explanation Text Area */}
+                  <div>
+                    <Label>Explanation for MCQs</Label>
+                    <div className="mt-1">
+                      <Textarea
+                        value={mcqs[mcqPage].explanation}
+                        onChange={(e) =>
+                          updateQuestion(mcqPage, "explanation", e.target.value)
+                        }
+                        placeholder="Add explanation for why this answer is correct (optional)"
+                        className="w-full"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      This explanation will be shown to users after they attempt the question
+                    </div>
                   </div>
                 </div>
               )}
@@ -1099,7 +1344,7 @@ export function ContentManagementGrid() {
 
               {/* Questions Summary */}
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Questions Summary:</h4>
+                <h4 className="text-sm font-medium mb-2">Questions Summary ({mcqs.length} total):</h4>
                 <div className="flex flex-wrap gap-1">
                   {mcqs.map((mcq, index) => (
                     <Badge
@@ -1114,9 +1359,12 @@ export function ContentManagementGrid() {
                       onClick={() => setMcqPage(index)}
                     >
                       Q{index + 1}
-                      {mcq.question && " ✓"}
+                      {mcq.question && mcq.answer && mcq.explanation ? " ✓✓" : mcq.question ? " ✓" : ""}
                     </Badge>
                   ))}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  ✓ = Question filled, ✓✓ = Question + Answer + Explanation filled
                 </div>
               </div>
             </div>
@@ -1131,9 +1379,9 @@ export function ContentManagementGrid() {
               <Button
                 className="bg-[#bf2026] text-white flex-1"
                 onClick={uploadTest}
-                disabled={uploading}
+                disabled={uploading || mcqs.length === 0}
               >
-                {uploading ? "Uploading..." : "Upload Mock Test"}
+                {uploading ? "Uploading..." : `Upload Mock Test (${mcqs.length} questions)`}
               </Button>
             </div>
           </div>
@@ -1324,11 +1572,6 @@ export function ContentManagementGrid() {
                   </div>
                 </>
               )}
-
-              {/* <div>
-                <Label>Replace File</Label>
-                <input type="file" onChange={(e: any) => setEditItem({ ...editItem, newFile: e.target.files?.[0] ?? null })} />
-              </div> */}
 
               <div className="flex gap-2 mt-4">
                 <Button
