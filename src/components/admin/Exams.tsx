@@ -628,14 +628,14 @@ const deleteExam = async (examId: number) => {
 
   // ---------------------------- Render ----------------------------
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6">
       {/* header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-[#1d4d6a]">
+          <h2 className="text-[#1d4d6a] mb-1">
             Exams & Notes
           </h2>
-          <p className="text-sm text-gray-600">{folders.length} subjects</p>
+          <p className="text-sm text-gray-500">{folders.length} subjects</p>
         </div>
 
         <div className="flex gap-3 items-center">

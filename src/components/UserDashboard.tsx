@@ -42,6 +42,7 @@ import { Progress } from "./ui/progress";
 import UniversalPurchasePage from "./PurchasePage";
 import Exams from "./user/Exams";
 import ReadNotePage from "./ReadNotePage";
+import PYQSection from "./user/PYQs";
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
@@ -55,6 +56,7 @@ type UserSection =
   | "library"
   | "tests"
   | "exams"
+  | "pyqs"  // Changed from "PYQs" to "pyqs" (lowercase)
   | "notes"
   | "writing"
   | "jobs"
@@ -114,44 +116,6 @@ export function UserDashboard({
     );
   }
 
-  /* --------------------------------------------------
-     📚 READING PROGRESS & LAST PAGE SYNC
-  -----------------------------------------------------*/
-  // useEffect(() => {
-  //   async function handleProgress(e: any) {
-  //     const { id, page, totalPages } = e.detail;
-  //     if (!id || !page || !totalPages) return;
-
-  //     const token = localStorage.getItem("token");
-  //     if (!token) return;
-
-  //     const percent = Math.min(
-  //       100,
-  //       Math.round((page / totalPages) * 100)
-  //     );
-
-  //     // Save progress
-  //     await axios.put(
-  //       `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
-  //       { progress: percent, last_page: page },
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-
-
-  //     // Save last page
-  //     await axios.put(
-  //       `https://ebook-backend-lxce.onrender.com/api/library/last-page/${id}`,
-  //       { last_page: page },
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     ).catch(err => console.warn("last-page save failed:", err));
-
-  //     // Refresh UI
-  //     window.dispatchEvent(new Event("dashboard:update"));
-  //   }
-
-  //   window.addEventListener("reader:progress", handleProgress);
-  //   return () => window.removeEventListener("reader:progress", handleProgress);
-  // }, []);
   useEffect(() => {
     const handler = () => {
       setActiveSection("notes");
@@ -360,6 +324,7 @@ export function UserDashboard({
       ? [{ id: "exams", icon: Trophy, label: "Exams" }]
       : []),
 
+    { id: "pyqs", icon: FileText, label: "PYQs" }, // lowercase "pyqs"
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
     { id: "writing", icon: PenIcon, label: "Writing Services" },
@@ -434,6 +399,7 @@ export function UserDashboard({
         "tests",
         "notes",
         "exams",
+        "pyqs", // lowercase to match menuItems
         "writing",
         "jobs",
         "payments",
@@ -642,16 +608,6 @@ export function UserDashboard({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Search */}
-          {/* <div className="relative hidden md:block">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-32 sm:w-64"
-            />
-          </div> */}
-
           {/* Notifications */}
           <div className="relative" ref={dropdownRef}>
             <button
@@ -906,7 +862,9 @@ export function UserDashboard({
                 <UpgradeRequired onNavigate={setActiveSection} />
               )
             )}
-
+            
+            {/* FIXED: Changed from "PYQs" to "pyqs" */}
+            {activeSection === "pyqs" && <PYQSection />}
 
             {activeSection === "writing" && (
               <WritingServices onNavigate={onNavigate} />

@@ -44,7 +44,7 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem("session") || "{}");
-    return session.access_token || localStorage.getItem("token");
+    return session.access_token || localStorage.getItem("app_token");
   };
 
   // ---------------- ICON MAP ----------------
@@ -110,11 +110,11 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
       const url =
         type === "book"
-          ? `https://ebook-backend-lxce.onrender.com/api/books/${productId}`
+          ? `http://localhost:5000/api/books/${productId}`
           : type === "note"
-          ? `https://ebook-backend-lxce.onrender.com/api/notes/${productId}`
+          ? `http://localhost:5000/api/notes/${productId}`
           : type === "subscription"
-          ? `https://ebook-backend-lxce.onrender.com/api/subscriptions/${productId}`
+          ? `http://localhost:5000/api/subscriptions/${productId}`
           : null;
 
       if (!url) {
@@ -149,11 +149,11 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
   const payload = JSON.parse(localStorage.getItem("pendingWritingOrder"));
   if (!payload) return;
 
-  const res = await fetch("https://ebook-backend-lxce.onrender.com/api/writing/order", {
+  const res = await fetch("http://localhost:5000/api/writing/order", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      Authorization: `Bearer ${localStorage.getItem("app_token")}`,
     },
     body: JSON.stringify(payload),
   });
@@ -187,13 +187,13 @@ export default function UniversalPurchasePage({ id, onNavigate }: any) {
 
               if (entry.book_id) {
                 const res = await axios.get(
-                  `https://ebook-backend-lxce.onrender.com/api/ebooks/${entry.book_id}`
+                  `http://localhost:5000/api/ebooks/${entry.book_id}`
                 );
                 return { ...entry, book: res.data };
               }
               if (entry.note_id) {
                 const res = await axios.get(
-                  `https://ebook-backend-lxce.onrender.com/api/notes/${entry.note_id}`
+                  `http://localhost:5000/api/notes/${entry.note_id}`
                 );
                 return { ...entry, note: res.data };
               }
@@ -292,7 +292,7 @@ const handleSuccess = async () => {
     // ⭐ 1) SUBSCRIPTIONS
     if (item.type === "subscription") {
       await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
+        "http://localhost:5000/api/subscriptions/upgrade",
         { planId: item.id },
         { headers }
       );
@@ -320,7 +320,7 @@ const handleSuccess = async () => {
     }
 
     await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/purchase/unified",
+      "http://localhost:5000/api/purchase/unified",
       purchaseData,
       { headers }
     );
@@ -332,7 +332,7 @@ const handleSuccess = async () => {
       const writingPayload = JSON.parse(pendingWriting);
 
       await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/writing/order",
+        "http://localhost:5000/api/writing/order",
         {
           ...writingPayload,
           payment_success: true,

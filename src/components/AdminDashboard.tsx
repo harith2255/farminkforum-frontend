@@ -20,6 +20,7 @@ import { Avatar } from './ui/avatar';
 import { AdminDashboardHome } from './admin/AdminDashboardHome';
 import { CustomerManagement } from './admin/CustomerManagement';
 import Exams from './admin/Exams';
+import PYQs from './admin/pyqs';
 import ContentManagement from './admin/ContentManagement';
 import { DRMControls } from './admin/DRMControls';
 import { PaymentsAdmin } from './admin/PaymentsAdmin';
@@ -40,6 +41,7 @@ type AdminSection =
   | 'customers'
   | 'content'
   | 'exams'
+  | 'pyqs'
   | 'drm'
   | 'writing'
   | 'payments'
@@ -64,6 +66,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 'customers' as AdminSection, icon: Users, label: 'Customers' },
     { id: 'content' as AdminSection, icon: BookOpen, label: 'Content' },
     { id: 'exams' as AdminSection, icon: Crown, label: 'Exams' },
+    { id: 'pyqs' as AdminSection, icon: FileText, label: 'PYQs' },
     { id: 'drm' as AdminSection, icon: Shield, label: 'DRM Controls' },
     { id: 'writing' as AdminSection, icon: FileText, label: 'Writing Services' },
     { id: 'payments' as AdminSection, icon: CreditCard, label: 'Payments' },
@@ -83,6 +86,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
       "customers",
       "content",
       "exams",
+      "pyqs",
       "drm",
       "writing",
       "payments",
@@ -272,6 +276,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
           {activeSection === 'customers' && <CustomerManagement />}
           {activeSection === 'content' && <ContentManagement />}
           {activeSection === 'exams' && <Exams />}
+          {activeSection === 'pyqs' && <PYQs />}
           {activeSection === 'drm' && <DRMControls />}
           {activeSection === 'writing' && <WritingService />}
           {activeSection === 'payments' && <PaymentsAdmin />}
