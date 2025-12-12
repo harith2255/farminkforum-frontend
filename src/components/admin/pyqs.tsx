@@ -5,7 +5,126 @@ import { Plus, Upload, X, FileText, CheckCircle, Calendar, AlertCircle, Folder, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 
 function PYQSection() {
-  const [folders, setFolders] = useState([]);
+  const [folders, setFolders] = useState([
+    {
+      id: 1,
+      name: "Agriculture Extension Education",
+      createdAt: new Date("2024-01-15").toISOString(),
+      updatedAt: new Date("2024-03-10").toISOString(),
+      paperCount: 6,
+      papers: [
+        {
+          id: 101,
+          type: "question",
+          title: "2020 Question Paper",
+          year: "2020",
+          fileName: "AgriExt_2020_Question.pdf",
+          fileSize: "2.4 MB",
+          uploadDate: "2024-01-15",
+          status: "published"
+        },
+        {
+          id: 102,
+          type: "answer",
+          title: "2020 Answer Key",
+          year: "2020",
+          fileName: "AgriExt_2020_Answer.pdf",
+          fileSize: "1.8 MB",
+          uploadDate: "2024-01-15",
+          status: "published"
+        },
+        {
+          id: 103,
+          type: "question",
+          title: "2021 Question Paper",
+          year: "2021",
+          fileName: "AgriExt_2021_Question.pdf",
+          fileSize: "2.6 MB",
+          uploadDate: "2024-02-20",
+          status: "published"
+        },
+        {
+          id: 104,
+          type: "answer",
+          title: "2021 Answer Key",
+          year: "2021",
+          fileName: "AgriExt_2021_Answer.pdf",
+          fileSize: "2.0 MB",
+          uploadDate: "2024-02-20",
+          status: "published"
+        },
+        {
+          id: 105,
+          type: "question",
+          title: "2022 Question Paper",
+          year: "2022",
+          fileName: "AgriExt_2022_Question.pdf",
+          fileSize: "3.1 MB",
+          uploadDate: "2024-03-10",
+          status: "published"
+        },
+        {
+          id: 106,
+          type: "answer",
+          title: "2022 Answer Key",
+          year: "2022",
+          fileName: "AgriExt_2022_Answer.pdf",
+          fileSize: "2.2 MB",
+          uploadDate: "2024-03-10",
+          status: "published"
+        }
+      ]
+    },
+    {
+      id: 2,
+      name: "Education",
+      createdAt: new Date("2024-02-01").toISOString(),
+      updatedAt: new Date("2024-03-05").toISOString(),
+      paperCount: 4,
+      papers: [
+        {
+          id: 201,
+          type: "question",
+          title: "2023 Question Paper",
+          year: "2023",
+          fileName: "Education_2023_Question.pdf",
+          fileSize: "2.8 MB",
+          uploadDate: "2024-02-01",
+          status: "published"
+        },
+        {
+          id: 202,
+          type: "answer",
+          title: "2023 Answer Key",
+          year: "2023",
+          fileName: "Education_2023_Answer.pdf",
+          fileSize: "2.1 MB",
+          uploadDate: "2024-02-01",
+          status: "published"
+        },
+        {
+          id: 203,
+          type: "question",
+          title: "2024 Question Paper",
+          year: "2024",
+          fileName: "Education_2024_Question.pdf",
+          fileSize: "3.2 MB",
+          uploadDate: "2024-03-05",
+          status: "published"
+        },
+        {
+          id: 204,
+          type: "answer",
+          title: "2024 Answer Key",
+          year: "2024",
+          fileName: "Education_2024_Answer.pdf",
+          fileSize: "2.5 MB",
+          uploadDate: "2024-03-05",
+          status: "published"
+        }
+      ]
+    }
+  ]);
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   

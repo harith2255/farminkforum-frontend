@@ -19,6 +19,7 @@ import {
   Navigation,
   ShoppingCart,
   PenIcon,
+  Calendar,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -32,6 +33,7 @@ import { MockTests } from "./user/MockTests";
 import NotesRepository from "./user/NotesRepository";
 import { WritingServices } from "./user/WritingServices";
 import { JobPortal } from "./user/JobPortal";
+import CurrentAffairs from "./user/Current-Affairs";
 import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
@@ -56,7 +58,8 @@ type UserSection =
   | "library"
   | "tests"
   | "exams"
-  | "pyqs"  // Changed from "PYQs" to "pyqs" (lowercase)
+  | "pyqs"
+  | "current-affairs"
   | "notes"
   | "writing"
   | "jobs"
@@ -329,6 +332,7 @@ export function UserDashboard({
     { id: "notes", icon: FileText, label: "Notes" },
     { id: "writing", icon: PenIcon, label: "Writing Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
+    { id: "current-affairs", icon: Calendar, label: "Current Affairs" },
     { id: "payments", icon: CreditCard, label: "Payments" },
     { id: "profile", icon: User, label: "Profile" },
   ];
@@ -399,7 +403,8 @@ export function UserDashboard({
         "tests",
         "notes",
         "exams",
-        "pyqs", // lowercase to match menuItems
+        "pyqs",
+        "current-affairs",
         "writing",
         "jobs",
         "payments",
@@ -545,35 +550,38 @@ export function UserDashboard({
       </div>
     </div>
 
-    <nav className="p-4">
-      {menuItems.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => {
-            setActiveSection(item.id as UserSection);
-            setDropdownOpen(false);
-            setAvatarOpen(false);
-            // Close sidebar on mobile after selection
-            setSidebarOpen(false); 
+    {/* Scrollable navigation */}
+    <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+      <nav className="p-4">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              setActiveSection(item.id as UserSection);
+              setDropdownOpen(false);
+              setAvatarOpen(false);
+              // Close sidebar on mobile after selection
+              setSidebarOpen(false); 
 
-            // URL update without navigation
-            window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-          }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
-            activeSection === item.id
-              ? "bg-[#bf2026] text-white shadow-md"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          <item.icon className="w-5 h-5" />
-          {!sidebarCollapsed && (
-            <span className="text-sm">{item.label}</span>
-          )}
-        </button>
-      ))}
-    </nav>
+              // URL update without navigation
+              window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
+              activeSection === item.id
+                ? "bg-[#bf2026] text-white shadow-md"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <item.icon className="w-5 h-5" />
+            {!sidebarCollapsed && (
+              <span className="text-sm">{item.label}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+    </div>
 
-    <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+    <div className="p-4 border-t border-gray-200 bg-white">
       <button
         onClick={handleLogoutClick}
         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
@@ -586,7 +594,7 @@ export function UserDashboard({
 
   {/* Main Content */}
   <div
-    className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300`}
+    className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
   >
     {/* Header */}
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -626,7 +634,7 @@ export function UserDashboard({
                   Notifications
                 </div>
 
-                <ul className="max-h-60 overflow-y-auto">
+                <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
                   {notifications.length === 0 && (
                     <p className="px-3 py-2 text-sm text-gray-400 text-center">
                       No notifications
@@ -715,7 +723,7 @@ export function UserDashboard({
 
                 {cartItems.length > 0 ? (
                   <>
-                    <ul className="max-h-60 overflow-y-auto">
+                    <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
                       {cartItems.map((item) => {
                         const product = item.book || item.note;
 
@@ -830,9 +838,16 @@ export function UserDashboard({
       </div>
     </header>
 
-        {/* Main Content */}
-        <main className="p-8">
-          <Suspense fallback={<p>Loading...</p>}>
+        {/* Main Content with Scroll */}
+        <main className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-80px)] scscroll-smooth [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <Suspense fallback={
+            <div className="flex justify-center items-center h-64">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
+                <p className="text-gray-600 mt-3">Loading...</p>
+              </div>
+            </div>
+          }>
             {activeSection === "dashboard" && (
               <DashboardHome
                 onOpenBook={onOpenBook}
@@ -863,8 +878,9 @@ export function UserDashboard({
               )
             )}
             
-            {/* FIXED: Changed from "PYQs" to "pyqs" */}
             {activeSection === "pyqs" && <PYQSection />}
+
+            {activeSection === "current-affairs" && <CurrentAffairs />}
 
             {activeSection === "writing" && (
               <WritingServices onNavigate={onNavigate} />
