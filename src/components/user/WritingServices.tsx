@@ -845,7 +845,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
 
   // UI remains the same (unchanged)
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <div>
         <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Writing Services</h2>
         <p className="text-sm text-gray-500">

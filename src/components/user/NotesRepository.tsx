@@ -273,7 +273,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   const categories = ["All", ...new Set(notes.map((n) => n.category))];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* HEADER */}
       <div>
         <h2 className="text-[#1d4d6a] text-xl sm:text-2xl font-bold mb-1">Notes Repository</h2>

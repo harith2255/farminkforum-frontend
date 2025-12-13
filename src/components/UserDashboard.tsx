@@ -965,7 +965,7 @@ export default function DashboardHome({
   const recentBooks = dashboardData?.recentBooks || [];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4">
       {/* Books Read */}
       <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardContent className="p-6 flex justify-between">
