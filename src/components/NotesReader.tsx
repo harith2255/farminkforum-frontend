@@ -91,13 +91,13 @@ export default function NotesReader({ note, drm, onClose }: any) {
     (async () => {
       try {
         const hres = await fetch(
-          `http://localhost:5000/api/notes/highlights/${note.id}`,
+          `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (hres.ok) setHighlights(await hres.json());
 
         const pres = await fetch(
-          `http://localhost:5000/api/notes/lastpage/${note.id}`,
+          `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -116,7 +116,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
     if (!note || !token) return;
 
     const t = setTimeout(async () => {
-      await fetch(`http://localhost:5000/api/notes/lastpage/${note.id}`, {
+      await fetch(`https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -134,7 +134,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
   ============================ */
   const handleAddHighlight = async (h: any) => {
     try {
-      const res = await fetch("http://localhost:5000/api/notes/highlights", {
+      const res = await fetch("https://ebook-backend-lxce.onrender.com/api/notes/highlights", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -162,7 +162,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
   const handleDeleteHighlight = async (id: number) => {
     try {
       await fetch(
-        `http://localhost:5000/api/notes/highlights/${id}`,
+        `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${id}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

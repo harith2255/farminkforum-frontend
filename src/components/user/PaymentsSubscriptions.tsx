@@ -1020,6 +1020,7 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
                         onClick={() => {
                           localStorage.setItem("purchaseType", "subscription");
                           localStorage.setItem("purchaseId", plan.id);
+                          localStorage.setItem("purchaseItems", JSON.stringify([{ id: plan.id, type: "subscription" }]));
                           if (onNavigate) onNavigate("purchase");
                           else {
                             if (

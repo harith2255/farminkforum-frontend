@@ -96,9 +96,9 @@ export default function App() {
 ============================================================ */
 useEffect(() => {
   async function handleReaderProgress(e: any) {
-    const { id, page, totalPages } = e.detail || {};
+    const { bookId, page, totalPages } = e.detail || {};
 
-    if (!id || !page || !totalPages) {
+    if (!bookId || !page || !totalPages) {
       console.warn("⚠️ Invalid progress event payload", e.detail);
       return;
     }
@@ -112,7 +112,7 @@ useEffect(() => {
     const percent = Math.min(100, Math.round((page / totalPages) * 100));
 
     console.log("📩 RECEIVED PROGRESS EVENT", {
-      id,
+      bookId,
       page,
       percent,
       totalPages,
@@ -120,7 +120,7 @@ useEffect(() => {
 
     try {
       const res = await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/library/progress/${id}`,
+        `https://ebook-backend-lxce.onrender.com/api/library/progress/${bookId}`,
         { progress: percent, last_page: page },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -164,8 +164,12 @@ useEffect(() => {
 
 const handleOpenBook = (book: any) => {
   const id = book.book_id || book.id;
-  handleNavigate("reader", id);
+  handleNavigate("reader", {
+    id,
+    last_page: book.last_page || 1,
+  });
 };
+
 
 
 
@@ -180,10 +184,18 @@ const handleOpenBook = (book: any) => {
     return { page: "reader-note", param: id };
   }
 
-  if (path.startsWith("/reader/")) {
+ if (path.startsWith("/reader/")) {
+  const meta = JSON.parse(localStorage.getItem("open_book_meta") || "{}");
+
+  // fallback if someone manually types URL
+  if (!meta?.id) {
     const id = path.split("/").pop();
-    return { page: "reader", param: id };
+    return { page: "reader", param: { id, last_page: 1 } };
   }
+
+  return { page: "reader", param: meta };
+}
+
 
   if (path.startsWith("/purchase/")) {
     const id = path.split("/").pop();
@@ -284,13 +296,22 @@ const handleOpenBook = (book: any) => {
       window.history.pushState({}, "", `/notes/read/${param}`);
       return;
     }
+if (page === "reader") {
+  const meta =
+    typeof param === "object"
+      ? param
+      : { id: param, last_page: 1 };
 
-    if (page === "reader") {
-      setCurrentPage("reader");
-      setPageParam(param || null);
-      window.history.pushState({}, "", `/reader/${param}`);
-      return;
-    }
+  // Save full metadata in localStorage
+  localStorage.setItem("open_book_meta", JSON.stringify(meta));
+
+  setCurrentPage("reader");
+  setPageParam(meta);
+
+  window.history.pushState({}, "", `/reader/${meta.id}`);
+  return;
+}
+
 
     if (page === "purchase") {
       const id = param || "";
@@ -351,15 +372,18 @@ const handleOpenBook = (book: any) => {
       )}
 
       {/* READER */}
-      {currentPage === "reader" && pageParam && (
-        <BookReader
-          bookId={pageParam}
-          onClose={() => {
-            setCurrentPage(previousPage);
-            window.history.pushState({}, "", `/${previousPage}`);
-          }}
-        />
-      )}
+    {currentPage === "reader" && pageParam && (
+  <BookReader
+    bookId={pageParam.id}
+    startPage={pageParam.last_page || 1}
+    onClose={() => {
+      setCurrentPage(previousPage);
+      window.history.pushState({}, "", `/${previousPage}`);
+    }}
+  />
+)}
+
+
 
       {/* NOTE READER */}
 {currentPage === "reader-note" && pageParam && (
