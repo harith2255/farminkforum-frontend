@@ -104,7 +104,7 @@ useEffect(() => {
   const [bookForm, setBookForm] = useState({
     title: "",
     author: "",
-    category: "Agriculture",
+    category: "", // Changed from "Agriculture" to empty string
     price: "",
     description: "",
     tags: "",
@@ -115,7 +115,7 @@ useEffect(() => {
   const [noteForm, setNoteForm] = useState({
     title: "",
     author: "",
-    category: "Agriculture",
+    category: "", // Changed from "Agriculture" to empty string
     price: "",
     description: "",
     file: null as File | null,
@@ -123,7 +123,7 @@ useEffect(() => {
 
   const [testForm, setTestForm] = useState({
     title: "",
-    subject: "Agriculture",
+    subject: "", // Changed from "Agriculture" to empty string
     difficulty: "Easy",
     total_questions: "",
     duration_minutes: "",
@@ -345,7 +345,7 @@ const handleEditSave = async () => {
       setBookForm({
         title: "",
         author: "",
-        category: "Agriculture",
+        category: "",
         price: "",
         description: "",
         tags: "",
@@ -388,7 +388,7 @@ const handleEditSave = async () => {
       setNoteForm({
         title: "",
         author: "",
-        category: "Agriculture",
+        category: "",
         price: "",
         description: "",
         file: null,
@@ -441,7 +441,7 @@ const uploadTest = async () => {
     // reset form
     setTestForm({
       title: "",
-      subject: "Agriculture",
+      subject: "",
       difficulty: "Easy",
       total_questions: "",
       duration_minutes: "",
@@ -468,6 +468,12 @@ const uploadTest = async () => {
     setEditItem(item);
     setEditType(type);
     setShowEditDialog(true);
+  };
+
+  // Helper function to mark option as correct answer
+  const setAsCorrectAnswer = (qIndex: number, optionIndex: number) => {
+    const correctAnswer = mcqs[qIndex].options[optionIndex];
+    updateQuestion(qIndex, "answer", correctAnswer);
   };
 
   // ---------- Helpers ----------
@@ -791,16 +797,14 @@ const renderCover = (item: any) => {
             </div>
 
             <div>
-              <Label>Category</Label>
-              <select
+              <Label>Category/Subject</Label>
+              <Input
                 value={bookForm.category}
                 onChange={(e) =>
                   setBookForm({ ...bookForm, category: e.target.value })
                 }
-                className="w-full border p-2 rounded"
-              >
-                <option>Agriculture</option>
-              </select>
+                placeholder="e.g., Agriculture, Mathematics, Physics"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -911,16 +915,14 @@ const renderCover = (item: any) => {
             </div>
 
             <div>
-              <Label>Category</Label>
-              <select
+              <Label>Category/Subject</Label>
+              <Input
                 value={noteForm.category}
                 onChange={(e) =>
                   setNoteForm({ ...noteForm, category: e.target.value })
                 }
-                className="w-full border p-2 rounded"
-              >
-                <option>Agriculture</option>
-              </select>
+                placeholder="e.g., Agriculture, Mathematics, Physics"
+              />
             </div>
 
             <div>
@@ -996,15 +998,13 @@ const renderCover = (item: any) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Subject</Label>
-                <select
+                <Input
                   value={testForm.subject}
                   onChange={(e) =>
                     setTestForm({ ...testForm, subject: e.target.value })
                   }
-                  className="w-full border p-2 rounded"
-                >
-                  <option>Agriculture</option>
-                </select>
+                  placeholder="e.g., Agriculture, Physics, Chemistry"
+                />
               </div>
 
               <div>
@@ -1108,24 +1108,6 @@ const renderCover = (item: any) => {
                   </Button>
                 </div>
               </div>
-
-              {/* Question Count Summary
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-blue-700">Question Statistics</div>
-                    <div className="text-sm text-blue-600">
-                      {mcqs.filter(q => q.question.trim()).length} filled •{' '}
-                      {mcqs.filter(q => q.answer && q.answer.trim()).length} with answers •{' '}
-                      {mcqs.filter(q => q.explanation && q.explanation.trim()).length} with explanations
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-[#1d4d6a]">{mcqs.length}</div>
-                    <div className="text-sm text-gray-600">Total Questions</div>
-                  </div>
-                </div>
-              </div> */}
 
               {mcqs.length > 0 && (
                 <div className="space-y-4">
@@ -1362,16 +1344,14 @@ const renderCover = (item: any) => {
                   </div>
 
                   <div>
-                    <Label>Category</Label>
-                    <select
-                      value={editItem.category || "Agriculture"}
+                    <Label>Category/Subject</Label>
+                    <Input
+                      value={editItem.category || ""}
                       onChange={(e) =>
                         setEditItem({ ...editItem, category: e.target.value })
                       }
-                      className="w-full border p-2 rounded"
-                    >
-                      <option>Agriculture</option>
-                    </select>
+                      placeholder="e.g., Agriculture, Mathematics, Physics"
+                    />
                   </div>
 
                   <div>
@@ -1415,15 +1395,13 @@ const renderCover = (item: any) => {
                 <>
                   <div>
                     <Label>Subject</Label>
-                    <select
-                      value={editItem.subject || "Agriculture"}
+                    <Input
+                      value={editItem.subject || ""}
                       onChange={(e) =>
                         setEditItem({ ...editItem, subject: e.target.value })
                       }
-                      className="w-full border p-2 rounded"
-                    >
-                      <option>Agriculture</option>
-                    </select>
+                      placeholder="e.g., Agriculture, Physics, Chemistry"
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

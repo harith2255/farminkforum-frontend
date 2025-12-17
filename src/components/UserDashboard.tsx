@@ -71,7 +71,7 @@ type UserSection =
   | "purchase/cart"
   | "reader-note";
 
-export function UserDashboard({
+export default function UserDashboard({
   onNavigate,
   onOpenBook,
   onLogout,
@@ -931,7 +931,7 @@ export function UserDashboard({
 
 const API_URL = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
 
-export default function DashboardHome({
+export function DashboardHome({
   onOpenBook,
   dashboardData,
   loading,

@@ -100,7 +100,7 @@ type Page =
   | "purchase"
   | "test"
   | "reader-note";
-
+  
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
@@ -108,52 +108,52 @@ export default function App() {
   const [previousPage, setPreviousPage] = useState<Page>("home");
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
-  /* ============================================================
-     GLOBAL BOOK READING PROGRESS LISTENER
-  ============================================================ */
-  useEffect(() => {
-    async function handleReaderProgress(e: any) {
-      const { bookId, page, totalPages } = e.detail || {};
+/* ============================================================
+   GLOBAL BOOK READING PROGRESS LISTENER
+============================================================ */
+useEffect(() => {
+  async function handleReaderProgress(e: any) {
+    const { bookId, page, totalPages } = e.detail || {};
 
-      if (!bookId || !page || !totalPages) {
-        console.warn("⚠️ Invalid progress event payload", e.detail);
-        return;
-      }
-
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.warn("⚠️ No token — skipping progress update");
-        return;
-      }
-
-      const percent = Math.min(100, Math.round((page / totalPages) * 100));
-
-      console.log("📩 RECEIVED PROGRESS EVENT", {
-        bookId,
-        page,
-        percent,
-        totalPages,
-      });
-
-      try {
-        const res = await axios.put(
-          `https://ebook-backend-lxce.onrender.com/api/library/progress/${bookId}`,
-          { progress: percent, last_page: page },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        console.log("✅ Progress updated:", res.data);
-      } catch (err: any) {
-        console.error("❌ Progress update failed:", err.response?.data || err);
-      }
+    if (!bookId || !page || !totalPages) {
+      console.warn("⚠️ Invalid progress event payload", e.detail);
+      return;
     }
 
-    window.addEventListener("reader:progress", handleReaderProgress);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.warn("⚠️ No token — skipping progress update");
+      return;
+    }
 
-    return () => {
-      window.removeEventListener("reader:progress", handleReaderProgress);
-    };
-  }, []);
+    const percent = Math.min(100, Math.round((page / totalPages) * 100));
+
+    console.log("📩 RECEIVED PROGRESS EVENT", {
+      bookId,
+      page,
+      percent,
+      totalPages,
+    });
+
+    try {
+      const res = await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/library/progress/${bookId}`,
+        { progress: percent, last_page: page },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log("✅ Progress updated:", res.data);
+    } catch (err: any) {
+      console.error("❌ Progress update failed:", err.response?.data || err);
+    }
+  }
+
+  window.addEventListener("reader:progress", handleReaderProgress);
+
+  return () => {
+    window.removeEventListener("reader:progress", handleReaderProgress);
+  };
+}, []);
 
   /* ============================================================
      1) RESTORE TOKEN — FIXED (runs only once)
@@ -179,13 +179,13 @@ export default function App() {
     };
   }, []);
 
-  const handleOpenBook = (book: any) => {
-    const id = book.book_id || book.id;
-    handleNavigate("reader", {
-      id,
-      last_page: book.last_page || 1,
-    });
-  };
+const handleOpenBook = (book: any) => {
+  const id = book.book_id || book.id;
+  handleNavigate("reader", {
+    id,
+    last_page: book.last_page || 1,
+  });
+};
 
 
 
@@ -193,67 +193,67 @@ export default function App() {
   /* ============================================================
      3) ROUTE RESOLVER
   ============================================================ */
-  const resolveRoute = (): { page: Page; param: any } => {
-    const path = window.location.pathname || "";
+ const resolveRoute = (): { page: Page; param: any } => {
+  const path = window.location.pathname || "";
 
-    if (path.startsWith("/notes/read/")) {
-      const id = Number(path.split("/").pop());
-      return { page: "reader-note", param: id };
-    }
+  if (path.startsWith("/notes/read/")) {
+    const id = Number(path.split("/").pop());
+    return { page: "reader-note", param: id };
+  }
 
-    if (path.startsWith("/reader/")) {
-      const meta = JSON.parse(localStorage.getItem("open_book_meta") || "{}");
+ if (path.startsWith("/reader/")) {
+  const meta = JSON.parse(localStorage.getItem("open_book_meta") || "{}");
 
-      // fallback if someone manually types URL
-      if (!meta?.id) {
-        const id = path.split("/").pop();
-        return { page: "reader", param: { id, last_page: 1 } };
-      }
+  // fallback if someone manually types URL
+  if (!meta?.id) {
+    const id = path.split("/").pop();
+    return { page: "reader", param: { id, last_page: 1 } };
+  }
 
-      return { page: "reader", param: meta };
-    }
-
-
-    if (path.startsWith("/purchase/")) {
-      const id = path.split("/").pop();
-      return { page: "purchase", param: id };
-    }
-
-    if (path.startsWith("/user-dashboard")) {
-      return { page: "user-dashboard", param: null };
-    }
-    if (path.startsWith("/test/")) {
-      const id = path.split("/").pop();
-      return { page: "test", param: id };
-    }
+  return { page: "reader", param: meta };
+}
 
 
-    if (path.startsWith("/admin-dashboard")) {
-      return { page: "admin-dashboard", param: null };
-    }
+  if (path.startsWith("/purchase/")) {
+    const id = path.split("/").pop();
+    return { page: "purchase", param: id };
+  }
 
-    // fallback static pages
-    const staticPages = ["explore", "pricing", "about", "contact", "login", "register"];
-    const page = path.replace("/", "");
-    if (staticPages.includes(page)) {
-      return { page: page as Page, param: null };
-    }
+  if (path.startsWith("/user-dashboard")) {
+    return { page: "user-dashboard", param: null };
+  }
+  if (path.startsWith("/test/")) {
+  const id = path.split("/").pop();
+  return { page: "test", param: id };
+}
 
-    // fallback always return
-    return { page: "home", param: null };
-  };
+
+  if (path.startsWith("/admin-dashboard")) {
+    return { page: "admin-dashboard", param: null };
+  }
+
+  // fallback static pages
+  const staticPages = ["explore", "pricing", "about", "contact", "login", "register"];
+  const page = path.replace("/", "");
+  if (staticPages.includes(page)) {
+    return { page: page as Page, param: null };
+  }
+
+  // fallback always return
+  return { page: "home", param: null };
+};
 
   /* ============================================================
      4) SYNC ROUTER — Single clean listener
   ============================================================ */
   useEffect(() => {
-    const sync = () => {
-      const r = resolveRoute();
-      if (!r) return;
+   const sync = () => {
+  const r = resolveRoute();
+  if (!r) return;
 
-      setCurrentPage(r.page ?? "home");
-      setPageParam(r.param ?? null);
-    };
+  setCurrentPage(r.page ?? "home");
+  setPageParam(r.param ?? null);
+};
 
 
     window.addEventListener("popstate", sync);
@@ -313,21 +313,21 @@ export default function App() {
       window.history.pushState({}, "", `/notes/read/${param}`);
       return;
     }
-    if (page === "reader") {
-      const meta =
-        typeof param === "object"
-          ? param
-          : { id: param, last_page: 1 };
+if (page === "reader") {
+  const meta =
+    typeof param === "object"
+      ? param
+      : { id: param, last_page: 1 };
 
-      // Save full metadata in localStorage
-      localStorage.setItem("open_book_meta", JSON.stringify(meta));
+  // Save full metadata in localStorage
+  localStorage.setItem("open_book_meta", JSON.stringify(meta));
 
-      setCurrentPage("reader");
-      setPageParam(meta);
+  setCurrentPage("reader");
+  setPageParam(meta);
 
-      window.history.pushState({}, "", `/reader/${meta.id}`);
-      return;
-    }
+  window.history.pushState({}, "", `/reader/${meta.id}`);
+  return;
+}
 
 
     if (page === "purchase") {
@@ -379,70 +379,70 @@ export default function App() {
       {currentPage === "home" && <Home onNavigate={handleNavigate} />}
 
       {/* USER DASHBOARD */}
-      {currentPage === "user-dashboard" && (
-        userRole === "user" && localStorage.getItem("token") ? (
-          <Suspense fallback={<div className="p-6">Loading dashboard…</div>}>
-            <UserDashboard
-              onNavigate={handleNavigate}
-              onLogout={handleLogout}
-              onOpenBook={handleOpenBook}
-            />
-          </Suspense>
-        ) : (
-          (() => {
-            // force logout + redirect
-            handleLogout();
-            window.location.replace("/login?reason=expired");
-            return null;
-          })()
-        )
-      )}
+     {currentPage === "user-dashboard" && (
+  userRole === "user" && localStorage.getItem("token") ? (
+    <Suspense fallback={<div className="p-6">Loading dashboard…</div>}>
+      <UserDashboard
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+        onOpenBook={handleOpenBook}
+      />
+    </Suspense>
+  ) : (
+    (() => {
+      // force logout + redirect
+      handleLogout();
+      window.location.replace("/login?reason=expired");
+      return null;
+    })()
+  )
+)}
 
 
       {/* ADMIN DASHBOARD */}
       {currentPage === "admin-dashboard" && (
-        <Suspense fallback={<div className="p-6">Loading admin panel…</div>}>
-          <AdminDashboard
-            onNavigate={handleNavigate}
-            onLogout={handleLogout}
-          />
-        </Suspense>
-      )}
+  <Suspense fallback={<div className="p-6">Loading admin panel…</div>}>
+    <AdminDashboard
+      onNavigate={handleNavigate}
+      onLogout={handleLogout}
+    />
+  </Suspense>
+)}
 
 
       {/* READER */}
-      {currentPage === "reader" && pageParam && (
-        <Suspense fallback={<div className="p-6">Opening book…</div>}>
-          <BookReader
-            bookId={pageParam.id}
-            startPage={pageParam.last_page || 1}
-            onClose={() => {
-              setCurrentPage(previousPage);
-              window.history.pushState({}, "", `/${previousPage}`);
-            }}
-          />
-        </Suspense>
-      )}
+    {currentPage === "reader" && pageParam && (
+  <Suspense fallback={<div className="p-6">Opening book…</div>}>
+    <BookReader
+      bookId={pageParam.id}
+      startPage={pageParam.last_page || 1}
+      onClose={() => {
+        setCurrentPage(previousPage);
+        window.history.pushState({}, "", `/${previousPage}`);
+      }}
+    />
+  </Suspense>
+)}
 
 
 
 
       {/* NOTE READER */}
-      {currentPage === "reader-note" && pageParam && (
-        <Suspense fallback={<div className="p-6">Loading notes…</div>}>
-          <ReadNotePage
-            noteId={pageParam}
-            onNavigate={handleNavigate}
-            onClose={() => {
-              setCurrentPage("user-dashboard");
-              window.history.pushState({}, "", `/user-dashboard`);
-              setTimeout(() => {
-                window.dispatchEvent(new Event("open-dashboard-notes"));
-              }, 0);
-            }}
-          />
-        </Suspense>
-      )}
+{currentPage === "reader-note" && pageParam && (
+  <Suspense fallback={<div className="p-6">Loading notes…</div>}>
+    <ReadNotePage
+      noteId={pageParam}
+      onNavigate={handleNavigate}
+      onClose={() => {
+        setCurrentPage("user-dashboard");
+        window.history.pushState({}, "", `/user-dashboard`);
+        setTimeout(() => {
+          window.dispatchEvent(new Event("open-dashboard-notes"));
+        }, 0);
+      }}
+    />
+  </Suspense>
+)}
 
 
 
@@ -457,23 +457,23 @@ export default function App() {
       {["explore", "pricing", "about", "contact", "login", "register"].includes(
         currentPage
       ) && (
-          <PublicPages
-            page={currentPage as any}
-            onNavigate={handleNavigate}
-            onLogin={handleLogin}
-          />
-        )}
-
-
-      {currentPage === "test" && pageParam && (
-        <Suspense fallback={<div className="p-6">Loading test…</div>}>
-          <TestPage
-            testId={pageParam}
-            onNavigate={handleNavigate}
-            onLogout={handleLogout}
-          />
-        </Suspense>
+        <PublicPages
+          page={currentPage as any}
+          onNavigate={handleNavigate}
+          onLogin={handleLogin}
+        />
       )}
+
+      
+  {currentPage === "test" && pageParam && (
+  <Suspense fallback={<div className="p-6">Loading test…</div>}>
+    <TestPage
+      testId={pageParam}
+      onNavigate={handleNavigate}
+      onLogout={handleLogout}
+    />
+  </Suspense>
+)}
 
 
 

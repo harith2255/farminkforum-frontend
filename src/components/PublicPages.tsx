@@ -242,7 +242,7 @@ const handleRegister = async () => {
   try {
     setLoading(true);
 
-    const res = await axios.post("http://localhost:5000/api/auth/register", {
+    const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/register", {
       first_name: formData.firstName,
       last_name: formData.lastName,
       email: formData.email,

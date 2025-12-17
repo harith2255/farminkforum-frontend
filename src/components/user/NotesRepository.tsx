@@ -212,34 +212,19 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       PREVIEW NOTE
   ----------------------------------------------------------*/
   const handlePreview = async (note: any) => {
-    try {
-      setLoading(prev => ({ ...prev, preview: true }));
-      setSelectedNote(null);
-      setShowPreview(true);
-      setCurrentPage(1);
-      setTotalPages(1);
-
-      const url = `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`;
-      const res = await fetch(url);
-
-      const total = Number(res.headers.get("X-Total-Pages")) || 1;
-      setTotalPages(total);
-
-      const blob = await res.blob();
-      const pdfUrl = URL.createObjectURL(blob);
-
-      setSelectedNote({
-        ...note,
-        previewUrl: pdfUrl,
-        purchased: purchased.includes(note.id),
-      });
-    } catch (err) {
-      console.error("Preview error:", err);
-      toast.error("Failed to load preview");
-    } finally {
-      setLoading(prev => ({ ...prev, preview: false }));
-    }
-  };
+  try {
+    setShowPreview(true);
+    setSelectedNote({
+      ...note,
+      previewUrl: `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`,
+      purchased: purchased.includes(note.id),
+    });
+    setCurrentPage(1);
+  } catch (err) {
+    console.error("Preview error:", err);
+    toast.error("Failed to load preview");
+  }
+};
 
   /* ---------------------------------------------------------
       PAGE CHANGE (ENFORCE LOCK)

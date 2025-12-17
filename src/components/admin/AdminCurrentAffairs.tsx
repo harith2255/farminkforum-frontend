@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye } from "lucide-react";
-
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye, Folder, FolderOpen } from "lucide-react";
 
 const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/admin/current-affairs";
 
@@ -18,7 +17,6 @@ function CurrentAffairsAdmin() {
     category: "",
     content: "",
     tags: "",
-    importance: "medium",
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().slice(0, 5),
     image: null,
@@ -26,68 +24,69 @@ function CurrentAffairsAdmin() {
     createdAt: new Date().toISOString()
   });
 
- useEffect(() => {
-  fetchArticles();
-}, []);
-const fetchArticles = async () => {
-  try {
-    const res = await fetch(BASE_URL);
-    if (!res.ok) throw new Error("Failed to load articles");
+  useEffect(() => {
+    fetchArticles();
+  }, []);
 
-    const data = await res.json();
+  const fetchArticles = async () => {
+    try {
+      const res = await fetch(BASE_URL);
+      if (!res.ok) throw new Error("Failed to load articles");
 
-    // Map backend → frontend shape
-    const formatted = data.map((a) => ({
-      id: a.id,
-      title: a.title,
-      category: a.category,
-      content: a.content,
-      tags: a.tags || "",
-      importance: a.importance,
-      status: a.status,
-      date: a.article_date,
-      time: a.article_time,
-      imageUrl: a.image_url,
-      createdAt: a.created_at,
-    }));
+      const data = await res.json();
 
-    setArticles(formatted);
-  } catch (err) {
-    console.error(err);
-    alert("Unable to load articles");
-  }
-};
+      // Map backend → frontend shape
+      const formatted = data.map((a) => ({
+        id: a.id,
+        title: a.title,
+        category: a.category,
+        content: a.content,
+        tags: a.tags || "",
+        status: a.status,
+        date: a.article_date,
+        time: a.article_time,
+        imageUrl: a.image_url,
+        createdAt: a.created_at,
+      }));
 
-  const [folders] = useState([
-    { id: 1, name: "National Affairs" },
-    { id: 2, name: "International News" },
-    { id: 3, name: "Economy" },
-    { id: 4, name: "Science & Tech" },
-    { id: 5, name: "Environment" },
-    { id: 6, name: "Sports" },
-  ]);
+      setArticles(formatted);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load articles");
+    }
+  };
 
-  const categories = [
-    "National Affairs",
-    "International News",
-    "Economy",
-    "Science & Tech",
-    "Environment",
-    "Sports",
-    "Politics",
-    "Health",
-    "Education",
-    "Technology"
-  ];
+  // Create folders dynamically from article categories
+  const folders = useMemo(() => {
+    const categories = new Set();
+    articles.forEach(article => {
+      if (article.category && article.category.trim()) {
+        categories.add(article.category.trim());
+      }
+    });
+    
+    // Convert Set to array of folder objects
+    return Array.from(categories).map((category, index) => ({
+      id: index + 1,
+      name: category
+    })).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+  }, [articles]);
+
+  // Get articles count for a specific category
+  const getArticleCountForCategory = (categoryName) => {
+    return articles.filter(article => article.category === categoryName).length;
+  };
 
   const goBackToFolders = () => {
     setViewMode("folders");
     setSelectedFolder(null);
+    setSearch("");
   };
 
   const selectFolder = (folder) => {
     setSelectedFolder(folder);
     setViewMode("articles");
+    setSearch("");
   };
 
   const handleOpenAddModal = () => {
@@ -95,10 +94,9 @@ const fetchArticles = async () => {
     setFormData({
       id: Date.now(),
       title: "",
-      category: viewMode === "articles" ? selectedFolder?.name || "" : "",
+      category: selectedFolder?.name || "",
       content: "",
       tags: "",
-      importance: "medium",
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       image: null,
@@ -108,14 +106,14 @@ const fetchArticles = async () => {
     setShowAddModal(true);
   };
 
-const handleEditArticle = (article) => {
-  setEditingArticle(article.id);
-  setFormData({
-    ...article,
-    image: null,
-  });
-  setShowAddModal(true);
-};
+  const handleEditArticle = (article) => {
+    setEditingArticle(article.id);
+    setFormData({
+      ...article,
+      image: null,
+    });
+    setShowAddModal(true);
+  };
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
@@ -126,49 +124,47 @@ const handleEditArticle = (article) => {
     }
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  try {
-    const form = new FormData();
+    try {
+      const form = new FormData();
 
-    form.append("title", formData.title);
-    form.append("category", formData.category);
-    form.append("content", formData.content);
-    form.append("tags", formData.tags);
-    form.append("importance", formData.importance);
-    form.append("status", formData.status);
-    form.append("date", formData.date);
-    form.append("time", formData.time);
+      form.append("title", formData.title);
+      form.append("category", formData.category.trim()); // Trim category
+      form.append("content", formData.content);
+      form.append("tags", formData.tags);
+      form.append("status", formData.status);
+      form.append("date", formData.date);
+      form.append("time", formData.time);
 
-    if (formData.image) {
-      form.append("image", formData.image);
+      if (formData.image) {
+        form.append("image", formData.image);
+      }
+
+      const url = editingArticle
+        ? `${BASE_URL}/${editingArticle}`
+        : BASE_URL;
+
+      const method = editingArticle ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        body: form,
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+
+      alert(editingArticle ? "Article updated successfully!" : "Article added successfully!");
+
+      setShowAddModal(false);
+      resetForm();
+      fetchArticles();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save article");
     }
-
-    const url = editingArticle
-      ? `${BASE_URL}/${editingArticle}`
-      : BASE_URL;
-
-    const method = editingArticle ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      body: form,
-    });
-
-    if (!res.ok) throw new Error("Save failed");
-
-    alert(editingArticle ? "Article updated successfully!" : "Article added successfully!");
-
-    setShowAddModal(false);
-    resetForm();
-    fetchArticles();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to save article");
-  }
-};
-
+  };
 
   const resetForm = () => {
     setFormData({
@@ -177,7 +173,6 @@ const handleEditArticle = (article) => {
       category: "",
       content: "",
       tags: "",
-      importance: "medium",
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       image: null,
@@ -187,32 +182,56 @@ const handleEditArticle = (article) => {
     setEditingArticle(null);
   };
 
-const handleDeleteArticle = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this article?")) return;
+  const handleDeleteArticle = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this article?")) return;
 
-  try {
-    const res = await fetch(`${BASE_URL}/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      const res = await fetch(`${BASE_URL}/${id}`, {
+        method: "DELETE",
+      });
 
-    if (!res.ok) throw new Error("Delete failed");
+      if (!res.ok) throw new Error("Delete failed");
 
-    alert("Article deleted successfully!");
-    fetchArticles();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to delete article");
-  }
-};
+      alert("Article deleted successfully!");
+      fetchArticles();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete article");
+    }
+  };
 
+  const handleDeleteFolder = (folderName) => {
+    const articlesInFolder = articles.filter(article => article.category === folderName);
+    
+    if (articlesInFolder.length > 0) {
+      if (!window.confirm(`This folder contains ${articlesInFolder.length} articles. Deleting it will remove all articles in this category. Are you sure?`)) {
+        return;
+      }
+      
+      // Delete all articles in this category
+      const deletePromises = articlesInFolder.map(article => 
+        fetch(`${BASE_URL}/${article.id}`, { method: "DELETE" })
+      );
+      
+      Promise.all(deletePromises)
+        .then(() => {
+          alert(`Folder "${folderName}" and all its articles deleted successfully!`);
+          fetchArticles();
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Failed to delete folder and articles");
+        });
+    }
+  };
 
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredArticles = articles.filter(article => 
-    selectedFolder ? article.category === selectedFolder.name : true
-  );
+  const filteredArticles = viewMode === "articles" && selectedFolder
+    ? articles.filter(article => article.category === selectedFolder.name)
+    : [];
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -220,15 +239,6 @@ const handleDeleteArticle = async (id) => {
       case "draft": return "bg-yellow-100 text-yellow-800";
       case "archived": return "bg-gray-100 text-gray-800";
       default: return "bg-blue-100 text-blue-800";
-    }
-  };
-
-  const getImportanceColor = (importance) => {
-    switch(importance) {
-      case "high": return "bg-red-100 text-red-800";
-      case "medium": return "bg-yellow-100 text-yellow-800";
-      case "low": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -243,7 +253,7 @@ const handleDeleteArticle = async (id) => {
                 Current Affairs Admin
               </h2>
               <p className="text-sm text-gray-500">
-                {articles.length} articles stored locally
+                {folders.length} categories, {articles.length} total articles
               </p>
             </>
           ) : (
@@ -285,18 +295,31 @@ const handleDeleteArticle = async (id) => {
             className="px-4 py-2 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors flex items-center gap-2 text-sm"
           >
             <Plus className="w-4 h-4" />
-            Add New
+            {viewMode === "folders" ? "Add New Article" : "Add to this Category"}
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 min-h-[400px]">
+      <div className="p-4 min-h-[400px]">
         {viewMode === "folders" ? (
           <>
-            {filteredFolders.length === 0 ? (
+            {folders.length === 0 ? (
               <div className="text-center py-12">
+                <Folder className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No categories found</p>
+                <p className="text-sm text-gray-400 mt-1">Create your first article to automatically create a category</p>
+                <button
+                  onClick={handleOpenAddModal}
+                  className="mt-4 px-4 py-2 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors flex items-center gap-2 mx-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create First Article
+                </button>
+              </div>
+            ) : filteredFolders.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No categories match your search</p>
                 <button
                   onClick={() => setSearch("")}
                   className="mt-2 text-sm text-[#1d4d6a] hover:underline"
@@ -306,24 +329,48 @@ const handleDeleteArticle = async (id) => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {folders.map(folder => {
-                  const articleCount = articles.filter(a => a.category === folder.name).length;
+                {filteredFolders.map(folder => {
+                  const articleCount = getArticleCountForCategory(folder.name);
                   return (
                     <div
                       key={folder.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:border-[#1d4d6a] hover:bg-gray-50 transition-all group cursor-pointer"
                       onClick={() => selectFolder(folder)}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-[#1d4d6a] hover:bg-gray-50 cursor-pointer transition-all group"
                     >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="font-semibold text-gray-800 group-hover:text-[#1d4d6a]">
-                            {folder.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {articleCount} {articleCount === 1 ? 'article' : 'articles'}
-                          </p>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <FolderOpen className="w-5 h-5 text-gray-400 group-hover:text-[#1d4d6a]" />
+                          <div>
+                            <h3 className="font-semibold text-gray-800 group-hover:text-[#1d4d6a]">
+                              {folder.name}
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {articleCount} {articleCount === 1 ? 'article' : 'articles'}
+                            </p>
+                          </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#1d4d6a]" />
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectFolder(folder);
+                            }}
+                            className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-[#1d4d6a]"
+                            title="Open Folder"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFolder(folder.name);
+                            }}
+                            className="p-1.5 hover:bg-red-50 rounded text-gray-600 hover:text-red-600"
+                            title="Delete Folder"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -334,14 +381,28 @@ const handleDeleteArticle = async (id) => {
         ) : (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Articles in {selectedFolder?.name}</h3>
-              <button
-                onClick={handleOpenAddModal}
-                className="px-4 py-2 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors flex items-center gap-2 text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Add Article
-              </button>
+              <div className="flex items-center gap-3">
+                <FolderOpen className="w-6 h-6 text-gray-400" />
+                <h3 className="text-lg font-semibold">Articles in "{selectedFolder?.name}"</h3>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedFolder(null);
+                    handleOpenAddModal();
+                  }}
+                  className="px-4 py-2 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Article
+                </button>
+                <button
+                  onClick={goBackToFolders}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Back to Categories
+                </button>
+              </div>
             </div>
             
             {/* Articles Table */}
@@ -349,7 +410,7 @@ const handleDeleteArticle = async (id) => {
               {filteredArticles.length === 0 ? (
                 <div className="py-8 text-center text-gray-500">
                   <p>No articles in this category yet</p>
-                  <p className="text-sm mt-1">Click "Add Article" to create your first article</p>
+                  <p className="text-sm mt-1">Click "Add Article" to create your first article in this category</p>
                 </div>
               ) : (
                 <table className="w-full">
@@ -358,7 +419,6 @@ const handleDeleteArticle = async (id) => {
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Title</th>
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Date</th>
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Status</th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Importance</th>
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Actions</th>
                     </tr>
                   </thead>
@@ -377,11 +437,6 @@ const handleDeleteArticle = async (id) => {
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(article.status)}`}>
                             {article.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImportanceColor(article.importance)}`}>
-                            {article.importance}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -465,26 +520,26 @@ const handleDeleteArticle = async (id) => {
                     />
                   </div>
 
-                  {/* Category */}
+                  {/* Category - Simple typing field */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category *
                     </label>
                     <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <select
+                      <Folder className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
                         name="category"
                         value={formData.category}
                         onChange={handleInputChange}
                         required
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent appearance-none cursor-pointer"
-                      >
-                        <option value="">Select a category</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
+                        placeholder="Type a category name (will create a folder)"
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
+                      />
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This will create or add to a folder named "{formData.category || 'your category'}"
+                    </p>
                   </div>
 
                   {/* Tags */}
@@ -538,32 +593,6 @@ const handleDeleteArticle = async (id) => {
                           className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent"
                         />
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Importance Level */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Importance Level
-                    </label>
-                    <div className="flex gap-3">
-                      {["low", "medium", "high"].map((level) => (
-                        <button
-                          key={level}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, importance: level }))}
-                          className={`flex-1 py-2.5 text-center rounded-lg border transition-all ${formData.importance === level
-                              ? level === "high"
-                                ? "bg-red-100 border-red-300 text-red-700"
-                                : level === "medium"
-                                ? "bg-yellow-100 border-yellow-300 text-yellow-700"
-                                : "bg-green-100 border-green-300 text-green-700"
-                              : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                            }`}
-                        >
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
-                        </button>
-                      ))}
                     </div>
                   </div>
 
