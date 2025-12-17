@@ -4,7 +4,7 @@ import { Badge } from '../ui/badge';
 import { Cpu, Zap, Tag, FileSearch } from 'lucide-react';
 import * as React from 'react';
 
-export function AIAutomation() {
+export default function AIAutomation() {
   return (
     <div className="space-y-6">
       <div>

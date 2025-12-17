@@ -15,7 +15,7 @@ import { Send } from "lucide-react";
 import { toast } from "sonner";
 import * as React from "react";
 
-export function NotificationsAdmin() {
+export default function NotificationsAdmin() {
   const API = "https://ebook-backend-lxce.onrender.com/api/admin/notifications";
 
   const [recipientType, setRecipientType] = useState("");

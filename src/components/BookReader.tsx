@@ -12,7 +12,10 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
-import PDFJSViewer from "./PDFJSViewer";
+import { lazy, Suspense } from "react";
+
+const PDFJSViewer = lazy(() => import("./PDFJSViewer"));
+
 import * as React from "react";
 
 interface BookReaderProps {
@@ -402,22 +405,31 @@ export function BookReader({
 
       {/* PDF VIEW */}
       <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
-        <PDFJSViewer
-          url={book.file_url}
-          page={currentPage}
-          scale={zoom}
-          onTotalPages={setTotalPages}
-          onPageChange={handlePageChange}
-          highlightMode={highlightMode}
-          highlights={highlights}
-          isLocked={isLocked}
-          previewPages={effectivePreviewPages}
-          purchased={!isLocked}
-          bookId={book.id}
-          onBuyClick={(id) => (window.location.href = `/purchase/book/${id}`)}
-          onDeleteHighlight={handleDeleteHighlight}
-          watermarkText={drmConfig?.watermark_text}
-        />
+      <Suspense
+  fallback={
+    <div className="flex items-center justify-center h-full text-gray-500">
+      Loading pages…
+    </div>
+  }
+>
+  <PDFJSViewer
+    url={book.file_url}
+    page={currentPage}
+    scale={zoom}
+    onTotalPages={setTotalPages}
+    onPageChange={handlePageChange}
+    highlightMode={highlightMode}
+    highlights={highlights}
+    isLocked={isLocked}
+    previewPages={effectivePreviewPages}
+    purchased={!isLocked}
+    bookId={book.id}
+    onBuyClick={(id) => (window.location.href = `/purchase/book/${id}`)}
+    onDeleteHighlight={handleDeleteHighlight}
+    watermarkText={drmConfig?.watermark_text}
+  />
+</Suspense>
+
       </div>
 
       {/* FOOTER */}

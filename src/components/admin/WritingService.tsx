@@ -315,7 +315,7 @@ LOAD ALL ORDERS (and compute unread_count)
   =================================*/
   return (
     <div className="space-y-6">
-      <h2 className="text-[#1d4d6a] text-2xl font-semibold">
+      <h2 className="text-[#1d4d6a] mb-1">
         Admin — Writing Orders
       </h2>
 

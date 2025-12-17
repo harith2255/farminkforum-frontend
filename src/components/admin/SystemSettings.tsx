@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import axios from "axios";
 import { IntegrationModal } from "./IntegrationModel";
 
-export function SystemSettings() {
+export default function SystemSettings() {
   const [settings, setSettings] = useState<any>(null);
   const [integrations, setIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

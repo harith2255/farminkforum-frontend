@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React,{lazy, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -18,20 +18,21 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar } from './ui/avatar';
-import { AdminDashboardHome } from './admin/AdminDashboardHome';
-import { CustomerManagement } from './admin/CustomerManagement';
-import Exams from './admin/Exams';
-import PYQs from './admin/pyqs';
-import CurrentAffairs from './admin/Current-Affairs';
-import ContentManagement from './admin/ContentManagement';
-import { DRMControls } from './admin/DRMControls';
-import { PaymentsAdmin } from './admin/PaymentsAdmin';
-import { ReportsAnalytics } from './admin/ReportsAnalytics';
-import { AIAutomation } from './admin/AIAutomation';
-import { NotificationsAdmin } from './admin/NotificationsAdmin';
-import { SystemSettings } from './admin/SystemSettings';
-import { JobPortalAdmin } from './admin/JobPortalAdmin';
-import WritingService from './admin/WritingService';
+
+const AdminDashboardHome = lazy(() => import("./admin/AdminDashboardHome"));
+const CustomerManagement = lazy(() => import("./admin/CustomerManagement"));
+const ContentManagementGrid = lazy(() => import("./admin/ContentManagement"));
+const DRMControls = lazy(() => import("./admin/DRMControls"));
+const ExamFolderSystem = lazy(() => import("./admin/Exams"));
+const WritingService = lazy(() => import("./admin/WritingService"));
+const PaymentsAdmin = lazy(() => import("./admin/PaymentsAdmin"));
+const PYQSection = lazy(() => import("./admin/pyqs"));
+const AdminCurrentAffairs = lazy(() => import("./admin/AdminCurrentAffairs"));
+const ReportsAnalytics = lazy(() => import("./admin/ReportsAnalytics"));
+const AIAutomation = lazy(() => import("./admin/AIAutomation"));
+const NotificationsAdmin = lazy(() => import("./admin/NotificationsAdmin"));
+const JobPortalAdmin = lazy(() => import("./admin/JobPortalAdmin"));
+const SystemSettings = lazy(() => import("./admin/SystemSettings"));
 
 interface AdminDashboardProps {
   onNavigate: (page: string) => void;
@@ -44,7 +45,7 @@ type AdminSection =
   | 'content'
   | 'exams'
   | 'pyqs'
-  | 'current-affairs'
+  | 'currentaffairs'
   | 'drm'
   | 'writing'
   | 'payments'
@@ -55,7 +56,7 @@ type AdminSection =
   | 'jobs'
   | 'settings';
 
-export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -71,7 +72,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
     { id: 'content' as AdminSection, icon: BookOpen, label: 'Content' },
     { id: 'exams' as AdminSection, icon: Crown, label: 'Exams' },
     { id: 'pyqs' as AdminSection, icon: FileText, label: 'PYQs' },
-    { id: 'current-affairs' as AdminSection, icon: FileText, label: 'Current Affairs' },
+    { id: 'currentaffairs' as AdminSection, icon: FileText, label: 'Current Affairs' },
     { id: 'drm' as AdminSection, icon: Shield, label: 'DRM Controls' },
     { id: 'writing' as AdminSection, icon: FileText, label: 'Writing Services' },
     { id: 'payments' as AdminSection, icon: CreditCard, label: 'Payments' },
@@ -92,7 +93,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
       "content",
       "exams",
       "pyqs",
-      "current-affairs",
+      "currentaffairs",
       "drm",
       "writing",
       "payments",
@@ -227,6 +228,7 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
           <nav className="p-4">
             {menuItems.map((item) => (
               <button
+              type="button"
                 key={item.id}
                 onClick={() => handleSectionChange(item.id)}
                 className={`
@@ -360,10 +362,10 @@ export function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
         <main className="p-4 sm:p-6 lg:p-8">
           {activeSection === 'dashboard' && <AdminDashboardHome />}
           {activeSection === 'customers' && <CustomerManagement />}
-          {activeSection === 'content' && <ContentManagement />}
-          {activeSection === 'exams' && <Exams />}
-          {activeSection === 'pyqs' && <PYQs />}
-          {activeSection === 'current-affairs' && <CurrentAffairs />}
+          {activeSection === 'content' && <ContentManagementGrid />}
+          {activeSection === 'exams' && <ExamFolderSystem />}
+          {activeSection === 'pyqs' && <PYQSection />}
+          {activeSection === 'currentaffairs' && <AdminCurrentAffairs />}
           {activeSection === 'drm' && <DRMControls />}
           {activeSection === 'writing' && <WritingService />}
           {activeSection === 'payments' && <PaymentsAdmin />}

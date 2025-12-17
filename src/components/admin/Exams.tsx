@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef ,useMemo} from "react";
 import axios from "axios";
 
 import { Card, CardContent } from "../ui/card";
@@ -23,7 +23,6 @@ import {
   ArrowLeft,
   Plus,
   Calendar as CalendarIcon,
-  Edit2,
   Trash2,
 } from "lucide-react";
 
@@ -120,9 +119,9 @@ function DateTimeModal({
   );
 }
 
-/* -------------------- TOKEN helper (fallbacks) -------------------- */
-export function getStoredToken() {
-  // try multiple keys so both admin and user flows work (we saw these in your other file)
+
+
+function getStoredToken(): string | null {
   return (
     localStorage.getItem("token") ||
     localStorage.getItem("user_token") ||
@@ -133,6 +132,16 @@ export function getStoredToken() {
 
 /* -------------------- Main Component (fixed) -------------------- */
 export default function AdminExamsPage(): JSX.Element {
+
+
+
+const tokenRef = useRef<string | null>(null);
+
+useEffect(() => {
+  tokenRef.current = getStoredToken();
+}, []);
+
+
   const [folders, setFolders] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
 
@@ -190,11 +199,10 @@ const [multiExamsFiles, setMultiExamsFiles] = useState<File[]>([]);
   }, []);
 const uploadMultipleNotes = async () => {
   if (!selectedSubject) return;
-  if (!multiNotesFiles.length) return alert("Choose files first");
+  if (!multiNotesFiles.length) return console.info("Choose files first");
 
   try {
-    const token = getStoredToken();
-    const form = new FormData();
+    const token = tokenRef.current;    const form = new FormData();
 
     multiNotesFiles.forEach((file) => form.append("files", file));
     form.append("subject_id", selectedSubject.id);
@@ -207,19 +215,18 @@ const uploadMultipleNotes = async () => {
 
     setMultiNotesFiles([]);
     await loadFolders();
-    alert("Files uploaded");
+    console.info("Files uploaded");
   } catch (err) {
     console.error(err);
-    alert("Failed to upload");
+    console.warn("Failed to upload");
   }
 };
 const uploadMultipleExams = async () => {
   if (!selectedSubject) return;
-  if (!multiExamsFiles.length) return alert("Choose files first");
+  if (!multiExamsFiles.length) return console.info("Choose files first");
 
   try {
-    const token = getStoredToken();
-    const form = new FormData();
+    const token = tokenRef.current;    const form = new FormData();
 
     multiExamsFiles.forEach((file) => form.append("files", file));
     form.append("subject_id", selectedSubject.id);
@@ -232,42 +239,62 @@ const uploadMultipleExams = async () => {
 
     setMultiExamsFiles([]);
     await loadFolders();
-    alert("Files uploaded");
+    console.info("Files uploaded");
   } catch (err) {
     console.error(err);
-    alert("Failed to upload");
+    console.warn("Failed to upload");
   }
 };
 const deleteNote = async (noteId: number) => {
   if (!window.confirm("Delete file?")) return;
 
   try {
-    const token = getStoredToken();
+    const token = tokenRef.current;
     await axios.delete(
       `https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/${noteId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    await loadFolders();
-    alert("Deleted");
+
+    // 🔥 IMPORTANT
+setFolders((prev) =>
+  prev.map((f) =>
+    f.id === selectedSubject.id
+      ? { ...f, notes: f.notes.filter(n => n.id !== noteId) }
+      : f
+  )
+);
+  loadFolders();
   } catch (err) {
     console.error(err);
-    alert("Failed to delete");
+    console.warn("Failed to delete");
   }
+
 };
+
 const deleteExam = async (examId: number) => {
   if (!window.confirm("Delete file?")) return;
 
   try {
-    const token = getStoredToken();
+    const token = tokenRef.current;
     await axios.delete(
       `https://ebook-backend-lxce.onrender.com/api/admin/exams/exams/${examId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
     await loadFolders();
-    alert("Deleted");
+
+    setSelectedSubject((prev) =>
+      prev
+        ? {
+            ...prev,
+            exams: prev.exams.filter((e: any) => e.id !== examId),
+          }
+        : prev
+    );
+
   } catch (err) {
     console.error(err);
-    alert("Failed to delete");
+    console.warn("Failed to delete");
   }
 };
 
@@ -290,21 +317,30 @@ const deleteExam = async (examId: number) => {
       })),
     }));
   }, []);
+const sortFiles = useCallback(
+  (files: any[] = []) =>
+    files.slice().sort((a, b) => {
+      const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sortOrder === "newest" ? tb - ta : ta - tb;
+    }),
+  [sortOrder]
+);
 
-  const sortFiles = useCallback(
-    (files: any[] = []) =>
-      files.slice().sort((a, b) => {
-        const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return sortOrder === "newest" ? tb - ta : ta - tb;
-      }),
-    [sortOrder]
-  );
+  const sortedNotes = useMemo(
+  () => sortFiles(selectedSubject?.notes || []),
+  [selectedSubject, sortOrder]
+);
+
+const sortedExams = useMemo(
+  () => sortFiles(selectedSubject?.exams || []),
+  [selectedSubject, sortOrder]
+);
+
 
   // ---------------------------- Loaders ----------------------------
   const loadSubjects = useCallback(async () => {
-    const token = getStoredToken();
-    if (!token) {
+    const token = tokenRef.current;    if (!token) {
       console.warn("No token — aborting loadSubjects()");
       return;
     }
@@ -326,8 +362,7 @@ const deleteExam = async (examId: number) => {
   }, []);
 
   const loadFolders = useCallback(async () => {
-    const token = getStoredToken();
-    if (!token) {
+    const token = tokenRef.current;    if (!token) {
       console.warn("No token — aborting loadFolders()");
       return;
     }
@@ -364,8 +399,7 @@ const deleteExam = async (examId: number) => {
   // single initial load (prevent double-calls / infinite loops)
   useEffect(() => {
     // load once on mount
-    const token = getStoredToken();
-    if (!token) {
+    const token = tokenRef.current;    if (!token) {
       console.warn("No token found on initial load — waiting for login.");
       return;
     }
@@ -380,8 +414,7 @@ const deleteExam = async (examId: number) => {
 
   // ---------------------------- Submissions: fetch + grade ----------------------------
   const fetchSubmissions = useCallback(async (examId: number) => {
-    const token = getStoredToken();
-    if (!token) {
+    const token = tokenRef.current;    if (!token) {
       console.warn("No token — aborting fetchSubmissions()");
       return;
     }
@@ -418,8 +451,7 @@ const deleteExam = async (examId: number) => {
 
   const gradeSubmission = async (submissionId: number) => {
     try {
-      const token = getStoredToken();
-      if (!token) {
+      const token = tokenRef.current;      if (!token) {
         console.warn("No token — aborting gradeSubmission()");
         return;
       }
@@ -427,7 +459,7 @@ const deleteExam = async (examId: number) => {
       // find local submission to read draft values
       const s = submissions.find((x) => x.id === submissionId);
       if (!s) {
-        alert("Submission not found");
+        console.warn("Submission not found");
         return;
       }
 
@@ -442,7 +474,7 @@ const deleteExam = async (examId: number) => {
         { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
       );
 
-      alert("Grade saved");
+      console.info("Grade saved");
 
       // refresh list for current exam
       if (selectedExamId) await fetchSubmissions(selectedExamId);
@@ -450,133 +482,135 @@ const deleteExam = async (examId: number) => {
       await loadFolders();
     } catch (err) {
       console.error("Grade submission failed:", err);
-      alert("Failed to save grade");
+      console.warn("Failed to save grade");
     }
   };
 
   // ---------------------------- Actions ----------------------------
   const deleteSubject = async () => {
-    if (!selectedSubject) return;
-    try {
-      const token = getStoredToken();
-      if (!token) {
-        console.warn("No token — aborting deleteSubject()");
-        return;
-      }
+  if (!selectedSubject) return;
 
-      await axios.delete(
-        `https://ebook-backend-lxce.onrender.com/api/admin/exams/subject/${selectedSubject.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-        }
-      );
-      setDeleteDialogOpen(false);
-      setSelectedSubject(null);
-      setScreen("main");
-      await loadFolders();
-      alert("Subject deleted successfully");
-    } catch (err: any) {
-      console.error("Delete subject error:", err?.message || err);
-      alert(err?.response?.data?.error || "Failed to delete subject");
-    }
-  };
+  const ok = window.confirm(
+    `Delete "${selectedSubject.subject}"?\n\nThis will permanently delete:\n• Notes\n• Exams\n• Submissions\n• Files`
+  );
+  if (!ok) return;
 
-  const handleUpload = async () => {
   try {
-    if (!uploadSubject.trim()) return alert("Enter subject name");
+    const token = tokenRef.current;
+    if (!token) {
+      console.warn("Not authenticated");
+      return;
+    }
+
+    // 1️⃣ Delete from backend
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/admin/exams/subject/${selectedSubject.id}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
+      }
+    );
+
+    // 2️⃣ OPTIMISTIC UI UPDATE (SOURCE OF TRUTH)
+    setFolders((prev) =>
+      prev.filter((f) => f.id !== selectedSubject.id)
+    );
+
+    // 3️⃣ RESET VIEW STATE
+    setSelectedSubject(null);
+    setScreen("main");
+    setDeleteDialogOpen(false);
+
+    console.info("Subject deleted successfully ✅");
+
+    // ❌ DO NOT re-fetch immediately
+    // await loadFolders();
+
+  } catch (err: any) {
+    console.error("Delete subject failed:", err);
+    alert(err?.response?.data?.error || "Failed to delete subject");
+  }
+};
+
+
+
+const handleUpload = async () => {
+  const token = tokenRef.current;
+  if (!token) {
+    alert("Not authenticated");
+    return;
+  }
+
+  try {
+    if (!uploadSubject.trim()) {
+      alert("Enter subject name");
+      return;
+    }
 
     const label = uploadSubject.trim();
     const value = label.toLowerCase().replace(/\s+/g, "-");
-    const token = getStoredToken();
 
-    if (!token) {
-      console.warn("No token — aborting handleUpload()");
-      return;
-    }
+    // ===============================
+    // STEP 1️⃣ CREATE SUBJECT
+    // ===============================
+    const subjectRes = await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/exams/subject",
+      { label, value },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    /** ----------------------------------------
-     * CASE 1: Only subject name, no files
-     * Create folder locally in UI immediately
-     * ----------------------------------------*/
-    if (!notePDF && !examPDF) {
-      // Prevent duplicate subject
-      if (folders.some((f) => f.subject.toLowerCase() === label.toLowerCase())) {
-        alert("Subject already exists");
-        return;
-      }
+    const subjectId = subjectRes.data?.subject?.id;
+    if (!subjectId) throw new Error("Subject creation failed");
 
-      const newFolder = {
-        id: Date.now(), // temporary ID
-        subject: label,
-        notes: [],
-        exams: [],
-      };
-
-      setFolders((prev) => [...prev, newFolder]);
-      setUploadOpen(false);
-      setUploadSubject("");
-      alert("Subject created");
-      return;
-    }
-
-    /** ----------------------------------------
-     * CASE 2: Upload files (backend will auto-create subject if needed)
-     * ----------------------------------------*/
-
-    // Upload Notes
+    // ===============================
+    // STEP 2️⃣ UPLOAD NOTE (optional)
+    // ===============================
     if (notePDF) {
       const form = new FormData();
       form.append("file", notePDF);
-      form.append("label", label);
-      form.append("value", value);
+      form.append("subject_id", String(subjectId));
 
-      await axios.post("https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/upload", form, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
+      await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/admin/exams/notes/upload",
+        form,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
     }
 
-    // Upload Exam
-    let examId: number | null = null;
+    // ===============================
+    // STEP 3️⃣ CREATE + UPLOAD EXAM (optional)
+    // ===============================
     if (examPDF) {
-      const createRes = await axios.post(
+      const examRes = await axios.post(
         "https://ebook-backend-lxce.onrender.com/api/admin/exams",
         {
-          label,
-          value,
+          subject_id: subjectId,
           title: examPDF.name,
           description: "Uploaded exam",
           start_time: examStart ? examStart.toISOString() : null,
           end_time: examEnd ? examEnd.toISOString() : null,
         },
-        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      examId = createRes.data.exam?.id ?? null;
+      const examId = examRes.data?.exam?.id;
+      if (!examId) throw new Error("Exam creation failed");
 
-      if (examId) {
-        const formExam = new FormData();
-        formExam.append("file", examPDF);
+      const formExam = new FormData();
+      formExam.append("file", examPDF);
 
-        await axios.post(
-          `https://ebook-backend-lxce.onrender.com/api/admin/exams/${examId}/upload-file`,
-          formExam,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 30000,
-          }
-        );
-      }
+      await axios.post(
+        `https://ebook-backend-lxce.onrender.com/api/admin/exams/${examId}/upload-file`,
+        formExam,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
     }
 
-    // Small delay
-    await new Promise((r) => setTimeout(r, 500));
-
+    // ===============================
+    // CLEANUP
+    // ===============================
     await loadFolders();
 
-    setScreen("main");
-    setSelectedSubject(null);
     setUploadOpen(false);
     setUploadSubject("");
     setNotePDF(null);
@@ -584,25 +618,19 @@ const deleteExam = async (examId: number) => {
     setExamStart(null);
     setExamEnd(null);
 
-    alert("Upload successful");
+    console.info("✅ Subject + files uploaded successfully");
   } catch (err: any) {
-    console.error("UPLOAD FAILED:", err?.message || err, err?.response?.data);
-
-    const msg =
-      err?.response?.data?.error ||
-      err?.response?.data?.message ||
-      err?.message ||
-      "Upload failed — check console";
-
-    alert(msg);
+    console.error("UPLOAD FAILED:", err?.response?.data || err);
+    alert(err?.response?.data?.error || err.message || "Upload failed");
   }
 };
+
+
 
   const saveEditExam = async () => {
     if (!editExam) return;
     try {
-      const token = getStoredToken();
-      if (!token) {
+      const token = tokenRef.current;      if (!token) {
         console.warn("No token — aborting saveEditExam()");
         return;
       }
@@ -619,23 +647,23 @@ const deleteExam = async (examId: number) => {
       );
       setEditExam(null);
       await loadFolders();
-      alert("Exam updated");
+      console.info("Exam updated");
     } catch (err: any) {
       console.error("Update exam failed", err?.message || err);
-      alert(err?.response?.data?.error || "Update failed");
+      console.warn(err?.response?.data?.error || "Update failed");
     }
   };
 
   // ---------------------------- Render ----------------------------
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[#1d4d6a] mb-1">
+          <h2 className="text-xl font-semibold text-[#1d4d6a]">
             Exams & Notes
           </h2>
-          <p className="text-sm text-gray-500">{folders.length} subjects</p>
+          <p className="text-sm text-gray-600">{folders.length} subjects</p>
         </div>
 
         <div className="flex gap-3 items-center">
@@ -764,7 +792,7 @@ const deleteExam = async (examId: number) => {
     </div>
 
     <div className="space-y-3 mt-4">
-      {sortFiles(selectedSubject.notes || []).map((n) => (
+      {sortedNotes.map((n) => (
         <Card key={n.id}>
           <CardContent className="flex justify-between items-center p-4">
             <div className="flex items-center gap-3">
@@ -822,7 +850,7 @@ const deleteExam = async (examId: number) => {
     </div>
 
     <div className="space-y-3 mt-4">
-      {sortFiles(selectedSubject.exams || []).map((e) => (
+      {sortedExams.map((e) => (
         <Card key={e.id}>
           <CardContent className="flex justify-between items-center p-4">
             <div>

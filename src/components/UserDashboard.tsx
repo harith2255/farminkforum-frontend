@@ -33,7 +33,7 @@ import { MockTests } from "./user/MockTests";
 import NotesRepository from "./user/NotesRepository";
 import { WritingServices } from "./user/WritingServices";
 import { JobPortal } from "./user/JobPortal";
-import CurrentAffairs from "./user/Current-Affairs";
+import CurrentAffairs from "./user/UserCurrentAffairs";
 import { PaymentsSubscriptions } from "./user/PaymentsSubscriptions";
 import { ProfileSettings } from "./user/ProfileSettings";
 import NotificationView from "./user/NotificationView";
@@ -59,7 +59,7 @@ type UserSection =
   | "tests"
   | "exams"
   | "pyqs"
-  | "current-affairs"
+  | "currentaffairs"
   | "notes"
   | "writing"
   | "jobs"
@@ -332,7 +332,7 @@ export function UserDashboard({
     { id: "notes", icon: FileText, label: "Notes" },
     { id: "writing", icon: PenIcon, label: "Writing Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
-    { id: "current-affairs", icon: Calendar, label: "Current Affairs" },
+    { id: "currentaffairs", icon: Calendar, label: "Current Affairs" },
     { id: "payments", icon: CreditCard, label: "Payments" },
     { id: "profile", icon: User, label: "Profile" },
   ];
@@ -404,7 +404,7 @@ export function UserDashboard({
         "notes",
         "exams",
         "pyqs",
-        "current-affairs",
+        "currentaffairs",
         "writing",
         "jobs",
         "payments",
@@ -880,7 +880,7 @@ export function UserDashboard({
             
             {activeSection === "pyqs" && <PYQSection />}
 
-            {activeSection === "current-affairs" && <CurrentAffairs />}
+            {activeSection === "currentaffairs" && <CurrentAffairs />}
 
             {activeSection === "writing" && (
               <WritingServices onNavigate={onNavigate} />

@@ -1,130 +1,14 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Plus, Upload, X, FileText, CheckCircle, Calendar, AlertCircle, Folder, Eye, Download, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 
+
+const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/admin/pyq";
+
 function PYQSection() {
-  const [folders, setFolders] = useState([
-    {
-      id: 1,
-      name: "Agriculture Extension Education",
-      createdAt: new Date("2024-01-15").toISOString(),
-      updatedAt: new Date("2024-03-10").toISOString(),
-      paperCount: 6,
-      papers: [
-        {
-          id: 101,
-          type: "question",
-          title: "2020 Question Paper",
-          year: "2020",
-          fileName: "AgriExt_2020_Question.pdf",
-          fileSize: "2.4 MB",
-          uploadDate: "2024-01-15",
-          status: "published"
-        },
-        {
-          id: 102,
-          type: "answer",
-          title: "2020 Answer Key",
-          year: "2020",
-          fileName: "AgriExt_2020_Answer.pdf",
-          fileSize: "1.8 MB",
-          uploadDate: "2024-01-15",
-          status: "published"
-        },
-        {
-          id: 103,
-          type: "question",
-          title: "2021 Question Paper",
-          year: "2021",
-          fileName: "AgriExt_2021_Question.pdf",
-          fileSize: "2.6 MB",
-          uploadDate: "2024-02-20",
-          status: "published"
-        },
-        {
-          id: 104,
-          type: "answer",
-          title: "2021 Answer Key",
-          year: "2021",
-          fileName: "AgriExt_2021_Answer.pdf",
-          fileSize: "2.0 MB",
-          uploadDate: "2024-02-20",
-          status: "published"
-        },
-        {
-          id: 105,
-          type: "question",
-          title: "2022 Question Paper",
-          year: "2022",
-          fileName: "AgriExt_2022_Question.pdf",
-          fileSize: "3.1 MB",
-          uploadDate: "2024-03-10",
-          status: "published"
-        },
-        {
-          id: 106,
-          type: "answer",
-          title: "2022 Answer Key",
-          year: "2022",
-          fileName: "AgriExt_2022_Answer.pdf",
-          fileSize: "2.2 MB",
-          uploadDate: "2024-03-10",
-          status: "published"
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: "Education",
-      createdAt: new Date("2024-02-01").toISOString(),
-      updatedAt: new Date("2024-03-05").toISOString(),
-      paperCount: 4,
-      papers: [
-        {
-          id: 201,
-          type: "question",
-          title: "2023 Question Paper",
-          year: "2023",
-          fileName: "Education_2023_Question.pdf",
-          fileSize: "2.8 MB",
-          uploadDate: "2024-02-01",
-          status: "published"
-        },
-        {
-          id: 202,
-          type: "answer",
-          title: "2023 Answer Key",
-          year: "2023",
-          fileName: "Education_2023_Answer.pdf",
-          fileSize: "2.1 MB",
-          uploadDate: "2024-02-01",
-          status: "published"
-        },
-        {
-          id: 203,
-          type: "question",
-          title: "2024 Question Paper",
-          year: "2024",
-          fileName: "Education_2024_Question.pdf",
-          fileSize: "3.2 MB",
-          uploadDate: "2024-03-05",
-          status: "published"
-        },
-        {
-          id: 204,
-          type: "answer",
-          title: "2024 Answer Key",
-          year: "2024",
-          fileName: "Education_2024_Answer.pdf",
-          fileSize: "2.5 MB",
-          uploadDate: "2024-03-05",
-          status: "published"
-        }
-      ]
-    }
-  ]);
+  const [folders, setFolders] = useState([]);
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   
@@ -144,6 +28,34 @@ function PYQSection() {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 20 }, (_, i) => currentYear - i);
+
+
+  useEffect(() => {
+  fetchSubjects();
+}, []);
+
+const fetchSubjects = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/subjects`);
+    if (!res.ok) throw new Error("Failed to load subjects");
+
+    const data = await res.json();
+
+    const formatted = data.map((s) => ({
+      id: s.id,
+      name: s.name,
+      createdAt: s.created_at,
+      updatedAt: s.updated_at,
+      paperCount: s.pyq_papers[0]?.count || 0,
+      papers: [],
+    }));
+
+    setFolders(formatted);
+  } catch (err) {
+    console.error(err);
+    alert("Error loading subjects");
+  }
+};
 
   const handleQuestionFileChange = (e) => {
     const file = e.target.files[0];
@@ -175,111 +87,56 @@ function PYQSection() {
     }
   };
 
-  const handleUpload = async () => {
-    // Determine subject name based on mode
-    let currentSubjectName = subjectName;
-    
+ const handleUpload = async () => {
+  let currentSubjectName = subjectName;
+
+  if (uploadMode === "add" && selectedFolder) {
+    currentSubjectName = selectedFolder.name;
+  }
+
+  if (!currentSubjectName || !year || !questionFile) {
+    alert("Missing required fields");
+    return;
+  }
+
+  setUploading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("subjectName", currentSubjectName);
+    formData.append("year", year);
+    formData.append("question", questionFile);
+    if (answerFile) formData.append("answer", answerFile);
+
+    const res = await fetch(`${BASE_URL}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Upload failed");
+    }
+
+    await fetchSubjects();
+
     if (uploadMode === "add" && selectedFolder) {
-      currentSubjectName = selectedFolder.name;
+      openFolder(selectedFolder);
     }
 
-    if (!currentSubjectName.trim()) {
-      alert("Please enter subject name");
-      return;
-    }
-
-    if (!year) {
-      alert("Please select year");
-      return;
-    }
-
-    if (!questionFile) {
-      alert("Please upload question paper");
-      return;
-    }
-
-    setUploading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Create new paper
-      const newPaper = {
-        id: Date.now() + 1,
-        type: "question",
-        title: `${year} Question Paper`,
-        year: year,
-        fileName: questionFile.name,
-        fileSize: (questionFile.size / 1024 / 1024).toFixed(2) + " MB",
-        uploadDate: new Date().toLocaleDateString(),
-        status: "published"
-      };
-
-      const papers = [newPaper];
-      
-      if (answerFile) {
-        papers.push({
-          id: Date.now() + 2,
-          type: "answer",
-          title: `${year} Answer Key`,
-          year: year,
-          fileName: answerFile.name,
-          fileSize: (answerFile.size / 1024 / 1024).toFixed(2) + " MB",
-          uploadDate: new Date().toLocaleDateString(),
-          status: "published"
-        });
-      }
-
-      // Check if folder for this subject already exists
-      const existingFolderIndex = folders.findIndex(f => f.name === currentSubjectName);
-      
-      if (existingFolderIndex !== -1) {
-        // Update existing folder
-        const updatedFolders = [...folders];
-        updatedFolders[existingFolderIndex] = {
-          ...updatedFolders[existingFolderIndex],
-          papers: [...updatedFolders[existingFolderIndex].papers, ...papers],
-          paperCount: updatedFolders[existingFolderIndex].papers.length + papers.length,
-          updatedAt: new Date().toISOString()
-        };
-        setFolders(updatedFolders);
-        
-        // Update selected folder if it's the current one
-        if (selectedFolder && selectedFolder.name === currentSubjectName) {
-          setSelectedFolder(updatedFolders[existingFolderIndex]);
-        }
-      } else {
-        // Create new folder
-        const newFolder = {
-          id: Date.now(),
-          name: currentSubjectName,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          paperCount: papers.length,
-          papers: papers
-        };
-        
-        setFolders(prev => [newFolder, ...prev]);
-      }
-
-      // Reset form
-      setSubjectName("");
-      setYear("");
-      setQuestionFile(null);
-      setAnswerFile(null);
-      setUploadMode("new"); // Reset to default mode
-      
-      alert("Upload successful!");
-      setUploadOpen(false);
-      
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  };
+    setUploadOpen(false);
+    setSubjectName("");
+    setYear("");
+    setQuestionFile(null);
+    setAnswerFile(null);
+    setUploadMode("new");
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  } finally {
+    setUploading(false);
+  }
+};
 
   const removeQuestionFile = () => {
     setQuestionFile(null);
@@ -289,10 +146,39 @@ function PYQSection() {
     setAnswerFile(null);
   };
 
-  const openFolder = (folder) => {
-    setSelectedFolder(folder);
+  const openFolder = async (folder) => {
+  try {
+    const res = await fetch(`${BASE_URL}/subjects/${folder.id}/papers`);
+    if (!res.ok) throw new Error("Failed to load papers");
+
+    const data = await res.json();
+
+    const papers = data.map((p) => ({
+      id: p.id,
+      type: p.type,
+      title: `${p.year} ${
+        p.type === "question" ? "Question Paper" : "Answer Key"
+      }`,
+      year: p.year,
+      fileName: p.file_name,
+      fileSize: `${p.file_size_mb} MB`,
+      uploadDate: new Date(p.created_at).toLocaleDateString(),
+      fileUrl: p.file_url,
+    }));
+
+    setSelectedFolder({
+      ...folder,
+      papers,
+      paperCount: papers.length,
+    });
+
     setViewMode("papers");
-  };
+  } catch (err) {
+    console.error(err);
+    alert("Error loading papers");
+  }
+};
+
 
   const goBackToFolders = () => {
     setSelectedFolder(null);
@@ -317,41 +203,56 @@ function PYQSection() {
   };
 
   const handleViewPaper = (paper) => {
-    alert(`Opening: ${paper.title}\nThis would open the PDF viewer`);
-  };
+  if (!paper?.fileUrl) {
+    alert("File not available");
+    return;
+  }
+
+  window.open(paper.fileUrl, "_blank", "noopener,noreferrer");
+};
 
   const handleDownloadPaper = (paper) => {
     alert(`Downloading: ${paper.title}\nThis would download the PDF file`);
   };
 
-  const handleDeletePaper = (paperId, e) => {
-    e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this paper?")) {
-      if (selectedFolder) {
-        const updatedPapers = selectedFolder.papers.filter(p => p.id !== paperId);
-        const updatedFolder = { 
-          ...selectedFolder, 
-          papers: updatedPapers, 
-          paperCount: updatedPapers.length,
-          updatedAt: new Date().toISOString()
-        };
-        
-        // Update folders list
-        setFolders(prev => prev.map(f => f.id === selectedFolder.id ? updatedFolder : f));
-        setSelectedFolder(updatedFolder);
-      }
-    }
-  };
+const handleDeletePaper = async (paperId, e) => {
+  e.stopPropagation();
+  if (!window.confirm("Delete this paper?")) return;
 
-  const handleDeleteFolder = (folderId, e) => {
-    e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this folder and all its papers?")) {
-      setFolders(prev => prev.filter(f => f.id !== folderId));
-      if (selectedFolder && selectedFolder.id === folderId) {
-        goBackToFolders();
-      }
-    }
-  };
+  try {
+    const res = await fetch(`${BASE_URL}/paper/${paperId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    openFolder(selectedFolder);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete paper");
+  }
+};
+
+
+const handleDeleteFolder = async (folderId, e) => {
+  e.stopPropagation();
+  if (!window.confirm("Delete folder and all papers?")) return;
+
+  try {
+    const res = await fetch(`${BASE_URL}/subject/${folderId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    fetchSubjects();
+    if (selectedFolder?.id === folderId) goBackToFolders();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete folder");
+  }
+};
+
 
   // Filter folders based on search
   const filteredFolders = folders.filter(folder => 
@@ -359,7 +260,7 @@ function PYQSection() {
   );
 
   return (
-    <div className="space-y-6 ">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

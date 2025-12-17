@@ -1,5 +1,17 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Search, Filter, ChevronDown, BookOpen, Folder, ChevronRight, FolderOpen, FileText, Eye, FileQuestion, CheckCircle } from "lucide-react";
+
+
+
+const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/pyq";
+const authFetch = (url) => {
+  const token = localStorage.getItem("token");
+  return fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+};
 
 function PYQSection() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -8,54 +20,33 @@ function PYQSection() {
     const [currentView, setCurrentView] = useState("subjects");
     const [selectedSubjectData, setSelectedSubjectData] = useState(null);
     const [selectedYearFolder, setSelectedYearFolder] = useState(null);
+    const [subjects, setSubjects] = useState([]);
 
-    // Mock subjects with folder structure
-    const subjects = [
-        {
-            id: 1,
-            name: "Agriculture Extension Education",
-            folders: [
-                { 
-                    id: 101, 
-                    name: "2018-2020",
-                    papers: [
-                        { id: 1001, type: "question", title: "2018 Question Paper", year: "2018" },
-                        { id: 1002, type: "answer", title: "2018 Answer Key", year: "2018" },
-                        { id: 1003, type: "question", title: "2019 Question Paper", year: "2019" },
-                        { id: 1004, type: "answer", title: "2019 Answer Key", year: "2019" },
-                        { id: 1005, type: "question", title: "2020 Question Paper", year: "2020" },
-                        { id: 1006, type: "answer", title: "2020 Answer Key", year: "2020" }
-                    ]
-                },
-                { 
-                    id: 102, 
-                    name: "2021-2022",
-                    papers: [
-                        { id: 2001, type: "question", title: "2021 Question Paper", year: "2021" },
-                        { id: 2002, type: "answer", title: "2021 Answer Key", year: "2021" },
-                        { id: 2003, type: "question", title: "2022 Question Paper", year: "2022" },
-                        { id: 2004, type: "answer", title: "2022 Answer Key", year: "2022" }
-                    ]
-                }
-            ]
-        },
-        {
-            id: 2,
-            name: "Education",
-            folders: [
-                { 
-                    id: 201, 
-                    name: "2021-2024",
-                    papers: [
-                        { id: 3001, type: "question", title: "2023 Question Paper", year: "2023" },
-                        { id: 3002, type: "answer", title: "2023 Answer Key", year: "2023" },
-                        { id: 3003, type: "question", title: "2024 Question Paper", year: "2024" },
-                        { id: 3004, type: "answer", title: "2024 Answer Key", year: "2024" }
-                    ]
-                }
-            ]
-        }
-    ];
+
+    useEffect(() => {
+  fetchSubjects();
+}, []);
+
+const fetchSubjects = async () => {
+  try {
+    const res = await authFetch(`${BASE_URL}/subjects`);
+    if (!res.ok) throw new Error("Failed to load subjects");
+
+    const data = await res.json();
+    setSubjects(
+      data.map(s => ({
+        id: s.id,
+        name: s.name,
+        folders: [],
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    alert("Unable to load subjects");
+  }
+};
+
+
 
     const filterOptions = ["All Subjects", ...subjects.map(subject => subject.name)];
 
@@ -68,16 +59,52 @@ function PYQSection() {
         setShowSubjectDropdown(false);
     };
 
-    const openSubject = (subject) => {
-        setSelectedSubjectData(subject);
-        setSelectedYearFolder(null);
-        setCurrentView("yearFolders");
-    };
+  const openSubject = async (subject) => {
+  try {
+    const res = await authFetch(
+      `${BASE_URL}/subjects/${subject.id}/folders`
+    );
+    if (!res.ok) throw new Error("Failed to load year folders");
 
-    const openYearFolder = (folder) => {
-        setSelectedYearFolder(folder);
-        setCurrentView("papers");
-    };
+    const folders = await res.json();
+
+    setSelectedSubjectData({ ...subject, folders });
+    setCurrentView("yearFolders");
+  } catch (err) {
+    console.error(err);
+    alert("Unable to load year folders");
+  }
+};
+
+   const openYearFolder = async (folder) => {
+  try {
+    const res = await authFetch(
+      `${BASE_URL}/subjects/${selectedSubjectData.id}/papers/${folder.start}/${folder.end}`
+    );
+    if (!res.ok) throw new Error("Failed to load papers");
+
+    const data = await res.json();
+
+    setSelectedYearFolder({
+      ...folder,
+      papers: data.map(p => ({
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        year: p.year,
+        fileUrl: p.file_url,
+        fileSize: p.file_size,
+      })),
+    });
+
+    setCurrentView("papers");
+  } catch (err) {
+    console.error(err);
+    alert("Unable to load papers");
+  }
+};
+
+
 
     const goBackToSubjects = () => {
         setCurrentView("subjects");
@@ -90,9 +117,15 @@ function PYQSection() {
         setSelectedYearFolder(null);
     };
 
-    const handleViewPaper = (paper) => {
-        alert(`Viewing: ${paper.title}\nThis would open a PDF viewer for the ${paper.type === "question" ? "question paper" : "answer key"}`);
-    };
+   const handleViewPaper = (paper) => {
+  if (!paper?.fileUrl) {
+    alert("File not available");
+    return;
+  }
+
+  window.open(paper.fileUrl, "_blank", "noopener,noreferrer");
+};
+
 
     const filteredSubjects = selectedSubject === "All Subjects" 
         ? subjects 

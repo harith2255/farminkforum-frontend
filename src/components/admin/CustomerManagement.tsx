@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 import * as React from "react";
 
-export function CustomerManagement() {
+export default function CustomerManagement() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -67,7 +67,8 @@ export function CustomerManagement() {
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    fetchCustomers();
+    await fetchCustomers();
+    setPage((p)=>p);
   };
 
   const activateCustomer = async (id: string) => {
@@ -211,7 +212,7 @@ export function CustomerManagement() {
                       <TableCell>{c.email}</TableCell>
 
                       <TableCell>
-                        <Badge>{c.plan || "N/A"}</Badge>
+                        <Badge>{c.subscription_plan || "N/A"}</Badge>
                       </TableCell>
 
                       {/* Billing Status (subscription) */}

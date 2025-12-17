@@ -3,10 +3,24 @@ import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import * as React from "react";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.js",
-  import.meta.url
-).toString();
+let pdfjsLibPromise: Promise<any> | null = null;
+
+async function loadPdfJs() {
+  if (!pdfjsLibPromise) {
+    pdfjsLibPromise = (async () => {
+      const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
+      const worker = await import(
+        "pdfjs-dist/legacy/build/pdf.worker.min.js"
+      );
+
+      pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+      return pdfjs;
+    })();
+  }
+
+  return pdfjsLibPromise;
+}
+
 
 interface Highlight {
   id: number | string;
@@ -65,7 +79,7 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
   const currentRenderTask = useRef<any>(null);
 
   const [pdfInstance, setPdfInstance] = useState<any>(null);
-  const [pdfLoadedBytes, setPdfLoadedBytes] = useState<ArrayBuffer | null>(null);
+ 
 
   const isPageLocked = !purchased && isLocked && page > previewPages;
 
@@ -204,34 +218,42 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
      Load PDF from bytes (ArrayBuffer)
   --------------------------- */
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!url) return;
-      try {
-        const bytes = await fetchProtectedPdf(url);
-        if (!bytes) return;
-        if (cancelled) return;
-        setPdfLoadedBytes(bytes);
+  let cancelled = false;
 
-        // load pdf via typed array - no URL exposed
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(bytes) });
-        const pdf = await loadingTask.promise;
-        if (cancelled) {
-          pdf?.destroy();
-          return;
-        }
-        setPdfInstance(pdf);
-        onTotalPages?.(pdf.numPages);
-      } catch (err) {
-        console.error("PDF load error:", err);
+  (async () => {
+    if (!url) return;
+
+    try {
+      // ✅ ENSURE pdf.js + worker are loaded
+      const pdfjs = await loadPdfJs();
+
+      const bytes = await fetchProtectedPdf(url);
+      if (!bytes || cancelled) return;
+
+      const loadingTask = pdfjs.getDocument({
+        data: new Uint8Array(bytes),
+        disableAutoFetch: true,
+        disableStream: true,
+      });
+
+      const pdf = await loadingTask.promise;
+      if (cancelled) {
+        pdf.destroy();
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
+      setPdfInstance(pdf);
+      onTotalPages?.(pdf.numPages);
+    } catch (err) {
+      console.error("PDF load error:", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [url]);
+
 
   /* ---------------------------
      Render page to canvas + draw watermark directly on canvas

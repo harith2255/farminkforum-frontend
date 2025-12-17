@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye } from "lucide-react";
 
+
+const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/admin/current-affairs";
+
 function CurrentAffairsAdmin() {
   const [viewMode, setViewMode] = useState("folders");
   const [search, setSearch] = useState("");
@@ -23,24 +26,37 @@ function CurrentAffairsAdmin() {
     createdAt: new Date().toISOString()
   });
 
-  // Load articles from localStorage on component mount
-  useEffect(() => {
-    const savedArticles = localStorage.getItem("currentAffairsArticles");
-    if (savedArticles) {
-      try {
-        const parsedArticles = JSON.parse(savedArticles);
-        setArticles(parsedArticles);
-      } catch (error) {
-        console.error("Error loading articles from localStorage:", error);
-        setArticles([]);
-      }
-    }
-  }, []);
+ useEffect(() => {
+  fetchArticles();
+}, []);
+const fetchArticles = async () => {
+  try {
+    const res = await fetch(BASE_URL);
+    if (!res.ok) throw new Error("Failed to load articles");
 
-  // Save articles to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("currentAffairsArticles", JSON.stringify(articles));
-  }, [articles]);
+    const data = await res.json();
+
+    // Map backend → frontend shape
+    const formatted = data.map((a) => ({
+      id: a.id,
+      title: a.title,
+      category: a.category,
+      content: a.content,
+      tags: a.tags || "",
+      importance: a.importance,
+      status: a.status,
+      date: a.article_date,
+      time: a.article_time,
+      imageUrl: a.image_url,
+      createdAt: a.created_at,
+    }));
+
+    setArticles(formatted);
+  } catch (err) {
+    console.error(err);
+    alert("Unable to load articles");
+  }
+};
 
   const [folders] = useState([
     { id: 1, name: "National Affairs" },
@@ -92,14 +108,14 @@ function CurrentAffairsAdmin() {
     setShowAddModal(true);
   };
 
-  const handleEditArticle = (article) => {
-    setEditingArticle(article.id);
-    setFormData({
-      ...article,
-      image: null
-    });
-    setShowAddModal(true);
-  };
+const handleEditArticle = (article) => {
+  setEditingArticle(article.id);
+  setFormData({
+    ...article,
+    image: null,
+  });
+  setShowAddModal(true);
+};
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
@@ -110,29 +126,49 @@ function CurrentAffairsAdmin() {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (editingArticle) {
-      // Update existing article
-      setArticles(prev => prev.map(article => 
-        article.id === editingArticle ? formData : article
-      ));
-      alert("Article updated successfully!");
-    } else {
-      // Add new article
-      const newArticle = {
-        ...formData,
-        id: Date.now(),
-        createdAt: new Date().toISOString()
-      };
-      setArticles(prev => [...prev, newArticle]);
-      alert("Article added successfully!");
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const form = new FormData();
+
+    form.append("title", formData.title);
+    form.append("category", formData.category);
+    form.append("content", formData.content);
+    form.append("tags", formData.tags);
+    form.append("importance", formData.importance);
+    form.append("status", formData.status);
+    form.append("date", formData.date);
+    form.append("time", formData.time);
+
+    if (formData.image) {
+      form.append("image", formData.image);
     }
-    
+
+    const url = editingArticle
+      ? `${BASE_URL}/${editingArticle}`
+      : BASE_URL;
+
+    const method = editingArticle ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      body: form,
+    });
+
+    if (!res.ok) throw new Error("Save failed");
+
+    alert(editingArticle ? "Article updated successfully!" : "Article added successfully!");
+
     setShowAddModal(false);
     resetForm();
-  };
+    fetchArticles();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save article");
+  }
+};
+
 
   const resetForm = () => {
     setFormData({
@@ -151,12 +187,24 @@ function CurrentAffairsAdmin() {
     setEditingArticle(null);
   };
 
-  const handleDeleteArticle = (id) => {
-    if (window.confirm("Are you sure you want to delete this article?")) {
-      setArticles(prev => prev.filter(article => article.id !== id));
-      alert("Article deleted successfully!");
-    }
-  };
+const handleDeleteArticle = async (id) => {
+  if (!window.confirm("Are you sure you want to delete this article?")) return;
+
+  try {
+    const res = await fetch(`${BASE_URL}/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    alert("Article deleted successfully!");
+    fetchArticles();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete article");
+  }
+};
+
 
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(search.toLowerCase())

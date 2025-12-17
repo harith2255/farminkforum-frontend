@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import {
   Card,
@@ -26,117 +26,109 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-export function AdminDashboardHome() {
+export default function AdminDashboardHome() {
   const [kpis, setKpis] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
+  const [loadingOverview, setLoadingOverview] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
 
-  function formatActivity(activity: any) {
-    const { user_name, action_type, meta } = activity;
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityInfo, setActivityInfo] = useState({ page: 1, totalPages: 1 });
 
-    switch (action_type) {
-      case "upload_book":
-        return `${user_name} uploaded a book "${meta?.title}"`;
+  /* =====================================================
+     MEMO (MUST BE BEFORE RETURN)
+  ===================================================== */
+  const kpiData = useMemo(() => {
+    if (!kpis) return [];
 
-      case "subscribe":
-        return `${user_name} subscribed to a ${meta?.plan}`;
+    return [
+      {
+        label: "Total Users",
+        value: kpis.totalUsers,
+        change: kpis.userGrowthPercent,
+        icon: Users,
+        color: "text-blue-500",
+      },
+      {
+        label: "Active Subscriptions",
+        value: kpis.activeSubs,
+        change: kpis.subsGrowthPercent,
+        icon: TrendingUp,
+        color: "text-green-500",
+      },
+      {
+        label: "Books Sold",
+        value: kpis.booksSold,
+        change: kpis.booksGrowthPercent,
+        icon: BookOpen,
+        color: "text-purple-500",
+      },
+      {
+        label: "Revenue (MTD)",
+        value: `₹${kpis.revenueMTD}`,
+        change: kpis.revenueGrowthPercent,
+        icon: IndianRupee,
+        color: "text-red-500",
+      },
+    ];
+  }, [kpis]);
 
-      case "subscription_activate":
-        return `${user_name} activated a ${meta?.plan}`;
-
-      case "renew_subscription":
-        return `${user_name} renewed their ${meta?.plan}`;
-
-      case "purchase_book":
-        return `${user_name} purchased the book "${meta?.title}"`;
-
-      case "publish_notes":
-        return `${user_name} published study notes for "${meta?.subject}"`;
-
-      case "update_content":
-        return `${user_name} updated content in category "${meta?.category}"`;
-
-      case "checkout_resource":
-        return `${user_name} checked out a resource from ${meta?.category}`;
-
-      case "login":
-        return `${user_name} logged in`;
-
-      case "signin":
-        return `${user_name} signed in`;
-
-      default:
-        return `${user_name} performed an action`;
-    }
-  }
-
-
-
-  const fetchAnalytics = async () => {
+  /* =====================================================
+     FETCHES
+  ===================================================== */
+  const fetchOverview = async () => {
     try {
       const token = localStorage.getItem("token");
-      console.log("Fetching analytics with token:", token);
       const res = await axios.get(
         "https://ebook-backend-lxce.onrender.com/api/admin/dashboard",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setKpis(res.data.kpis);
       setChartData(res.data.chartData);
-      setRecentActivity(res.data.recentActivity);
     } catch (err) {
-      console.error("Analytics Fetch Error:", err);
+      console.error(err);
     } finally {
-      setLoading(false);
+      setLoadingOverview(false);
+    }
+  };
+
+  const fetchActivity = async () => {
+    try {
+      setLoadingActivity(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `https://ebook-backend-lxce.onrender.com/api/admin/dashboard?page=${activityPage}&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRecentActivity(res.data.recentActivity || []);
+      setActivityInfo(res.data.activityPagination);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingActivity(false);
     }
   };
 
   useEffect(() => {
-    fetchAnalytics();
+    fetchOverview();
   }, []);
 
-  if (loading || !kpis) {
-    return <div className="flex justify-center py-10 text-gray-600">Loading...</div>;
+  useEffect(() => {
+    fetchActivity();
+  }, [activityPage]);
+
+  /* =====================================================
+     SAFE EARLY RETURN
+  ===================================================== */
+  if (loadingOverview || !kpis) {
+    return (
+      <div className="flex justify-center py-10 text-gray-600">
+        Loading dashboard...
+      </div>
+    );
   }
-
-  const kpiData = [
-    {
-      label: "Total Users",
-      value: kpis.totalUsers,
-      change: kpis.userGrowthPercent,
-      icon: Users,
-      color: "text-blue-500",
-    },
-    {
-      label: "Active Subscriptions",
-      value: kpis.activeSubs,
-      change: kpis.subsGrowthPercent,
-      icon: TrendingUp,
-      color: "text-green-500",
-    },
-    {
-      label: "Books Sold",
-      value: kpis.booksSold,
-      change: kpis.booksGrowthPercent,
-      icon: BookOpen,
-      color: "text-purple-500",
-    },
-    {
-      label: "Revenue (MTD)",
-      value: `₹${kpis.revenueMTD}`,
-      change: kpis.revenueGrowthPercent,
-      icon: IndianRupee,
-      color: "text-red-500",
-    },
-  ];
-
-
-
-
   return (
     <div className="space-y-6">
       {/* KPI Cards */}

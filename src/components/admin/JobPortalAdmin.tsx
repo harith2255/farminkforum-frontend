@@ -24,7 +24,7 @@ interface Job {
   requirements: string[];
 }
 
-export function JobPortalAdmin() {
+export default function JobPortalAdmin() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);

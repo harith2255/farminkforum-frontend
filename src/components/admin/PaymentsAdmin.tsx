@@ -6,7 +6,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import * as React from 'react';
 
-export function PaymentsAdmin() {
+export default function PaymentsAdmin() {
   const [stats, setStats] = useState<any[]>([]);          // ✅ FIXED
   const [transactions, setTransactions] = useState<any[]>([]);  // ✅ FIXED
 

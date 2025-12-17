@@ -20,7 +20,7 @@ import ContactPage from "./contact/ContactPage";
 import PurchasePage from "./PurchasePage";
 import ReadNotePage from "./NotesReader";
 import * as React from "react";
-import {toast} from "sonner"
+import { toast } from "sonner";
 
 interface PublicPagesProps {
   page:
@@ -44,17 +44,15 @@ export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
       <Navbar onNavigate={onNavigate} />
 
       {/* Page Content */}
-      <div className="pt-16">
-        {page === "explore" && <ExplorePage onNavigate={onNavigate} />}
-        {page === "pricing" && <PricingPage onNavigate={onNavigate} />}
-        {page === "about" && <AboutPage />}
-        {page === "contact" && <ContactPage />}
-        {page === "login" && (
-          <LoginPage onNavigate={onNavigate} onLogin={onLogin} />
-        )}
-        {page === "register" && <RegisterPage onNavigate={onNavigate} />}
-        {page === "read_note" && <ReadNotePage onNavigate={onNavigate} />}
-      </div>
+      {page === "explore" && <ExplorePage onNavigate={onNavigate} />}
+      {page === "pricing" && <PricingPage onNavigate={onNavigate} />}
+      {page === "about" && <AboutPage />}
+      {page === "contact" && <ContactPage />}
+      {page === "login" && (
+        <LoginPage onNavigate={onNavigate} onLogin={onLogin} />
+      )}
+      {page === "register" && <RegisterPage onNavigate={onNavigate} />}
+      {page === "read_note" && <ReadNotePage onNavigate={onNavigate} />}
 
       {/* Footer */}
       <Footer onNavigate={onNavigate} />
@@ -72,8 +70,7 @@ export function LoginPage({
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
+useEffect(() => {
   const params = new URLSearchParams(window.location.search);
 
   if (params.get("reason") === "suspended") {
@@ -94,33 +91,55 @@ export function LoginPage({
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/auth/login",
-        {
-          email: formData.email,
-          password: formData.password,
-        }
-      );
+      const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/login", {
+        email: formData.email,
+        password: formData.password,
+      });
 
       const { user, access_token, token } = res.data;
+      localStorage.clear();
 
-      // PICK ONE TOKEN
       const finalToken = token || access_token;
 
       // STORE ONLY ONE KEY
       localStorage.setItem("token", finalToken);
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("role", user.role);
+      // Store user info (IMPORTANT for read-only mode)
+localStorage.setItem(
+  "user",
+  JSON.stringify({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    read_only: user.read_only === true, // ✅ THIS LINE
+  })
+);
 
-      window.dispatchEvent(new Event("authChanged"));
 
-      // Notify parent
-      onLogin?.(user.role === "super_admin" ? "admin" : "user");
+     localStorage.setItem("isLoggedIn", "true");
+localStorage.setItem("role", user.role);
+
+// notify the whole app ONCE
+window.dispatchEvent(new Event("authChanged"));
+
+// single role resolution
+onLogin?.(user.role === "super_admin" ? "admin" : "user");
+
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.error || "Invalid email or password");
-    } finally {
-      setLoading(false);
+  console.error(err);
+
+  if (err.response?.data?.mode === "read_only") {
+    toast.error("Your account is suspended. Read-only access enabled.");
+    return;
+  }
+
+  setError(err.response?.data?.error || "Invalid email or password");
+}
+  }
+
+    // Handle Enter key press on inputs
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleLogin();
     }
   };
 
@@ -144,6 +163,7 @@ export function LoginPage({
               name="email"
               value={formData.email}
               onChange={handleChange}
+              onKeyPress={handleKeyPress}
               placeholder="your@email.com"
               className="text-sm sm:text-base"
             />
@@ -156,6 +176,7 @@ export function LoginPage({
               name="password"
               value={formData.password}
               onChange={handleChange}
+              onKeyPress={handleKeyPress}
               placeholder="••••••••"
               className="text-sm sm:text-base"
             />
@@ -210,33 +231,41 @@ export default function RegisterPage({
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = async () => {
+const handleRegister = async () => {
+  setError("");
+
+  if (formData.password !== formData.confirmPassword) {
+    setError("Passwords do not match");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await axios.post("http://localhost:5000/api/auth/register", {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      password: formData.password,
+    });
+
+    console.log("REGISTER RESPONSE:", res.data);
+
+    // ✅ CLEAR ERROR EXPLICITLY ON SUCCESS
     setError("");
-    if (formData.password !== formData.confirmPassword) {
-      return setError("Passwords do not match");
-    }
 
-    try {
-      setLoading(true);
-      const res = await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/auth/register",
-        {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          password: formData.password,
-        }
-      );
+    alert("✅ Account created successfully!");
+    onNavigate("login");
 
-      alert("✅ Account created successfully!");
-      onNavigate("login");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.error || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    console.error("REGISTER ERROR:", err);
+    console.error("SERVER RESPONSE:", err?.response?.data);
+
+    setError(err?.response?.data?.error || "Registration failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#f5f6f8]">

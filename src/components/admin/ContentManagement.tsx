@@ -26,13 +26,6 @@ type Book = any;
 type Note = any;
 type Test = any;
 
-type MCQ = {
-  question: string;
-  options: string[];
-  answer: string;
-  explanation: string; // Added explanation field
-};
-
 const API = import.meta.env.VITE_API_BASE || "https://ebook-backend-lxce.onrender.com/api";
 
 function getAuthHeaders() {
@@ -46,28 +39,34 @@ export function ContentManagementGrid() {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // MCQ Management State
-  const [mcqs, setMcqs] = useState<MCQ[]>([
-    {
-      question: "",
-      options: ["", ""], // Start with 2 empty options
-      answer: "",
-      explanation: "" // Initialize with empty explanation
-    }
+  const [mcqs, setMcqs] = useState([
+    { question: "", options: ["", "", "", ""], answer: "" },
   ]);
 
   const [mcqPage, setMcqPage] = useState(0);
 
-  // MCQ Helper Functions
-  const addQuestion = () => {
-    setMcqs([...mcqs, {
+const addQuestion = () => {
+  setMcqs(prev => [
+    ...prev,
+    {
       question: "",
-      options: ["", ""],
+      options: ["", "", "", ""],
       answer: "",
-      explanation: ""
-    }]);
-    setMcqPage(mcqs.length);
-  };
+      explanation: "",
+    }
+  ]);
+
+  setMcqPage(prevPage => prevPage + 1);
+};
+
+useEffect(() => {
+  setTestForm(prev => ({
+    ...prev,
+    total_questions: mcqs.length.toString()
+  }));
+}, [mcqs]);
+
+
 
   const removeQuestion = (index: number) => {
     const updated = [...mcqs];
@@ -76,8 +75,9 @@ export function ContentManagementGrid() {
     setMcqPage(Math.max(0, index - 1));
   };
 
-  const updateQuestion = (index: number, field: keyof MCQ, value: string) => {
+  const updateQuestion = (index: number, field: string, value: string) => {
     const updated = [...mcqs];
+    // @ts-ignore
     updated[index][field] = value;
     setMcqs(updated);
   };
@@ -87,49 +87,6 @@ export function ContentManagementGrid() {
     updated[qIndex].options[optionIndex] = value;
     setMcqs(updated);
   };
-
-  // Add option to a specific question
-  const addOption = (questionIndex: number) => {
-    setMcqs(prev => {
-      const updated = [...prev];
-      if (updated[questionIndex].options.length < 6) {
-        updated[questionIndex].options.push("");
-      }
-      return updated;
-    });
-  };
-
-  // Remove option from a specific question
-  const removeOption = (questionIndex: number, optionIndex: number) => {
-    setMcqs(prev => {
-      const updated = [...prev];
-      if (updated[questionIndex].options.length > 2) {
-        const removedOption = updated[questionIndex].options[optionIndex];
-        updated[questionIndex].options.splice(optionIndex, 1);
-        // If the removed option was the correct answer, clear the answer
-        if (updated[questionIndex].answer === removedOption) {
-          updated[questionIndex].answer = "";
-        }
-      }
-      return updated;
-    });
-  };
-
-  // Set an option as the correct answer
-  const setAsCorrectAnswer = (questionIndex: number, optionIndex: number) => {
-    const optionValue = mcqs[questionIndex].options[optionIndex];
-    if (optionValue.trim()) {
-      updateQuestion(questionIndex, "answer", optionValue);
-    }
-  };
-
-  // // Auto-detect correct answer (finds first non-empty option)
-  // const autoDetectCorrectAnswer = (questionIndex: number) => {
-  //   const nonEmptyOption = mcqs[questionIndex].options.find(opt => opt.trim() !== "");
-  //   if (nonEmptyOption) {
-  //     updateQuestion(questionIndex, "answer", nonEmptyOption);
-  //   }
-  // };
 
   // Upload dialogs
   const [showUploadBook, setShowUploadBook] = useState(false);
@@ -221,6 +178,29 @@ export function ContentManagementGrid() {
     fetchContent();
   }, []);
 
+
+  const addOption = (qIndex: number) => {
+  setMcqs(prev => {
+    const copy = [...prev];
+    if (copy[qIndex].options.length < 5) {
+      copy[qIndex].options.push("");
+    }
+    return copy;
+  });
+};
+
+const removeOption = (qIndex: number, optIndex: number) => {
+  setMcqs(prev => {
+    const copy = [...prev];
+    if (copy[qIndex].options.length > 4) {
+      copy[qIndex].options.splice(optIndex, 1);
+    }
+    return copy;
+  });
+};
+
+
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     console.log("Deleting:", deleteTarget);
@@ -255,13 +235,56 @@ export function ContentManagementGrid() {
     }
   };
 
-  const handleEditSave = async () => {
-    if (!editItem || editType !== "test") return;
+const handleEditSave = async () => {
+  if (!editItem || !editType) return;
 
-    try {
-      setEditSaving(true);
+  try {
+    setEditSaving(true);
 
-      const payload: any = {
+    const headers = {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    };
+
+    let payload: any = {};
+    let endpoint = "";
+
+    // --------------------
+    // EDIT BOOK
+    // --------------------
+    if (editType === "book") {
+      payload = {
+        title: editItem.title,
+        author: editItem.author,
+        category: editItem.category,
+        price: Number(editItem.price || 0),
+        description: editItem.description,
+        tags: editItem.tags,
+      };
+
+      endpoint = `${API}/admin/content/book/${editItem.id}`;
+    }
+
+    // --------------------
+    // EDIT NOTE
+    // --------------------
+    if (editType === "note") {
+      payload = {
+        title: editItem.title,
+        author: editItem.author,
+        category: editItem.category,
+        price: Number(editItem.price || 0),
+        description: editItem.description,
+      };
+
+      endpoint = `${API}/admin/content/note/${editItem.id}`;
+    }
+
+    // --------------------
+    // EDIT MOCK TEST
+    // --------------------
+    if (editType === "test") {
+      payload = {
         title: editItem.title,
         subject: editItem.subject,
         difficulty: editItem.difficulty,
@@ -270,40 +293,28 @@ export function ContentManagementGrid() {
         description: editItem.description,
       };
 
-      // If start_time changed
       if (editItem.start_time) {
         payload.start_time = editItem.start_time;
-
-        // Auto calculate end_time
-        if (editItem.duration_minutes) {
-          const start = new Date(editItem.start_time);
-          const end = new Date(start.getTime() + editItem.duration_minutes * 60 * 1000);
-          payload.end_time = end.toISOString();
-        }
       }
 
-      const headers = {
-        ...getAuthHeaders(),
-        "Content-Type": "application/json",
-      };
-
-      await axios.put(
-        `${API}/admin/content/test/${editItem.id}`,
-        payload,
-        { headers }
-      );
-
-      alert("Updated successfully!");
-      setShowEditDialog(false);
-      fetchContent();
-
-    } catch (err) {
-      console.error("Edit error:", err);
-      alert("Failed to update.");
-    } finally {
-      setEditSaving(false);
+      endpoint = `${API}/admin/content/test/${editItem.id}`;
     }
-  };
+
+    console.log("📝 EDIT PAYLOAD:", payload);
+
+    await axios.put(endpoint, payload, { headers });
+
+    alert("✅ Updated successfully!");
+    setShowEditDialog(false);
+    fetchContent();
+
+  } catch (err) {
+    console.error("Edit error:", err);
+    alert("❌ Failed to update content");
+  } finally {
+    setEditSaving(false);
+  }
+};
 
   // ---------- Upload Handlers ----------
   const uploadBook = async () => {
@@ -392,98 +403,42 @@ export function ContentManagementGrid() {
   };
 
 const uploadTest = async () => {
-  // Enhanced validation
-  if (!testForm.title.trim()) {
-    alert("❌ Title is required for Mock Test");
-    return;
-  }
-  
-  // Validate duration as a positive number
-  const duration = parseInt(testForm.duration_minutes);
-  if (!testForm.duration_minutes || isNaN(duration) || duration <= 0) {
-    alert("❌ Please enter a valid duration in minutes (e.g., 30)");
-    return;
-  }
-  
-  // Validate MCQs exist
-  if (mcqs.length === 0) {
-    alert("❌ At least one MCQ is required");
-    return;
-  }
-
-  // Validate each MCQ has required fields
-  const validationErrors = [];
-  mcqs.forEach((mcq, index) => {
-    if (!mcq.question.trim()) {
-      validationErrors.push(`Question ${index + 1}: Question text is required`);
-    }
-    if (!mcq.answer.trim()) {
-      validationErrors.push(`Question ${index + 1}: Correct answer is required`);
-    }
-    // Check for at least 2 non-empty options
-    const validOptions = mcq.options.filter(opt => opt && opt.trim() !== "").length;
-    if (validOptions < 2) {
-      validationErrors.push(`Question ${index + 1}: At least 2 valid options are required`);
-    }
-    // Optional: ensure answer matches one of the options
-    if (mcq.answer.trim() && !mcq.options.includes(mcq.answer)) {
-      validationErrors.push(`Question ${index + 1}: Correct answer must match one of the options`);
-    }
-  });
-
-  if (validationErrors.length > 0) {
-    alert("❌ Please fix the following errors:\n\n" + validationErrors.join("\n"));
-    return;
-  }
-
   try {
     setUploading(true);
 
     const data = new FormData();
     
-    // Append all data
     data.append("type", "Mock Test");
+
+    // Required
     data.append("title", testForm.title);
-    data.append("subject", testForm.subject || "Agriculture");
-    data.append("difficulty", testForm.difficulty || "Easy");
-    
-    // CRITICAL FIX: Send as number, not string
-    data.append("total_questions", mcqs.length); // No .toString()
-    
-    data.append("duration_minutes", testForm.duration_minutes);
-    
-    // Only append scheduled_date if it has a value
-    if (testForm.scheduled_date && testForm.scheduled_date.trim()) {
-      data.append("scheduled_date", testForm.scheduled_date);
-    }
-    
+    data.append("subject", testForm.subject || "");
+    data.append("difficulty", testForm.difficulty || "");
+    data.append("total_questions", testForm.total_questions || "");
+    data.append("duration_minutes", testForm.duration_minutes || "");
+    data.append("scheduled_date", testForm.scheduled_date || "");
     data.append("description", testForm.description || "");
 
-    // Only append file if it exists
+    // Optional File
     if (testForm.file) {
       data.append("file", testForm.file);
     }
 
-    // Ensure mcqs is valid JSON
+    // MCQs JSON
     data.append("mcqs", JSON.stringify(mcqs));
-
-    // DEBUGGING: Log what we're sending
-    console.log("📤 Sending FormData contents:");
-    for (let [key, value] of data.entries()) {
-      console.log(key + ":", value);
-    }
 
     const headers = {
       ...getAuthHeaders(),
-      // Let Axios set Content-Type automatically for FormData
+      "Content-Type": "multipart/form-data",
     };
 
-    const response = await axios.post(`${API}/admin/content/upload`, data, { headers });
-    
-    console.log("✅ Upload successful:", response.data);
+    await axios.post(`${API}/admin/content/upload`, data, { headers });
+
     alert("✅ Mock Test uploaded successfully!");
 
-    // Reset form
+
+
+    // reset form
     setTestForm({
       title: "",
       subject: "Agriculture",
@@ -495,40 +450,15 @@ const uploadTest = async () => {
       file: null,
     });
 
-    setMcqs([{
-      question: "",
-      options: ["", ""],
-      answer: "",
-      explanation: ""
-    }]);
-    setMcqPage(0);
     
-    // Close dialog
-    setShowUploadTest(false);
-    
-    // Refresh content list
-    fetchContent();
 
+
+    setMcqPage(0);
+
+    fetchContent();
   } catch (err: any) {
-    console.error("❌ Upload failed:", err);
-    
-    // Extract specific error message
-    let errorMessage = "Upload failed. ";
-    
-    if (err.response) {
-      // The server responded with an error
-      console.error("Server response:", err.response.data);
-      errorMessage += `Server error: ${JSON.stringify(err.response.data)}`;
-    } else if (err.request) {
-      // Request was made but no response
-      console.error("No response received:", err.request);
-      errorMessage += "No response from server.";
-    } else {
-      // Something else happened
-      errorMessage += err.message;
-    }
-    
-    alert(errorMessage);
+    console.error("uploadTest error", err);
+    alert(err?.response?.data?.error || "Upload failed");
   } finally {
     setUploading(false);
   }
@@ -541,16 +471,28 @@ const uploadTest = async () => {
   };
 
   // ---------- Helpers ----------
-  const renderCover = (item: any, fallbackText = "No Cover") => {
-    const url = item?.cover_url || item?.file_url;
-    if (url)
-      return (
-        <img
-          src={url}
-          alt={item.title}
-          className="w-full h-44 object-cover rounded-t-md"
-        />
-      );
+const renderCover = (item: any) => {
+  const url = item?.cover_url || item?.file_url;
+
+  // If cover exists, show it
+  if (url && item?.type !== "test") {
+    return (
+      <img
+        src={url}
+        alt={item.title}
+        className="w-full h-44 object-cover rounded-t-md"
+      />
+    );
+  }
+
+  // Mock test placeholder
+  if (item?.type === "test") {
+    return (
+      <div className="w-full h-44 bg-blue-50 flex items-center justify-center rounded-t-md">
+        <span className="text-blue-600 font-semibold">Mock Test</span>
+      </div>
+    );
+  }
 
     return (
       <div className="w-full h-44 bg-gray-100 flex items-center justify-center rounded-t-md">
@@ -1101,10 +1043,10 @@ const uploadTest = async () => {
                     from {mcqs.length} MCQ{mcqs.length !== 1 ? 's' : ''}
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                {/* <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   Automatically updated when you add/remove questions
-                </div>
+                </div> */}
               </div>
 
               <div>
@@ -1167,7 +1109,7 @@ const uploadTest = async () => {
                 </div>
               </div>
 
-              {/* Question Count Summary */}
+              {/* Question Count Summary
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1183,7 +1125,7 @@ const uploadTest = async () => {
                     <div className="text-sm text-gray-600">Total Questions</div>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {mcqs.length > 0 && (
                 <div className="space-y-4">

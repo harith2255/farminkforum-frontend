@@ -89,7 +89,8 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
               "https://placehold.co/300x400",
             pages: e.pages,
             progress: Number(entry.progress ?? 0),
-            purchased: entry.added_at,
+          last_page: Number(entry.last_page ?? 1),
+          purchased: entry.added_at,
           };
         });
 
@@ -251,6 +252,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
             "https://placehold.co/300x400",
           pages: e.pages,
           progress: Number(entry.progress ?? 0),
+          last_page: Number(entry.last_page ?? 1),
           purchased: entry.added_at,
         };
       });
@@ -407,6 +409,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
               "https://placehold.co/300x400",
             pages: e.pages,
             progress: Number(entry.progress ?? 0),
+          last_page: Number(entry.last_page ?? 1),
             purchased: entry.added_at,
           };
         });

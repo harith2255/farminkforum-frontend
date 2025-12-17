@@ -19,7 +19,7 @@ type DRMSettings = {
   screenshot_prevention: boolean;
 };
 
-export function DRMControls() {
+export default function DRMControls() {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<DRMSettings>({
     copy_protection: true,
@@ -38,33 +38,30 @@ export function DRMControls() {
 
   // Load initial data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [settingsRes, logsRes, licensesRes] = await Promise.all([
-          axios.get(`${API_BASE}/admin/drm/settings`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get(`${API_BASE}/admin/drm/access-logs`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get(`${API_BASE}/admin/drm/licenses`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
+    (async () => {
+    try {
+      const [s, logs, lic] = await Promise.all([
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/access-logs", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("https://ebook-backend-lxce.onrender.com/api/admin/drm/licenses", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-        setSettings(settingsRes.data.settings || settingsRes.data);
-        setAccessLogs(logsRes.data.logs || logsRes.data);
-        setLicenses(licensesRes.data.licenses || licensesRes.data);
-      } catch (err) {
-        console.error("DRM load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+      setSettings(s.data.settings);
+      setAccessLogs(logs.data.logs);
+      setLicenses(lic.data.licenses);
+    } catch (err) {
+      console.error("DRM load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, []);
 
   // Save settings to backend
   const saveSettings = async (newSet: Partial<DRMSettings>) => {
@@ -183,7 +180,7 @@ export function DRMControls() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#1d4d6a] mb-1">DRM Controls</h2>
+          <h2 className=" text-[#1d4d6a] mb-1">DRM Controls</h2>
           <p className="text-sm text-gray-500">Manage digital rights and access controls</p>
         </div>
         

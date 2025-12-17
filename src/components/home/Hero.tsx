@@ -43,7 +43,7 @@ export function Hero({ onNavigate, onOpenBook }: HeroProps) {
   </div>
 
   {/* RIGHT SIDE - CAROUSEL */}
-  <div className="w-full md:w-[48%] flex justify-between md:pr-4">
+  <div className="hidden lg:flex w-full md:w-[48%] justify-between md:pr-4">
     <div className="w-full">
       <Carousel onNavigate={onNavigate} onOpenBook={onOpenBook} />
     </div>

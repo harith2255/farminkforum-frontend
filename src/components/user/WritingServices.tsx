@@ -225,25 +225,18 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const [additionalNotes, setAdditionalNotes] = useState("");
 
   // API Headers
-  const getJsonHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-  }, []);
+  const jsonHeaders = () => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  });
 
-  const getAuthHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem("token");
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  }, []);
+  const authHeaders = () => ({
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  });
 
   // Form Handlers
-  const updateForm = useCallback((field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const updateForm = (key, value) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
 
   // Clear Form Function - MOVED HERE
   const clearForm = useCallback(() => {
