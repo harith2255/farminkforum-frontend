@@ -44,6 +44,9 @@ import {
   Copy,
   Eye,
   Trash2,
+  Menu,
+  File,
+  EyeIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as React from "react";
@@ -81,6 +84,13 @@ interface Service {
   turnaround?: string;
   base_price?: number;
   price_per_page?: number;
+}
+
+interface InterviewMaterial {
+  id: string;
+  title: string;
+  category: string;
+  file_url: string;
 }
 
 interface FormData {
@@ -138,6 +148,58 @@ const SUBJECT_AREAS = [
   { value: "others", label: "Others" },
 ];
 
+// SIMPLIFIED INTERVIEW MATERIALS
+const INTERVIEW_MATERIALS: InterviewMaterial[] = [
+  {
+    id: "1",
+    title: "Common Interview Questions & Answers",
+    category: "General",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "2",
+    title: "Behavioral Interview Guide",
+    category: "Behavioral",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "3",
+    title: "Technical Interview Handbook",
+    category: "Technical",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "4",
+    title: "Case Interview Preparation",
+    category: "Consulting",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "5",
+    title: "Resume & Cover Letter Guide",
+    category: "Documents",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "6",
+    title: "Salary Negotiation Guide",
+    category: "Negotiation",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "7",
+    title: "Virtual Interview Success Guide",
+    category: "Virtual",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  },
+  {
+    id: "8",
+    title: "Industry-Specific Questions",
+    category: "Industry",
+    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  }
+];
+
 // --- UTILITY FUNCTIONS ---
 const formatDate = (dateString: string): string => {
   if (!dateString) return "Not set";
@@ -168,6 +230,22 @@ const getStatusBadgeVariant = (status: string) => {
     default:
       return 'bg-gray-100 text-gray-700';
   }
+};
+
+// ✅ ADDED: Header functions defined outside component
+const getJsonHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem("token");
+  return {
+    Authorization: `Bearer ${token}`,
+  };
 };
 
 // --- RENDER LOADING SPINNER ---
@@ -224,21 +302,20 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const [updatedDeadline, setUpdatedDeadline] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
-  // API Headers
-  const jsonHeaders = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  });
+  // Mobile Tabs State
+  const [mobileTabOpen, setMobileTabOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("new-order");
 
-  const authHeaders = () => ({
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  });
+  // Interview Preparation State
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewingMaterial, setViewingMaterial] = useState<string | null>(null);
 
   // Form Handlers
-  const updateForm = (key, value) =>
+  const updateForm = (key: keyof FormData, value: string) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
 
-  // Clear Form Function - MOVED HERE
+  // Clear Form Function
   const clearForm = useCallback(() => {
     setFormData({
       type: "",
@@ -262,7 +339,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const validateStep = useCallback((stepNumber: number): boolean => {
     switch (stepNumber) {
       case 1:
-      return !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.pages && formData.deadline);      
+        return !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.pages && formData.deadline);
       case 2:
         return !!(formData.instructions.trim());
       case 3:
@@ -363,7 +440,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, activeOrders: false }));
     }
-  }, [getJsonHeaders, handleApiError]);
+  }, [handleApiError]);
 
   const fetchCompletedOrders = useCallback(async () => {
     try {
@@ -381,9 +458,38 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, completedOrders: false }));
     }
-  }, [getJsonHeaders, handleApiError]);
+  }, [handleApiError]);
 
-  // Adopt friend's payment flow
+  // Interview Preparation Functions
+  const handleViewMaterial = useCallback((material: InterviewMaterial) => {
+    setViewingMaterial(material.id);
+    
+    try {
+      // Open PDF in new tab
+      window.open(material.file_url, '_blank');
+      
+      toast.success(`Opening: ${material.title}`);
+      
+    } catch (err) {
+      toast.error("Failed to open material");
+    } finally {
+      setViewingMaterial(null);
+    }
+  }, []);
+
+  const filteredMaterials = useMemo(() => {
+    return INTERVIEW_MATERIALS.filter(material => {
+      const matchesCategory = selectedCategory === "All" || material.category === selectedCategory;
+      const matchesSearch = material.title.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [selectedCategory, searchQuery]);
+
+  const categories = useMemo(() => {
+    const allCategories = ["All", ...new Set(INTERVIEW_MATERIALS.map(m => m.category))];
+    return allCategories;
+  }, []);
+
   const handleSubmitOrder = useCallback(async () => {
     if (!validateStep(1)) {
       toast.error("Please fill in all required fields");
@@ -419,7 +525,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
         attachments_url,
       };
 
-      // Save temporary order in localStorage (Friend's approach)
+      // Save temporary order in localStorage
       const tempId = "temp_" + Date.now();
       localStorage.setItem("pendingWritingOrder", JSON.stringify(orderPayload));
       localStorage.setItem("purchaseType", "writing");
@@ -428,7 +534,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       // Clear form
       clearForm();
 
-      // Navigate to payment page (Friend's approach)
+      // Navigate to payment page
       if (typeof onNavigate === "function") {
         onNavigate("purchase", tempId);
       }
@@ -444,14 +550,12 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     formData,
     selectedFile,
     calculatePrice,
-    getAuthHeaders,
     onNavigate,
     handleApiError,
     validateStep,
-    clearForm, // Now properly defined
+    clearForm,
   ]);
 
-  // Existing functions
   const handleCancelOrder = useCallback(async (order: Order) => {
     if (!confirm("Are you sure you want to cancel this order?")) {
       return;
@@ -478,7 +582,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, cancelling: false }));
     }
-  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+  }, [fetchActiveOrders, handleApiError]);
 
   const handleDownloadDeliverable = useCallback(async (order: Order) => {
     try {
@@ -530,8 +634,9 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, rating: false }));
     }
-  }, [getJsonHeaders, fetchCompletedOrders, handleApiError]);
+  }, [fetchCompletedOrders, handleApiError]);
 
+  // ... (rest of the existing API functions remain the same)
   const handleUploadAdditionalFiles = useCallback(async (order: Order, files: FileList) => {
     try {
       const formData = new FormData();
@@ -557,7 +662,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } catch (err) {
       handleApiError(err, "Failed to upload additional files");
     }
-  }, [getAuthHeaders, fetchActiveOrders, handleApiError]);
+  }, [fetchActiveOrders, handleApiError]);
 
   const handleRequestRevision = useCallback(async (order: Order, revisionNotes: string) => {
     if (!revisionNotes.trim()) {
@@ -586,7 +691,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } catch (err) {
       handleApiError(err, "Failed to request revision");
     }
-  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+  }, [fetchActiveOrders, handleApiError]);
 
   const handleExtendDeadline = useCallback(async (order: Order, newDeadline: string, reason: string) => {
     try {
@@ -611,7 +716,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } catch (err) {
       handleApiError(err, "Failed to extend deadline");
     }
-  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+  }, [fetchActiveOrders, handleApiError]);
 
   const handleViewOrderDetails = useCallback((order: Order) => {
     toast.info(
@@ -650,7 +755,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } catch (err) {
       handleApiError(err, "Failed to duplicate order");
     }
-  }, [getJsonHeaders, fetchActiveOrders, handleApiError]);
+  }, [fetchActiveOrders, handleApiError]);
 
   const validateStep1 = useCallback((data: FormData): string | null => {
     if (!data.type) return "Service type is required";
@@ -659,7 +764,6 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     if (!data.subject_area) return "Subject area is required";
     if (!data.pages || parseInt(data.pages) < 1) return "Valid page count is required";
     if (!data.deadline) return "Deadline is required";
-    //if (!data.instructions.trim()) return "Instructions are required";
     
     const today = new Date();
     const deadline = new Date(data.deadline);
@@ -670,13 +774,13 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   }, []);
 
   const validateFormData = useCallback((data: FormData): string | null => {
-  const step1Error = validateStep1(data);
-  if (step1Error) return step1Error;
-  
-  if (!data.instructions.trim()) return "Instructions are required";
-  
-  return null;
-}, [validateStep1]);
+    const step1Error = validateStep1(data);
+    if (step1Error) return step1Error;
+    
+    if (!data.instructions.trim()) return "Instructions are required";
+    
+    return null;
+  }, [validateStep1]);
 
   const exportOrderData = useCallback((order: Order) => {
     const exportData = {
@@ -752,7 +856,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, editing: false }));
     }
-  }, [selectedOrder, updatedDeadline, additionalNotes, getJsonHeaders, fetchActiveOrders, handleApiError]);
+  }, [selectedOrder, updatedDeadline, additionalNotes, fetchActiveOrders, handleApiError]);
 
   const handleSubmitFeedback = useCallback(async () => {
     if (!selectedOrder || !feedback.trim()) {
@@ -787,7 +891,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     } finally {
       setLoading(prev => ({ ...prev, sendingMessage: false }));
     }
-  }, [selectedOrder, feedback, getJsonHeaders, handleApiError]);
+  }, [selectedOrder, feedback, handleApiError]);
 
   const handleEditOrder = useCallback((order: Order) => {
     setSelectedOrder(order);
@@ -810,6 +914,28 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     }
     toast.info("File removed");
   }, []);
+
+  // Tab handling
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    setMobileTabOpen(false);
+  }, []);
+
+  // Get current tab label
+  const getCurrentTabLabel = useCallback(() => {
+    switch (activeTab) {
+      case "new-order":
+        return "New Order";
+      case "active":
+        return `Active Orders (${activeOrders.length})`;
+      case "completed":
+        return "Completed Orders";
+      case "services":
+        return "Interview Preparation";
+      default:
+        return "New Order";
+    }
+  }, [activeTab, activeOrders.length]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -836,7 +962,6 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
     return renderSpinner("Loading writing services...");
   }
 
-  // UI remains the same (unchanged)
   return (
     <div className="space-y-6 p-4">
       <div>
@@ -846,25 +971,78 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
         </p>
       </div>
 
-      <Tabs defaultValue="new-order" className="w-full">
-        <TabsList className="bg-white border border-gray-200">
-          <TabsTrigger value="new-order">New Order</TabsTrigger>
-          <TabsTrigger value="active">
-            Active Orders ({activeOrders.length})
-            {loading.activeOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed
-            {loading.completedOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
-          </TabsTrigger>
-          <TabsTrigger value="services">
-            Services
-            {loading.services && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
-          </TabsTrigger>
-        </TabsList>
+      {/* Mobile Hamburger Tabs */}
+      <div className="lg:hidden">
+        <div className="relative">
+          <Button
+            variant="outline"
+            className="w-full justify-between"
+            onClick={() => setMobileTabOpen(!mobileTabOpen)}
+          >
+            <span>{getCurrentTabLabel()}</span>
+            <Menu className={`h-4 w-4 transition-transform ${mobileTabOpen ? "rotate-90" : ""}`} />
+          </Button>
+          
+          {mobileTabOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+              <div className="py-1">
+                <button
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${activeTab === "new-order" ? "bg-gray-50 text-[#bf2026]" : ""}`}
+                  onClick={() => handleTabChange("new-order")}
+                >
+                  New Order
+                </button>
+                <button
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between ${activeTab === "active" ? "bg-gray-50 text-[#bf2026]" : ""}`}
+                  onClick={() => handleTabChange("active")}
+                >
+                  <span>Active Orders ({activeOrders.length})</span>
+                  {loading.activeOrders && <Loader2 className="w-3 h-3 animate-spin" />}
+                </button>
+                <button
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between ${activeTab === "completed" ? "bg-gray-50 text-[#bf2026]" : ""}`}
+                  onClick={() => handleTabChange("completed")}
+                >
+                  <span>Completed Orders</span>
+                  {loading.completedOrders && <Loader2 className="w-3 h-3 animate-spin" />}
+                </button>
+                <button
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between ${activeTab === "services" ? "bg-gray-50 text-[#bf2026]" : ""}`}
+                  onClick={() => handleTabChange("services")}
+                >
+                  <span>Interview Preparation</span>
+                  {loading.services && <Loader2 className="w-3 h-3 animate-spin" />}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* ----------------------- NEW ORDER ----------------------- */}
-        <TabsContent value="new-order" className="mt-6">
+      {/* Desktop Tabs */}
+      <div className="hidden lg:block">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-white border border-gray-200">
+            <TabsTrigger value="new-order">New Order</TabsTrigger>
+            <TabsTrigger value="active">
+              Active Orders ({activeOrders.length})
+              {loading.activeOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed
+              {loading.completedOrders && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
+            </TabsTrigger>
+            <TabsTrigger value="services">
+              Interview Preparation
+              {loading.services && <Loader2 className="w-3 h-3 ml-2 inline-block animate-spin" />}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Content based on active tab */}
+      <div className="mt-6">
+        {activeTab === "new-order" && (
           <Card className="border-none shadow-md">
             <CardHeader>
               <CardTitle className="text-[#1d4d6a]">Place a New Order</CardTitle>
@@ -898,7 +1076,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                 {/* ----------------------- STEP 1 ----------------------- */}
                 {step === 1 && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Type of Service<span className="text-red-500">*</span></Label>
                         <Select
@@ -951,7 +1129,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Subject Area<span className="text-red-500">*</span></Label>
                         <Select
@@ -1118,13 +1296,13 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                       </Button>
                       <Button
                         className="flex-1 bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center justify-center gap-2"
-                          onClick={() => {
-    if (!formData.instructions.trim()) {
-      toast.error("Instructions are required");
-      return;
-    }
-    setStep(3);
-  }}
+                        onClick={() => {
+                          if (!formData.instructions.trim()) {
+                            toast.error("Instructions are required");
+                            return;
+                          }
+                          setStep(3);
+                        }}
                         disabled={!isStepValid || loading.uploading}
                       >
                         Continue to Review
@@ -1140,7 +1318,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
                     <div className="bg-gray-50 rounded-lg p-6 space-y-3">
                       <h4 className="text-[#1d4d6a]">Order Summary</h4>
 
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500">Service Type</p>
                           <p className="text-gray-900">{formData.type}</p>
@@ -1217,285 +1395,337 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        {/* ----------------------- ACTIVE ORDERS ----------------------- */}
-        <TabsContent value="active" className="mt-6">
-          {loading.activeOrders ? (
-            renderSpinner("Loading active orders...")
-          ) : activeOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No active orders. Start a new writing project!
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeOrders.map((order) => (
-                <Card key={order.id} className="border-none shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold">{order.title}</h3>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewOrderDetails(order)}
-                              className="h-8 w-8 p-0"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDuplicateOrder(order)}
-                              className="h-8 w-8 p-0"
-                              title="Duplicate Order"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </Button>
+        {activeTab === "active" && (
+          <>
+            {loading.activeOrders ? (
+              renderSpinner("Loading active orders...")
+            ) : activeOrders.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                No active orders. Start a new writing project!
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activeOrders.map((order) => (
+                  <Card key={order.id} className="border-none shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold">{order.title}</h3>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewOrderDetails(order)}
+                                className="h-8 w-8 p-0"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDuplicateOrder(order)}
+                                className="h-8 w-8 p-0"
+                                title="Duplicate Order"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge className={getStatusBadgeVariant(order.status)}>
+                              {order.status}
+                            </Badge>
+                            <span className="text-sm text-gray-500">{order.type}</span>
+                            {order.academic_level && (
+                              <span className="text-sm text-gray-500">• {order.academic_level}</span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge className={getStatusBadgeVariant(order.status)}>
-                            {order.status}
-                          </Badge>
-                          <span className="text-sm text-gray-500">{order.type}</span>
-                          {order.academic_level && (
-                            <span className="text-sm text-gray-500">• {order.academic_level}</span>
-                          )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Progress</span>
+                          <span>{order.progress || 0}%</span>
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Progress</span>
-                        <span>{order.progress || 0}%</span>
-                      </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-[#bf2026] h-2 rounded-full transition-all"
+                            style={{ width: `${order.progress || 0}%` }}
+                          />
+                        </div>
 
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-[#bf2026] h-2 rounded-full transition-all"
-                          style={{ width: `${order.progress || 0}%` }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <FileText className="w-4 h-4" />
-                            {order.writer_name || "Assigned Writer"}
-                          </span>
-
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>Due: {formatDate(order.deadline || "")}</span>
-                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded">
-                              {calculateEstimatedCompletion(order)}
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              {order.writer_name || "Assigned Writer"}
                             </span>
-                          </span>
-                        </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleProvideFeedback(order)}
-                            disabled={loading.sendingMessage}
-                            className="flex items-center gap-1"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                            Message
-                          </Button>
-
-                          {order.status === "Pending" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditOrder(order)}
-                                disabled={loading.editing}
-                                className="flex items-center gap-1"
-                              >
-                                <Edit className="w-4 h-4" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCancelOrder(order)}
-                                disabled={loading.cancelling}
-                                className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Cancel
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {order.attachments_url && (
-                        <div className="text-sm mt-2 flex items-center gap-2">
-                          <span className="text-gray-600">Attachments:</span>
-                          <a
-                            href={order.attachments_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 underline hover:text-blue-700"
-                          >
-                            View uploaded files
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ----------------------- COMPLETED ORDERS ----------------------- */}
-        <TabsContent value="completed" className="mt-6">
-          {loading.completedOrders ? (
-            renderSpinner("Loading completed orders...")
-          ) : completedOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No completed orders yet.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {completedOrders.map((order) => (
-                <Card key={order.id} className="border-none shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold mb-1">{order.title}</h3>
-                            <p className="text-sm text-gray-500">
-                              {order.type} • Completed {formatDate(order.completed_date || "")}
-                            </p>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>Due: {formatDate(order.deadline || "")}</span>
+                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded">
+                                {calculateEstimatedCompletion(order)}
+                              </span>
+                            </span>
                           </div>
 
                           <div className="flex gap-2">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              onClick={() => exportOrderData(order)}
-                              className="h-8 w-8 p-0"
-                              title="Export Data"
+                              onClick={() => handleProvideFeedback(order)}
+                              disabled={loading.sendingMessage}
+                              className="flex items-center gap-1"
                             >
-                              <Download className="w-4 h-4" />
+                              <MessageSquare className="w-4 h-4" />
+                              Message
                             </Button>
-                            <Badge className="bg-green-100 text-green-700">Completed</Badge>
+
+                            {order.status === "Pending" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditOrder(order)}
+                                  disabled={loading.editing}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelOrder(order)}
+                                  disabled={loading.cancelling}
+                                  className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Cancel
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-6 text-sm">
-                          <div className="bg-gray-50 rounded-lg px-4 py-2">
-                            <p className="text-xs text-gray-500 mb-1">Grade Received</p>
-                            <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
+                        {order.attachments_url && (
+                          <div className="text-sm mt-2 flex items-center gap-2">
+                            <span className="text-gray-600">Attachments:</span>
+                            <a
+                              href={order.attachments_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 underline hover:text-blue-700"
+                            >
+                              View uploaded files
+                            </a>
                           </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-                          <div className="bg-gray-50 rounded-lg px-4 py-2">
-                            <p className="text-xs text-gray-500 mb-1">Your Rating</p>
-                            <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Button
-                                  key={star}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0"
-                                  onClick={() => handleRateOrder(order, star)}
-                                  disabled={loading.rating}
-                                >
-                                  <Star
-                                    className={`w-3 h-3 ${star <= (order.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
-                                  />
-                                </Button>
-                              ))}
+        {activeTab === "completed" && (
+          <>
+            {loading.completedOrders ? (
+              renderSpinner("Loading completed orders...")
+            ) : completedOrders.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                No completed orders yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {completedOrders.map((order) => (
+                  <Card key={order.id} className="border-none shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h3 className="text-[#1d4d6a] text-base sm:text-lg font-semibold mb-1">{order.title}</h3>
+                              <p className="text-sm text-gray-500">
+                                {order.type} • Completed {formatDate(order.completed_date || "")}
+                              </p>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => exportOrderData(order)}
+                                className="h-8 w-8 p-0"
+                                title="Export Data"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Badge className="bg-green-100 text-green-700">Completed</Badge>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4">
-                            {(order.final_text || order.notes_url) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadDeliverable(order)}
-                                className="flex items-center gap-1"
-                              >
-                                <Download className="w-4 h-4" />
-                                Download
-                              </Button>
-                            )}
+                          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 text-sm">
+                            <div className="bg-gray-50 rounded-lg px-4 py-2">
+                              <p className="text-xs text-gray-500 mb-1">Grade Received</p>
+                              <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
+                            </div>
 
-                            {!order.final_text && !order.notes_url && (
-                              <p className="text-xs text-gray-500">No delivered content yet</p>
-                            )}
+                            <div className="bg-gray-50 rounded-lg px-4 py-2">
+                              <p className="text-xs text-gray-500 mb-1">Your Rating</p>
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Button
+                                    key={star}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0"
+                                    onClick={() => handleRateOrder(order, star)}
+                                    disabled={loading.rating}
+                                  >
+                                    <Star
+                                      className={`w-3 h-3 ${star <= (order.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                                    />
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              {(order.final_text || order.notes_url) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownloadDeliverable(order)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download
+                                </Button>
+                              )}
+
+                              {!order.final_text && !order.notes_url && (
+                                <p className="text-xs text-gray-500">No delivered content yet</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-        {/* ----------------------- SERVICES ----------------------- */}
-        <TabsContent value="services" className="mt-6">
-          {loading.services ? (
-            renderSpinner("Loading services...")
-          ) : services.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No services available at the moment.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {services.map((service) => (
-                <Card
-                  key={service.id}
-                  className="border-none shadow-md hover:shadow-lg transition-all"
-                >
-                  <CardHeader>
-                    <CardTitle className="text-[#1d4d6a]">{service.name}</CardTitle>
-                    <CardDescription>{service.description}</CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>{service.turnaround || "Flexible deadline"}</span>
-                      </div>
-
-                      <div className="text-[#bf2026] font-semibold">
-                        {service.price ? `₹${service.price}` : "Starting ₹49"}
+        {activeTab === "services" && (
+          <div className="space-y-6">
+            {/* Simple Materials Display */}
+            <Card className="border-none shadow-md">
+              <CardHeader>
+                <CardTitle className="text-[#1d4d6a]">Interview Preparation Materials</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <div className="relative">
+                        <Input
+                          placeholder="Search materials..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                        <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       </div>
                     </div>
+                    <div>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                    <Button 
-                      className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
-                      onClick={() => {
-                        updateForm("type", service.name);
-                        onNavigate?.("new-order");
-                      }}
-                    >
-                      Order Now
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            {/* Materials Grid - Simple */}
+            {filteredMaterials.length === 0 ? (
+              <Card className="border-none shadow-md">
+                <CardContent className="p-12 text-center">
+                  <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                    No materials found
+                  </h3>
+                  <p className="text-gray-500">
+                    Try adjusting your search or filter criteria
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredMaterials.map((material) => (
+                  <Card key={material.id} className="border-none shadow-md hover:shadow-lg transition-all">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <CardTitle className="text-[#1d4d6a] text-base">
+                          {material.title}
+                        </CardTitle>
+                        <Badge variant="outline">{material.category}</Badge>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className="text-sm text-gray-500">
+                          <File className="w-4 h-4 inline mr-1" />
+                          PDF Document
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewMaterial(material)}
+                          disabled={viewingMaterial === material.id}
+                        >
+                          {viewingMaterial === material.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Opening...
+                            </>
+                          ) : (
+                            <>
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ----------------------- EDIT DIALOG ----------------------- */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

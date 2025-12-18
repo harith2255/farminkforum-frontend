@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import {
   BookOpen,
   Home,
+  Clock,
   FileText,
   ClipboardCheck,
   Briefcase,
@@ -12,13 +13,12 @@ import {
   Search,
   TrendingUp,
   Trophy,
-  Clock,
   ChevronRight,
   Menu,
   Settings,
   Navigation,
   ShoppingCart,
-  PenIcon,
+  Grid,
   Calendar,
 } from "lucide-react";
 
@@ -327,10 +327,10 @@ export default function UserDashboard({
       ? [{ id: "exams", icon: Trophy, label: "Exams" }]
       : []),
 
-    { id: "pyqs", icon: FileText, label: "PYQs" }, // lowercase "pyqs"
+    { id: "pyqs", icon: Clock, label: "PYQs" }, // lowercase "pyqs"
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
-    { id: "writing", icon: PenIcon, label: "Writing Services" },
+    { id: "writing", icon: Grid, label: "Services" },
     { id: "jobs", icon: Briefcase, label: "Job Portal" },
     { id: "currentaffairs", icon: Calendar, label: "Current Affairs" },
     { id: "payments", icon: CreditCard, label: "Payments" },
