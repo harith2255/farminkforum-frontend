@@ -1,10 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -12,7 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
 } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -25,14 +20,14 @@ import {
   XCircle,
   File,
   Download,
-  MessageCircle
+  MessageCircle,
 } from "lucide-react";
 import * as React from "react";
 
 // Supabase client for realtime (placeholders — replace with your values)
 import { createClient } from "@supabase/supabase-js";
-const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const realtimeClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -53,13 +48,24 @@ export default function AdminWritingDashboard() {
   const [showMessagesPopup, setShowMessagesPopup] = useState(false);
   const [adminReply, setAdminReply] = useState("");
   const [listening, setListening] = useState(false);
+const [activeSection, setActiveSection] = useState<"writing" | "interview">("writing");
 
-  const token = localStorage.getItem("token");  const headers = { Authorization: `Bearer ${token}` };
+// Interview states
+const [materials, setMaterials] = useState<any[]>([]);
+const [materialTitle, setMaterialTitle] = useState("");
+const [materialCategory, setMaterialCategory] = useState("");
+const [materialDescription, setMaterialDescription] = useState("");
+const [materialFile, setMaterialFile] = useState<File | null>(null);
+
+
+
+  const token = localStorage.getItem("token");
+  const headers = { Authorization: `Bearer ${token}` };
 
   const realtimeChannelRef = useRef<any>(null);
 
   /* ================================
-LOAD ALL ORDERS (and compute unread_count)
+     LOAD ALL ORDERS (and compute unread_count)
   =================================*/
   const loadOrders = async () => {
     try {
@@ -67,6 +73,7 @@ LOAD ALL ORDERS (and compute unread_count)
         "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders",
         { headers }
       );
+
       const ordersData = res.data || [];
 
       // fetch unread count for each order in parallel (lightweight)
@@ -77,9 +84,10 @@ LOAD ALL ORDERS (and compute unread_count)
               `https://ebook-backend-lxce.onrender.com/api/writing/feedback/${Number(o.id)}`,
               { headers }
             );
-            const messages = c.data || [];
-            // unread logic: here we treat all as unread until admin views; you can refine with a `read` column later
-            return { ...o, unread_count: messages.length };
+           const messages = c.data || [];
+const unread = messages.filter(m => m.sender !== "admin").length;
+return { ...o, unread_count: unread };
+
           } catch (err) {
             return { ...o, unread_count: 0 };
           }
@@ -98,8 +106,8 @@ LOAD ALL ORDERS (and compute unread_count)
   }, []);
 
   /* ================================
-   LOAD USER MESSAGES FOR ORDER
-=================================*/
+     LOAD USER MESSAGES FOR ORDER
+  =================================*/
   const loadMessages = async (orderId: number) => {
     try {
       setLoadingMessages(true);
@@ -111,7 +119,9 @@ LOAD ALL ORDERS (and compute unread_count)
 
       setMessages(res.data || []);
       // when admin opens messages, mark unread_count 0 locally
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, unread_count: 0 } : o)));
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, unread_count: 0 } : o))
+      );
     } catch (err) {
       console.error(err);
       toast.error("Failed to load user messages");
@@ -153,14 +163,20 @@ LOAD ALL ORDERS (and compute unread_count)
       let notes_url = null;
 
       if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
+      const formData = new FormData();
+formData.append("file", file);
 
-        const uploadRes = await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/upload",
-          formData,
-          { headers: { ...headers } }
-        );
+const uploadRes = await axios.post(
+  "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/upload",
+  formData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    },
+  }
+);
+
 
         notes_url = uploadRes.data.url;
       }
@@ -176,7 +192,6 @@ LOAD ALL ORDERS (and compute unread_count)
       setFile(null);
       setShowWorkDialog(false);
       loadOrders();
-
     } catch (err) {
       console.error(err);
       toast.error("Error completing order");
@@ -207,8 +222,8 @@ LOAD ALL ORDERS (and compute unread_count)
   };
 
   /* ================================
-   SEND ADMIN REPLY
-=================================*/
+     SEND ADMIN REPLY
+  =================================*/
   const sendAdminReply = async () => {
     if (!selectedOrder) {
       toast.error("No order selected");
@@ -280,7 +295,9 @@ LOAD ALL ORDERS (and compute unread_count)
             // Update unread counter in orders list
             setOrders((prev) =>
               prev.map((o) =>
-                Number(o.id) === newOrderId ? { ...o, unread_count: (o.unread_count || 0) + 1 } : o
+                Number(o.id) === newOrderId
+                  ? { ...o, unread_count: (o.unread_count || 0) + 1 }
+                  : o
               )
             );
           }
@@ -311,29 +328,140 @@ LOAD ALL ORDERS (and compute unread_count)
 
 
   /* ================================
+   LOAD INTERVIEW MATERIALS
+================================ */
+const loadInterviewMaterials = async () => {
+  try {
+    const res = await axios.get(
+      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials",
+      { headers }
+    );
+    setMaterials(res.data || []);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to load interview materials");
+  }
+};
+
+/* ================================
+   UPLOAD INTERVIEW FILE
+================================ */
+const uploadInterviewMaterial = async () => {
+  if (!materialTitle || !materialCategory || !materialFile) {
+    toast.error("Title, category and file required");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("file", materialFile);
+
+    const uploadRes = await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials/upload",
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials",
+      {
+        title: materialTitle,
+        category: materialCategory,
+        description: materialDescription,
+        file_url: uploadRes.data.url,
+      },
+      { headers }
+    );
+
+    toast.success("Interview material added");
+
+    setMaterialTitle("");
+    setMaterialCategory("");
+    setMaterialDescription("");
+    setMaterialFile(null);
+
+    loadInterviewMaterials();
+  } catch (err) {
+    console.error(err);
+    toast.error("Upload failed");
+  }
+};
+
+/* ================================
+   DELETE INTERVIEW MATERIAL
+================================ */
+const deleteInterviewMaterial = async (id: number) => {
+  if (!confirm("Delete this material?")) return;
+
+  try {
+    await axios.delete(
+      `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials/${id}`,
+      { headers }
+    );
+
+    toast.success("Material deleted");
+    loadInterviewMaterials();
+  } catch (err) {
+    console.error(err);
+    toast.error("Delete failed");
+  }
+};
+useEffect(() => {
+  if (activeSection === "interview") {
+    loadInterviewMaterials();
+  }
+}, [activeSection]);
+
+  /* ================================
      UI
   =================================*/
   return (
     <div className="space-y-6">
-      <h2 className="text-[#1d4d6a] mb-1">
-        Admin — Writing Orders
-      </h2>
+     <div className="flex items-center justify-between">
+  <h2 className="text-[#1d4d6a] text-2xl font-semibold">
+    Admin — Services
+  </h2>
 
+  <div className="flex gap-2 mb-4">
+  <Button
+    variant={activeSection === "writing" ? "default" : "outline"}
+    className={activeSection === "writing" ? "bg-[#bf2026] text-white" : ""}
+    onClick={() => setActiveSection("writing")}
+  >
+    Writing Services
+  </Button>
+
+  <Button
+    variant={activeSection === "interview" ? "default" : "outline"}
+    className={activeSection === "interview" ? "bg-[#bf2026] text-white" : ""}
+    onClick={() => setActiveSection("interview")}
+  >
+    Interview Preparation
+  </Button>
+</div>
+
+</div>
+
+{activeSection === "writing" && (
+  <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {orders.map((order) => (
           <Card key={order.id} className="shadow-md border-none">
             <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">
-                {order.title}
-              </CardTitle>
+              <CardTitle className="text-[#1d4d6a]">{order.title}</CardTitle>
 
               <Badge
                 className={
                   order.status === "Completed"
                     ? "bg-green-100 text-green-700"
                     : order.status === "In Progress"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-yellow-100 text-yellow-700"
                 }
               >
                 {order.status}
@@ -343,8 +471,13 @@ LOAD ALL ORDERS (and compute unread_count)
             <CardContent className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p><strong>Type:</strong> {order.type}</p>
-                  <p><strong>Word Count:</strong> {order.word_count || "Not specified"}</p>
+                  <p>
+                    <strong>Type:</strong> {order.type}
+                  </p>
+                  <p>
+                    <strong>Word Count:</strong>{" "}
+                    {order.word_count || "Not specified"}
+                  </p>
                 </div>
 
                 {/* Messages button with unread badge */}
@@ -371,12 +504,18 @@ LOAD ALL ORDERS (and compute unread_count)
 
               <p>
                 <strong>Deadline:</strong>{" "}
-                {order.deadline ? new Date(order.deadline).toLocaleDateString() : "—"}
+                {order.deadline
+                  ? new Date(order.deadline).toLocaleDateString()
+                  : "—"}
               </p>
 
-              <p><strong>User ID:</strong> {order.user_id}</p>
+              <p>
+                <strong>User ID:</strong> {order.user_id}
+              </p>
 
-              <p><strong>Instructions:</strong></p>
+              <p>
+                <strong>Instructions:</strong>
+              </p>
               <p className="text-gray-700 bg-gray-50 p-2 rounded">
                 {order.instructions || "No instructions"}
               </p>
@@ -441,13 +580,16 @@ LOAD ALL ORDERS (and compute unread_count)
       </div>
 
       {/* MESSAGES POPUP */}
-      <Dialog open={showMessagesPopup} onOpenChange={(v) => {
-        setShowMessagesPopup(v);
-        if (!v) {
-          setMessages([]);
-          setSelectedOrder(null);
-        }
-      }}>
+      <Dialog
+        open={showMessagesPopup}
+        onOpenChange={(v) => {
+          setShowMessagesPopup(v);
+          if (!v) {
+            setMessages([]);
+            setSelectedOrder(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>User Messages</DialogTitle>
@@ -464,10 +606,20 @@ LOAD ALL ORDERS (and compute unread_count)
             )}
 
             {messages.map((msg) => (
-              <div key={msg.id} className={`p-3 rounded ${msg.sender === "admin" ? "bg-blue-50 border-blue-100" : "bg-white border"}`}>
+              <div
+                key={msg.id}
+                className={`p-3 rounded ${
+                  msg.sender === "admin"
+                    ? "bg-blue-50 border-blue-100"
+                    : "bg-white border"
+                }`}
+              >
                 <p className="text-gray-800">{msg.message}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {msg.sender === "admin" ? (msg.user_name || "Admin") : (msg.user_name || "User")} — {new Date(msg.created_at).toLocaleString()}
+                  {msg.sender === "admin"
+                    ? msg.user_name || "Admin"
+                    : msg.user_name || "User"}{" "}
+                  — {new Date(msg.created_at).toLocaleString()}
                 </p>
               </div>
             ))}
@@ -486,19 +638,22 @@ LOAD ALL ORDERS (and compute unread_count)
           </div>
 
           <DialogFooter className="mt-3">
-            <Button onClick={() => {
-              setShowMessagesPopup(false);
-              setMessages([]);
-              setSelectedOrder(null);
-            }}>Close</Button>
+            <Button
+              onClick={() => {
+                setShowMessagesPopup(false);
+                setMessages([]);
+                setSelectedOrder(null);
+              }}
+            >
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* COMPLETE WORK DIALOG */}
       <Dialog open={showWorkDialog} onOpenChange={setShowWorkDialog}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto scroll-smooth">
-
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Complete Order</DialogTitle>
             <p className="text-sm text-gray-500">
@@ -515,32 +670,37 @@ LOAD ALL ORDERS (and compute unread_count)
             {loadingMessages && <p>Loading messages...</p>}
 
             {messages.length === 0 && !loadingMessages && (
-              <p className="text-sm text-gray-500">
-                No messages from user.
-              </p>
+              <p className="text-sm text-gray-500">No messages from user.</p>
             )}
 
             {messages.map((msg) => (
               <div key={msg.id} className="border-b py-2">
                 <p className="text-sm text-gray-800">{msg.message}</p>
                 <p className="text-xs text-gray-500">
-                  — {msg.user_name || "User"} ({new Date(msg.created_at).toLocaleString()})
+                  — {msg.user_name || "User"} (
+                  {new Date(msg.created_at).toLocaleString()})
                 </p>
               </div>
             ))}
           </div>
 
-          {/* Show User Request */}
+          {/* USER REQUEST */}
           <div className="bg-gray-50 p-3 rounded border mb-4">
-            <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">User Request</h3>
+            <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">
+              User Request
+            </h3>
 
-            <p><strong>Title:</strong> {selectedOrder?.title}</p>
-            <p><strong>Type:</strong> {selectedOrder?.type}</p>
-
-            <p className="mt-2"><strong>Instructions:</strong></p>
-            <p className="text-gray-700">
-              {selectedOrder?.instructions}
+            <p>
+              <strong>Title:</strong> {selectedOrder?.title}
             </p>
+            <p>
+              <strong>Type:</strong> {selectedOrder?.type}
+            </p>
+
+            <p className="mt-2">
+              <strong>Instructions:</strong>
+            </p>
+            <p className="text-gray-700">{selectedOrder?.instructions}</p>
 
             {selectedOrder?.attachments_url && (
               <div className="mt-2">
@@ -557,11 +717,11 @@ LOAD ALL ORDERS (and compute unread_count)
             )}
           </div>
 
-          {/* Admin Work */}
+          {/* ADMIN WORK */}
           <div className="space-y-4 py-4">
             <Label>Write Final Text</Label>
             <Textarea
-              rows={3}
+              rows={6}
               placeholder="Write the completed content here..."
               value={finalText}
               onChange={(e) => setFinalText(e.target.value)}
@@ -602,16 +762,15 @@ LOAD ALL ORDERS (and compute unread_count)
             {loadingMessages && <p>Loading messages...</p>}
 
             {messages.length === 0 && !loadingMessages && (
-              <p className="text-sm text-gray-500">
-                No messages from user.
-              </p>
+              <p className="text-sm text-gray-500">No messages from user.</p>
             )}
 
             {messages.map((msg) => (
               <div key={msg.id} className="border-b py-2">
                 <p className="text-sm text-gray-800">{msg.message}</p>
                 <p className="text-xs text-gray-500">
-                  — {msg.user_name || "User"} ({new Date(msg.created_at).toLocaleString()})
+                  — {msg.user_name || "User"} (
+                  {new Date(msg.created_at).toLocaleString()})
                 </p>
               </div>
             ))}
@@ -628,7 +787,10 @@ LOAD ALL ORDERS (and compute unread_count)
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowRejectDialog(false)}
+            >
               Cancel
             </Button>
             <Button className="bg-red-600 text-white" onClick={rejectOrder}>
@@ -637,6 +799,97 @@ LOAD ALL ORDERS (and compute unread_count)
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )}
+
+{activeSection === "interview" && (
+  <div className="space-y-6">
+    <h3 className="text-[#1d4d6a] text-xl font-semibold">Interview Materials</h3>
+    
+    {/* Add Interview Material Form */}
+    <Card className="shadow-md border-none">
+      <CardHeader>
+        <CardTitle>Add New Material</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>Title</Label>
+          <Input
+            value={materialTitle}
+            onChange={(e) => setMaterialTitle(e.target.value)}
+            placeholder="Material title"
+          />
+        </div>
+        <div>
+          <Label>Category</Label>
+          <Input
+            value={materialCategory}
+            onChange={(e) => setMaterialCategory(e.target.value)}
+            placeholder="e.g., Technical, Behavioral"
+          />
+        </div>
+        <div>
+          <Label>Description</Label>
+          <Textarea
+            value={materialDescription}
+            onChange={(e) => setMaterialDescription(e.target.value)}
+            placeholder="Brief description"
+          />
+        </div>
+        <div>
+          <Label>File</Label>
+          <Input
+            type="file"
+            onChange={(e) => setMaterialFile(e.target.files?.[0] || null)}
+          />
+        </div>
+        <Button className="bg-[#bf2026] text-white" onClick={uploadInterviewMaterial}>
+          Upload Material
+        </Button>
+      </CardContent>
+    </Card>
+
+    {/* Materials List */}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {materials.map((m) => (
+          <Card key={m.id} className="shadow-md border-none">
+            <CardHeader>
+              <CardTitle className="text-[#1d4d6a]">{m.title}</CardTitle>
+              <Badge>{m.category}</Badge>
+            </CardHeader>
+
+            <CardContent className="space-y-2">
+              <p className="text-sm text-gray-600">{m.description}</p>
+
+              <div className="flex justify-between items-center">
+                <a
+                  href={m.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 underline flex items-center"
+                >
+                  <Download className="w-4 h-4 mr-1" /> View PDF
+                </a>
+
+                <Button
+                  variant="outline"
+                  className="border-red-400 text-red-600"
+                  onClick={() => deleteInterviewMaterial(m.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
+
+
+  

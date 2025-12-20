@@ -17,49 +17,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Clock, Trophy, Target, Award, ChevronRight, Loader2 } from "lucide-react";
+import { Clock, Trophy, Target, Award, ChevronRight } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 
 export function MockTests() {
   const [continueTest, setContinueTest] = useState<any | null>(null);
+  const [loading, setLoading] = useState({
+    initial: true,
+    stats: true,
+    available: true,
+    ongoing: true,
+    completed: true,
+    leaderboard: true,
+    starting: false,
+  });
+
   const [availableTests, setAvailableTests] = useState<any[]>([]);
   const [ongoingTests, setOngoingTests] = useState<any[]>([]);
   const [completedTests, setCompletedTests] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  
-  const [loading, setLoading] = useState({
-    initial: true,
-    available: false,
-    ongoing: false,
-    completed: false,
-    stats: false,
-    leaderboard: false,
-    starting: false
-  });
 
   const API_URL = "https://ebook-backend-lxce.onrender.com/api/mock-tests";
   const token = localStorage.getItem("token");
-  const headers = token
-    ? { Authorization: `Bearer ${token}` }
-    : {};
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
   /*=====================================================
     FETCH DATA
   =====================================================*/
   const refreshAll = useCallback(async () => {
-    try {
-      setLoading(prev => ({
-        ...prev,
-        initial: true,
-        available: true,
-        ongoing: true,
-        completed: true,
-        stats: true,
-        leaderboard: true
-      }));
+    setLoading(prev => ({
+      ...prev,
+      stats: true,
+      available: true,
+      ongoing: true,
+      completed: true,
+      leaderboard: true,
+    }));
 
+    try {
       const [availableRes, ongoingRes, completedRes, statsRes, leaderboardRes] =
         await Promise.all([
           axios.get(API_URL, { headers }),
@@ -78,7 +75,6 @@ export function MockTests() {
       setAvailableTests(
         tests.map((t: any) => {
           const start = t.start_time ? new Date(t.start_time) : null;
-
           return {
             id: t.id,
             title: t.title,
@@ -87,12 +83,15 @@ export function MockTests() {
             duration_minutes: t.duration_minutes,
             duration: `${t.duration_minutes} mins`,
             difficulty: t.difficulty,
-            participants: t.participants || 0,
+            participants: new Set(
+              (t.mock_attempts || []).map((a: any) => a.user_id)
+            ).size,
             start_time: t.start_time,
             isFuture: start ? start > now : false,
           };
         })
       );
+      setLoading(prev => ({ ...prev, available: false }));
 
       /*---------------------
         ONGOING TESTS
@@ -109,6 +108,7 @@ export function MockTests() {
           difficulty: t.mock_tests?.difficulty || "",
         }))
       );
+      setLoading(prev => ({ ...prev, ongoing: false }));
 
       /*---------------------
         COMPLETED TESTS
@@ -120,17 +120,18 @@ export function MockTests() {
           subject: t.mock_tests?.subject || "",
           score: t.score || 0,
           rank: typeof t.rank === "number" ? t.rank : null,
+          percentile: typeof t.percentile === "number" ? t.percentile : null,
           participants: t.mock_tests?.participants || 1,
           maxScore: 100,
           date: t.completed_at,
         }))
       );
+      setLoading(prev => ({ ...prev, completed: false }));
 
       /*---------------------
         STATS
       ----------------------*/
       const s = statsRes.data || {};
-
       setStats([
         {
           label: "Tests Taken",
@@ -157,6 +158,7 @@ export function MockTests() {
           color: "bg-purple-500",
         },
       ]);
+      setLoading(prev => ({ ...prev, stats: false }));
 
       /*---------------------
         LEADERBOARD
@@ -174,19 +176,22 @@ export function MockTests() {
           highlight: u.user_id === userId,
         }))
       );
-    } catch (err) {
-      console.log(err);
-      toast.error("Failed to load mock tests");
-    } finally {
-      setLoading(prev => ({
-        ...prev,
+      setLoading(prev => ({ ...prev, leaderboard: false, initial: false }));
+
+    } catch (err: any) {
+      console.error("Error loading mock tests:", err);
+      toast.error(err.response?.data?.error || "Failed to load mock tests");
+      
+      // Reset loading states on error
+      setLoading({
         initial: false,
+        stats: false,
         available: false,
         ongoing: false,
         completed: false,
-        stats: false,
-        leaderboard: false
-      }));
+        leaderboard: false,
+        starting: false,
+      });
     }
   }, []);
 
@@ -213,8 +218,8 @@ export function MockTests() {
     START TEST
   =====================================================*/
   const handleStart = async (test: any) => {
+    setLoading(prev => ({ ...prev, starting: true }));
     try {
-      setLoading(prev => ({ ...prev, starting: true }));
       const res = await axios.post(
         `${API_URL}/start`,
         { test_id: test.id },
@@ -238,7 +243,6 @@ export function MockTests() {
   =====================================================*/
   const handleResume = () => {
     if (!continueTest) return;
-
     localStorage.setItem("active_attempt_id", continueTest.attemptId);
     window.location.href = `/test/${continueTest.testId}`;
     setContinueTest(null);
@@ -486,14 +490,18 @@ export function MockTests() {
                                 ? "bg-green-100 text-green-700"
                                 : test.score >= 75
                                 ? "bg-blue-100 text-blue-700"
-                                : "bg-orange-100 text-orange-700"
+                                : test.score >= 40
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-red-100 text-red-700"
                             }`}
                           >
                             {test.score >= 90
                               ? "Excellent"
                               : test.score >= 75
                               ? "Good"
-                              : "Pass"}
+                              : test.score >= 40
+                              ? "Pass"
+                              : "Fail"}
                           </Badge>
                         </div>
 
@@ -516,8 +524,7 @@ export function MockTests() {
                           <div className="bg-gray-50 p-3 rounded-lg">
                             <p className="text-xs text-gray-500 mb-1">Percentile</p>
                             <p className="text-[#1d4d6a] text-sm sm:text-base">
-                              {Math.round((1 - test.rank / test.participants) * 100)}
-                              th
+                              {test.percentile !== null ? `${test.percentile}th` : "—"}
                             </p>
                           </div>
                         </div>
@@ -552,8 +559,8 @@ export function MockTests() {
                           key={user.rank}
                           className={`flex items-center justify-between p-3 sm:p-4 rounded-lg ${
                             user.highlight
-                              ? "bg-[#bf2026] bg-opacity-10 border border-[#bf2026]"
-                              : "bg-gray-50"
+                              ? "bg-[#fff5f5] border-[#bf2026]"
+                              : "bg-gray-50 border-transparent" 
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -566,7 +573,7 @@ export function MockTests() {
                             </div>
                             <div>
                               <p
-                                className={`text-sm sm:text-base ${
+                                className={`text-sm sm:text-base font-medium ${
                                   user.highlight ? "text-[#bf2026]" : "text-[#1d4d6a]"
                                 }`}
                               >
@@ -580,7 +587,7 @@ export function MockTests() {
 
                           <div className="text-right">
                             <p
-                              className={`text-sm sm:text-base ${
+                              className={`text-sm sm:text-base font-medium ${
                                 user.highlight ? "text-[#bf2026]" : "text-[#1d4d6a]"
                               }`}
                             >

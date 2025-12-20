@@ -1,4 +1,4 @@
-import React,{lazy, useEffect, useRef, useState } from 'react';
+import React,{lazy, useEffect, useRef, useState, Suspense } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -74,7 +74,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
     { id: 'pyqs' as AdminSection, icon: FileText, label: 'PYQs' },
     { id: 'currentaffairs' as AdminSection, icon: FileText, label: 'Current Affairs' },
     { id: 'drm' as AdminSection, icon: Shield, label: 'DRM Controls' },
-    { id: 'writing' as AdminSection, icon: FileText, label: 'Writing Services' },
+    { id: 'writing' as AdminSection, icon: FileText, label: 'Services' },
     { id: 'payments' as AdminSection, icon: CreditCard, label: 'Payments' },
     { id: 'reports' as AdminSection, icon: FileText, label: 'Reports' },
     { id: 'ai' as AdminSection, icon: Cpu, label: 'AI Automation' },
@@ -360,6 +360,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
 
         {/* Main Content Area */}
         <main className="p-4 sm:p-6 lg:p-8">
+          <Suspense fallback={null}>
           {activeSection === 'dashboard' && <AdminDashboardHome />}
           {activeSection === 'customers' && <CustomerManagement />}
           {activeSection === 'content' && <ContentManagementGrid />}
@@ -374,6 +375,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
           {activeSection === 'notifications' && <NotificationsAdmin />}
           {activeSection === 'jobs' && <JobPortalAdmin />}
           {activeSection === 'settings' && <SystemSettings />}
+          </Suspense>
         </main>
       </div>
     </div>

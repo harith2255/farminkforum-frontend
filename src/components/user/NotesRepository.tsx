@@ -121,7 +121,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       if (token) {
         try {
           const purchasedRes = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/note-ids",
+            "https://ebook-backend-lxce.onrender.com/api/purchases/purchased/note-ids",
             { headers: { Authorization: `Bearer ${token}` } }
           );
 

@@ -30,16 +30,35 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
   const [loading, setLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
 
+
   // read afresh from localStorage - avoid stale closure values
-  const purchaseType: PurchaseType = (localStorage.getItem("purchaseType") as PurchaseType) || null;
-  const rawPurchaseItems = localStorage.getItem("purchaseItems") || localStorage.getItem("cartItems") || "[]";
-  const purchaseItems = JSON.parse(rawPurchaseItems || "[]");
-  const purchaseId = localStorage.getItem("purchaseId");
+
+  const purchaseType: PurchaseType =
+  (localStorage.getItem("purchaseType") as PurchaseType) || null;
+
+const purchaseItems =
+  purchaseType === "writing"
+    ? []
+    : JSON.parse(
+        localStorage.getItem("purchaseItems") ||
+          localStorage.getItem("cartItems") ||
+          "[]"
+      );
+
+const purchaseId = localStorage.getItem("purchaseId");
+
+  
 
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem("session") || "{}");
     return session.access_token || localStorage.getItem("token");
   };
+if (purchaseType && purchaseId && purchaseItems.length === 0) {
+  localStorage.setItem(
+    "purchaseItems",
+    JSON.stringify([{ id: purchaseId, type: purchaseType }])
+  );
+}
 
   // ICON MAP
   const IconForType = ({ t }: { t: PurchaseType }) => {
@@ -70,26 +89,28 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
   }, [passedItem]);
 
   // VALIDATION BEFORE ANY FETCH
-  useEffect(() => {
-    const type = localStorage.getItem("purchaseType");
-    const idLocal = localStorage.getItem("purchaseId");
-    const itemsLocal = JSON.parse(localStorage.getItem("purchaseItems") || "[]");
+useEffect(() => {
+  // 🛑 DO NOTHING AFTER SUCCESS
 
-    if (!type && itemsLocal.length === 0) {
-      toast.error("❌ No purchase context found. Start purchase again.");
+  const type = localStorage.getItem("purchaseType");
+  const idLocal = localStorage.getItem("purchaseId");
+  const itemsLocal = JSON.parse(localStorage.getItem("purchaseItems") || "[]");
+
+  if (!type && itemsLocal.length === 0) {
+    toast.error("❌ No purchase context found. Start purchase again.");
+    onNavigate("explore");
+    return;
+  }
+
+  // Skip validation for writing purchases
+  if (type !== "writing") {
+    if (!idLocal && itemsLocal.length === 0) {
+      toast.error("❌ No product selected for purchase.");
       onNavigate("explore");
-      return;
     }
+  }
+}, [onNavigate]);
 
-    // Skip validation for writing purchases
-    if (type !== "writing") {
-      if (!idLocal && itemsLocal.length === 0) {
-        toast.error("❌ No product selected for purchase.");
-        onNavigate("explore");
-        return;
-      }
-    }
-  }, [onNavigate]);
 
   // PRODUCT EXTRACTOR
   const getProductFromEntry = (entry: any) =>
@@ -205,7 +226,10 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
 }
 
 
-        throw new Error("No purchase data found.");
+       toast.error("❌ No purchase data found. Please select an item again.");
+onNavigate("explore");
+return;
+
       } catch (err) {
         console.error("Purchase load failed", err);
         toast.error("Failed to load item.");
@@ -227,9 +251,25 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
      - PaymentModal will call onSuccess({ source: 'writing'|'purchase', ... })
      - If called without arg, we keep legacy behavior but avoid re-sending verification.
   -------------------------------*/
- const handleSuccess = async (result?: any) => {
+const handleSuccess = async (result?: any) => {
   const token = getToken();
 
+  /* ================================
+     ✅ SUBSCRIPTION SUCCESS
+  ================================= */
+  if (result?.source === "subscription") {
+  toast.success("Subscription activated!");
+
+  window.dispatchEvent(new CustomEvent("subscription:updated"));
+
+  onNavigate("user-dashboard");
+  return;
+}
+
+
+  /* ================================
+     ❌ AUTH GUARD
+  ================================= */
   if (!token) {
     toast.error("Login required");
     onNavigate("login");
@@ -237,135 +277,52 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
   }
 
   try {
-    // NEW: PaymentModal already finished writing purchase flow
+    /* ================================
+       ✍️ WRITING
+    ================================= */
     if (result?.source === "writing") {
       localStorage.removeItem("pendingWritingOrder");
       localStorage.removeItem("purchaseType");
       localStorage.removeItem("purchaseId");
 
-      toast.success("✍️ Writing order created successfully!");
+      toast.success("✍️ Writing order created!");
+    
       onNavigate("user-dashboard");
       return;
     }
 
-    // NORMAL PURCHASE (books, notes, cart)
+    /* ================================
+       📦 NORMAL PURCHASE
+    ================================= */
     if (result?.source === "purchase") {
       localStorage.removeItem("purchaseType");
       localStorage.removeItem("purchaseId");
       localStorage.removeItem("purchaseItems");
       localStorage.removeItem("cartItems");
 
-      window.dispatchEvent(new Event("refresh-library"));
-      window.dispatchEvent(new Event("refresh-explore"));
+  // 🔥 fire event with book id BEFORE navigation
+window.dispatchEvent(
+  new CustomEvent("library:updated", {
+    detail: {
+      bookId: purchaseItems?.[0]?.id,
+    },
+  })
+);
 
-      toast.success("Purchase completed!");
-      onNavigate("user-dashboard");
-      return;
+toast.success("Purchase completed!");
+
+// ⏳ allow listeners to react before unmount
+setTimeout(() => {
+  onNavigate("user-dashboard");
+}, 0);
+
     }
-
-    // -----------------------
-    // FALLBACK legacy handler
-    // -----------------------
-    if (!item) {
-      toast.error("Something went wrong. No purchase item found.");
-      return;
-    }
-
-    const headers = { Authorization: `Bearer ${token}` };
-
-    // SUBSCRIPTION fallback
-    if (item.type === "subscription") {
-      try {
-        await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/subscriptions/upgrade",
-          { planId: item.id },
-          { headers }
-        );
-
-        toast.success("Subscription upgraded!");
-        localStorage.clear();
-        onNavigate("user-dashboard");
-        return;
-      } catch (err: any) {
-        toast.error(err.response?.data?.error || "Failed to upgrade subscription.");
-        return;
-      }
-    }
-
-    // WRITING fallback (should rarely run now)
-    const pendingWriting = localStorage.getItem("pendingWritingOrder");
-    if (item.type === "writing" && pendingWriting) {
-      const writingPayload = JSON.parse(pendingWriting);
-
-      try {
-        await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/writing/payments/verify",
-          {
-            amount: writingPayload.total_price,
-            method: "test-payment",
-            order_temp_id: writingPayload.id || null,
-          },
-          { headers }
-        );
-
-        await axios.post(
-          "https://ebook-backend-lxce.onrender.com/api/writing/order",
-          {
-            ...writingPayload,
-            payment_success: true,
-            order_temp_id: writingPayload.id || null,
-            paid_at: new Date().toISOString(),
-          },
-          { headers }
-        );
-
-        localStorage.removeItem("pendingWritingOrder");
-        localStorage.removeItem("purchaseType");
-        localStorage.removeItem("purchaseId");
-
-        toast.success("✍️ Writing order created successfully!");
-        onNavigate("user-dashboard");
-        return;
-      } catch (err: any) {
-        toast.error(err.response?.data?.error || "Failed to complete writing order.");
-        return;
-      }
-    }
-
-    // NORMAL PURCHASE fallback
-    let purchaseData;
-    if (item.type === "cart") {
-      purchaseData = {
-        items: item.items
-          .map((entry: any) => {
-            const p = getProductFromEntry(entry);
-            if (!p?.id) return null;
-            return { type: p.type || "book", id: p.id };
-          })
-          .filter(Boolean),
-      };
-    } else {
-      purchaseData = { items: [{ type: item.type, id: item.id }] };
-    }
-
-    await axios.post("https://ebook-backend-lxce.onrender.com/api/purchase/unified", purchaseData, {
-      headers,
-    });
-
-    localStorage.removeItem("purchaseType");
-    localStorage.removeItem("purchaseId");
-    localStorage.removeItem("purchaseItems");
-    localStorage.removeItem("cartItems");
-
-    window.dispatchEvent(new Event("refresh-library"));
-    window.dispatchEvent(new Event("refresh-explore"));
-
-    toast.success("Purchase completed!");
-    onNavigate("user-dashboard");
   } catch (err) {
     toast.error("Unexpected error. Please try again.");
   }
 };
+
+
 
 
   if (loading) return <p className="text-center p-6">Loading...</p>;

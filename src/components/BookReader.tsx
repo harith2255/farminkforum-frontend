@@ -118,6 +118,19 @@ export function BookReader({
     return () => window.removeEventListener("reader:open", handleReaderOpen);
   }, []);
 
+
+  // ✅ REQUIRED: prepare purchase context before redirect
+const goToPurchase = (bookId: string | number) => {
+  localStorage.setItem("purchaseType", "book");
+  localStorage.setItem("purchaseId", String(bookId));
+  localStorage.setItem(
+    "purchaseItems",
+    JSON.stringify([{ id: String(bookId), type: "book" }])
+  );
+
+  window.location.href = `/purchase/book/${bookId}`;
+};
+
   /* --------------------------------------------------
     Register Device (silent)
   -------------------------------------------------- */
@@ -424,7 +437,7 @@ export function BookReader({
     previewPages={effectivePreviewPages}
     purchased={!isLocked}
     bookId={book.id}
-    onBuyClick={(id) => (window.location.href = `/purchase/book/${id}`)}
+    onBuyClick={() => goToPurchase(book.id)}
     onDeleteHighlight={handleDeleteHighlight}
     watermarkText={drmConfig?.watermark_text}
   />
@@ -488,14 +501,13 @@ export function BookReader({
               You have reached the preview limit ({effectivePreviewPages}{" "}
               pages).
             </p>
-            <Button
-              className="w-full mb-3"
-              onClick={() =>
-                (window.location.href = `/purchase/book/${book.id}`)
-              }
-            >
-              Buy Now
-            </Button>
+           <Button
+  className="w-full mb-3"
+  onClick={() => goToPurchase(book.id)}
+>
+  Buy Now
+</Button>
+
             <Button
               variant="outline"
               className="w-full"

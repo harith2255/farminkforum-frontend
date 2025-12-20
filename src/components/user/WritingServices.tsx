@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -148,57 +148,7 @@ const SUBJECT_AREAS = [
   { value: "others", label: "Others" },
 ];
 
-// SIMPLIFIED INTERVIEW MATERIALS
-const INTERVIEW_MATERIALS: InterviewMaterial[] = [
-  {
-    id: "1",
-    title: "Common Interview Questions & Answers",
-    category: "General",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "2",
-    title: "Behavioral Interview Guide",
-    category: "Behavioral",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "3",
-    title: "Technical Interview Handbook",
-    category: "Technical",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "4",
-    title: "Case Interview Preparation",
-    category: "Consulting",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "5",
-    title: "Resume & Cover Letter Guide",
-    category: "Documents",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "6",
-    title: "Salary Negotiation Guide",
-    category: "Negotiation",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "7",
-    title: "Virtual Interview Success Guide",
-    category: "Virtual",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  },
-  {
-    id: "8",
-    title: "Industry-Specific Questions",
-    category: "Industry",
-    file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  }
-];
+
 
 // --- UTILITY FUNCTIONS ---
 const formatDate = (dateString: string): string => {
@@ -310,6 +260,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewingMaterial, setViewingMaterial] = useState<string | null>(null);
+const [interviewMaterials, setInterviewMaterials] = useState<InterviewMaterial[]>([]);
 
   // Form Handlers
   const updateForm = (key: keyof FormData, value: string) =>
@@ -476,19 +427,52 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
       setViewingMaterial(null);
     }
   }, []);
+const fetchInterviewMaterials = useCallback(async () => {
+  try {
+    setLoading(prev => ({ ...prev, services: true }));
 
-  const filteredMaterials = useMemo(() => {
-    return INTERVIEW_MATERIALS.filter(material => {
-      const matchesCategory = selectedCategory === "All" || material.category === selectedCategory;
-      const matchesSearch = material.title.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [selectedCategory, searchQuery]);
+    const params = new URLSearchParams();
 
-  const categories = useMemo(() => {
-    const allCategories = ["All", ...new Set(INTERVIEW_MATERIALS.map(m => m.category))];
-    return allCategories;
-  }, []);
+    if (selectedCategory && selectedCategory !== "All") {
+      params.append("category", selectedCategory);
+    }
+
+    if (searchQuery) {
+      params.append("search", searchQuery);
+    }
+
+    const res = await fetch(
+      `${API_BASE_URL}?${params.toString()}`,
+      {
+        headers: getAuthHeaders(), // ✅ FIX
+      }
+    );
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    setInterviewMaterials(Array.isArray(data) ? data : []);
+
+  } catch (err) {
+    handleApiError(err, "Failed to load interview materials");
+  } finally {
+    setLoading(prev => ({ ...prev, services: false }));
+  }
+}, [selectedCategory, searchQuery, handleApiError]);
+
+useEffect(() => {
+  if (activeTab === "services") {
+    fetchInterviewMaterials();
+  }
+}, [activeTab, selectedCategory, searchQuery, fetchInterviewMaterials]);
+
+
+  const filteredMaterials = interviewMaterials;
+
+const categories = useMemo(() => {
+  return ["All", ...new Set(interviewMaterials.map(m => m.category))];
+}, [interviewMaterials]);
+
 
   const handleSubmitOrder = useCallback(async () => {
     if (!validateStep(1)) {

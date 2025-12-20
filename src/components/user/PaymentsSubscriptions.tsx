@@ -243,48 +243,74 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
   }, [loadData]);
 
   // Actions
-  const handleUpgrade = async (planId: any) => {
-    try {
-      setLoading(prev => ({ ...prev, upgrading: true }));
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+const handleUpgrade = async (planId: any) => {
+  try {
+    setLoading(true);
 
-      const res = await axios.post(
-        `${API_BASE}/subscriptions/upgrade`,
-        { planId },
-        { headers }
-      );
-
-      if (res.data && res.data.subscription) {
-        setActivePlan(res.data.subscription);
-      } else {
-        try {
-          const activeRes = await axios.get(
-            `${API_BASE}/subscriptions/active`,
-            { headers }
-          );
-          setActivePlan(activeRes.data || null);
-        } catch (e) {
-          console.warn("Upgrade: failed to re-fetch active subscription", e);
-        }
-      }
-
-      await loadData();
-      setShowManagePlan(false);
-
-      toast.success("Subscription upgraded!");
-      window.dispatchEvent(new CustomEvent("subscription:updated"));
-
-      onNavigate("exams");
-      window.history.pushState({}, "", "/user-dashboard/exams");
-    } catch (err: any) {
-      console.error("Upgrade failed:", err);
-      const message =
-        err?.response?.data?.error || err?.message || "Upgrade failed";
-      toast.error(message);
-    } finally {
-      setLoading(prev => ({ ...prev, upgrading: false }));
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Session expired. Please login again.");
+      return;
     }
-  };
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // 1️⃣ Upgrade subscription
+    const res = await axios.post(
+      `${API_BASE}/api/subscriptions/upgrade`,
+      { planId },
+      {
+        headers,
+        validateStatus: (status) => status < 500, // ⛔ prevent interceptor logout
+      }
+    );
+
+    if (!res.data) {
+      toast.error("Subscription upgrade failed");
+      return;
+    }
+
+    toast.success("Subscription activated!");
+
+    // 2️⃣ Wait for backend to settle (VERY IMPORTANT)
+    await new Promise((r) => setTimeout(r, 500));
+
+    // 3️⃣ Safely refresh active plan (NO LOGOUT)
+    try {
+      const activeRes = await axios.get(
+        `${API_BASE}/api/subscriptions/active`,
+        {
+          headers,
+          validateStatus: (status) => status < 500,
+        }
+      );
+      setActivePlan(activeRes.data || null);
+    } catch {
+      console.warn("Active subscription refresh skipped");
+    }
+
+    // 4️⃣ Reload local data (guarded)
+    await loadData();
+
+    // 5️⃣ Close modal + return to dashboard
+    setShowManagePlan(false);
+
+    // 6️⃣ Navigate SAFELY
+    onNavigate("user-dashboard");
+    window.history.pushState({}, "", "/user-dashboard");
+
+    // 7️⃣ Notify dashboard to refresh UI only
+    window.dispatchEvent(new CustomEvent("subscription:updated"));
+
+  } catch (err: any) {
+    console.error("Upgrade failed:", err);
+    toast.error(
+      err?.response?.data?.error || "Subscription upgrade failed"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCancel = async () => {
     if (!confirm("Are you sure you want to cancel your subscription?")) return;
@@ -1014,35 +1040,22 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
                           ))}
                       </ul>
 
-                      <Button
-                        className={`w-full bg-[#bf2026] text-white flex items-center justify-center gap-2`}
-                        disabled={activePlan?.id === plan.id || loading.upgrading}
-                        onClick={() => {
-                          localStorage.setItem("purchaseType", "subscription");
-                          localStorage.setItem("purchaseId", plan.id);
-                          localStorage.setItem("purchaseItems", JSON.stringify([{ id: plan.id, type: "subscription" }]));
-                          if (onNavigate) onNavigate("purchase");
-                          else {
-                            if (
-                              confirm(
-                                "Proceed to upgrade via server-side (test)?"
-                              )
-                            )
-                              handleUpgrade(plan.id);
-                          }
-                        }}
-                      >
-                        {loading.upgrading ? (
-                          <>
-                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            Processing...
-                          </>
-                        ) : activePlan?.id === plan.id ? (
-                          "Current Plan"
-                        ) : (
-                          "Upgrade Now"
-                        )}
-                      </Button>
+             <Button
+  className="w-full bg-[#bf2026] text-white"
+  disabled={activePlan?.id === plan.id}
+  onClick={() => {
+    localStorage.setItem("purchaseType", "subscription");
+    localStorage.setItem("purchaseId", plan.id);
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ id: plan.id, type: "subscription" }])
+    );
+
+    onNavigate("purchase");
+  }}
+>
+  {activePlan?.id === plan.id ? "Current Plan" : "Upgrade Now"}
+</Button>
                     </CardContent>
                   </Card>
                 ))}

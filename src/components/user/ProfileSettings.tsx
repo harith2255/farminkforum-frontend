@@ -15,7 +15,7 @@ import { Switch } from "../ui/switch";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import axios, { AxiosResponse } from "axios";
 import * as React from "react";
-import { Loader2, AlertCircle,CheckCircle, } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 
 const API = "https://ebook-backend-lxce.onrender.com/api/profile";
 
@@ -65,6 +65,7 @@ type SessionItem = {
 };
 
 export const ProfileSettings: React.FC = () => {
+  // 🔥 IMPROVED: Loading states per section (from friend's code)
   const [loading, setLoading] = useState({
     initial: true,
     profile: false,
@@ -91,7 +92,7 @@ export const ProfileSettings: React.FC = () => {
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Get valid token
+  // 🔥 IMPROVED: Get token function (from friend's code)
   const getValidToken = () => {
     try {
       const sessionRaw = localStorage.getItem("session");
@@ -104,9 +105,16 @@ export const ProfileSettings: React.FC = () => {
     return localStorage.getItem("token");
   };
 
-  const token = getValidToken();
+  const authHeaders = () => {
+    const token = getValidToken();
+    if (!token) return {};
+    return { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+  };
 
-  // Render loading spinner
+  // 🔥 ADDED: Loading spinner component (from friend's code)
   const renderSpinner = (text: string = "Loading...") => (
     <div className="flex justify-center items-center py-12">
       <div className="text-center">
@@ -116,12 +124,17 @@ export const ProfileSettings: React.FC = () => {
     </div>
   );
 
+  const formatTime = (iso?: string) => {
+    if (!iso) return "Unknown";
+    return new Date(iso).toLocaleString();
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(prev => ({ ...prev, initial: true, profile: true }));
       try {
         const res: AxiosResponse<any> = await axios.get(API, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: authHeaders(),
         });
 
         const serverProfile: Profile = res.data.profile || null;
@@ -151,7 +164,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, sessions: true }));
       const res: AxiosResponse<SessionItem[]> = await axios.get(`${API}/sessions`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       setSessions(res.data || []);
     } catch (err) {
@@ -165,7 +178,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, revokingSession: true }));
       await axios.delete(`${API}/sessions/${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       
       await loadSessions();
@@ -193,6 +206,12 @@ export const ProfileSettings: React.FC = () => {
       return;
     }
 
+    const token = getValidToken();
+    if (!token) {
+      setError("Session expired. Please login again.");
+      return;
+    }
+
     try {
       setLoading(prev => ({ ...prev, avatar: true }));
       const formData = new FormData();
@@ -206,11 +225,11 @@ export const ProfileSettings: React.FC = () => {
       });
 
       setProfile((prev) => ({ ...(prev || {}), avatar_url: res.data.avatar_url }));
-      setMessage("Avatar updated");
+      setMessage("Avatar updated successfully");
       setTimeout(() => setMessage(null), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Avatar upload failed", err);
-      setError("Failed to upload avatar");
+      setError((err as any)?.response?.data?.error || "Failed to upload avatar");
     } finally {
       setLoading(prev => ({ ...prev, avatar: false }));
     }
@@ -238,7 +257,7 @@ export const ProfileSettings: React.FC = () => {
       };
 
       const res = await axios.put(API, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
 
       setProfile(res.data.profile || profile);
@@ -271,10 +290,10 @@ export const ProfileSettings: React.FC = () => {
       await axios.put(
         `${API}/security/password`,
         { new_password: newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: authHeaders() } // ✅ FIXED: Using authHeaders() instead of hardcoded
       );
       
-      setMessage("Password updated");
+      setMessage("Password updated successfully");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
@@ -294,7 +313,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, notifications: true }));
       await axios.put(`${API}/notifications`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       
       setMessage("Notification settings saved");
@@ -312,7 +331,10 @@ export const ProfileSettings: React.FC = () => {
     const updated = { ...prevEmail, [key]: !prevEmail[key] };
     const newNotifications = { ...notifications, email_notifications: updated };
     setNotifications(newNotifications);
-    updateNotifSettings({ email_notifications: updated, push_notifications: notifications.push_notifications });
+    updateNotifSettings({
+      email_notifications: updated,
+      push_notifications: notifications.push_notifications,
+    });
   };
 
   const handlePushToggle = (key: keyof NonNullable<NotificationsShape["push_notifications"]>) => {
@@ -320,7 +342,10 @@ export const ProfileSettings: React.FC = () => {
     const updated = { ...prevPush, [key]: !prevPush[key] };
     const newNotifications = { ...notifications, push_notifications: updated };
     setNotifications(newNotifications);
-    updateNotifSettings({ email_notifications: notifications.email_notifications, push_notifications: updated });
+    updateNotifSettings({
+      email_notifications: notifications.email_notifications,
+      push_notifications: updated,
+    });
   };
 
   /* -------------------------
@@ -330,7 +355,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, preferences: true }));
       await axios.put(`${API}/preferences`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       
       setMessage("Preferences saved");
@@ -350,7 +375,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, twoFactor: true }));
       await axios.put(`${API}/security/2fa`, { enabled, method }, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       
       setSecurity((s) => ({ ...(s || {}), two_factor_enabled: enabled, method }));
@@ -389,7 +414,7 @@ export const ProfileSettings: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, profile: true }));
       const res = await axios.get(API, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       const serverProfile: Profile = res.data.profile || null;
       setProfile(serverProfile);
@@ -399,6 +424,10 @@ export const ProfileSettings: React.FC = () => {
       setLoading(prev => ({ ...prev, profile: false }));
     }
   }
+
+  const currentSessionId = typeof window !== "undefined"
+    ? localStorage.getItem("current_session_id")
+    : null;
 
   /* -------------------------
      RENDER
@@ -410,6 +439,7 @@ export const ProfileSettings: React.FC = () => {
         <p className="text-sm text-gray-500">Manage your account settings and preferences</p>
       </div>
 
+      {/* 🔥 IMPROVED: Message and error displays with icons (from friend's code) */}
       {message && (
         <div className="bg-green-50 text-green-700 p-3 rounded-lg flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
@@ -429,6 +459,7 @@ export const ProfileSettings: React.FC = () => {
       ) : (
         <Tabs defaultValue="personal" className="w-full">
           <TabsList className="bg-white border border-gray-200">
+            {/* 🔥 ADDED: Loading indicators on tabs (from friend's code) */}
             <TabsTrigger value="personal">
               Personal Info
               {loading.profile && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
@@ -479,6 +510,7 @@ export const ProfileSettings: React.FC = () => {
                       onClick={onUploadClick}
                       disabled={loading.avatar}
                     >
+                      {/* 🔥 ADDED: Loading state for avatar upload */}
                       {loading.avatar ? (
                         <>
                           <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -533,7 +565,7 @@ export const ProfileSettings: React.FC = () => {
                     <Label>Date of Birth</Label>
                     <Input
                       type="date"
-                      value={profile?.dob ?? "1998-05-15"}
+                      value={profile?.dob ?? ""}
                       onChange={(e) => updateProfileField("dob", e.target.value)}
                       disabled={loading.personalInfo}
                     />
@@ -543,7 +575,7 @@ export const ProfileSettings: React.FC = () => {
                 <div>
                   <Label>Institution</Label>
                   <Input
-                    value={profile?.institution ?? "Massachusetts Institute of Technology"}
+                    value={profile?.institution ?? ""}
                     onChange={(e) => updateProfileField("institution", e.target.value)}
                     disabled={loading.personalInfo}
                   />
@@ -553,7 +585,7 @@ export const ProfileSettings: React.FC = () => {
                   <div>
                     <Label>Field of Study</Label>
                     <Input
-                      value={profile?.field_of_study ?? "Computer Science"}
+                      value={profile?.field_of_study ?? ""}
                       onChange={(e) => updateProfileField("field_of_study", e.target.value)}
                       disabled={loading.personalInfo}
                     />
@@ -561,7 +593,7 @@ export const ProfileSettings: React.FC = () => {
                   <div>
                     <Label>Academic Level</Label>
                     <Input
-                      value={profile?.academic_level ?? "Graduate"}
+                      value={profile?.academic_level ?? ""}
                       onChange={(e) => updateProfileField("academic_level", e.target.value)}
                       disabled={loading.personalInfo}
                     />
@@ -572,7 +604,7 @@ export const ProfileSettings: React.FC = () => {
                   <Label>Bio</Label>
                   <textarea
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent min-h-[100px]"
-                    value={profile?.bio ?? "Graduate student studying machine learning and artificial intelligence."}
+                    value={profile?.bio ?? ""}
                     onChange={(e) => updateProfileField("bio", e.target.value)}
                     disabled={loading.personalInfo}
                   />
@@ -593,6 +625,7 @@ export const ProfileSettings: React.FC = () => {
                     onClick={updatePersonalInfo}
                     disabled={loading.personalInfo}
                   >
+                    {/* 🔥 ADDED: Loading state for save button */}
                     {loading.personalInfo ? (
                       <>
                         <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -647,6 +680,7 @@ export const ProfileSettings: React.FC = () => {
                   onClick={changePassword}
                   disabled={loading.password}
                 >
+                  {/* 🔥 ADDED: Loading state for password update */}
                   {loading.password ? (
                     <>
                       <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -696,6 +730,7 @@ export const ProfileSettings: React.FC = () => {
                 <CardDescription>Manage your active login sessions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* 🔥 ADDED: Loading state for sessions */}
                 {loading.sessions ? (
                   <div className="flex justify-center py-8">
                     <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#1d4d6a]"></div>
@@ -709,11 +744,15 @@ export const ProfileSettings: React.FC = () => {
                     <div key={s.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <h4 className="text-[#1d4d6a] mb-1">{s.device ?? "Unknown device"}</h4>
-                        <p className="text-sm text-gray-500">{s.location ?? "Unknown location"} • {s.last_active ?? "Unknown"}</p>
+                        <p className="text-sm text-gray-500">
+                          {s.location ?? "Unknown location"} • {formatTime(s.last_active)}
+                        </p>
                       </div>
                       <div>
-                        {s.active ? (
-                          <Button variant="outline" size="sm" disabled>Current</Button>
+                        {s.id === currentSessionId ? (
+                          <Button variant="outline" size="sm" disabled>
+                            Current
+                          </Button>
                         ) : (
                           <Button 
                             variant="outline" 
@@ -722,6 +761,7 @@ export const ProfileSettings: React.FC = () => {
                             onClick={() => revoke(s.id)}
                             disabled={loading.revokingSession}
                           >
+                            {/* 🔥 ADDED: Loading state for revoke button */}
                             {loading.revokingSession ? (
                               <>
                                 <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>

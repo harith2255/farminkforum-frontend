@@ -200,30 +200,34 @@ function CurrentAffairsAdmin() {
     }
   };
 
-  const handleDeleteFolder = (folderName) => {
-    const articlesInFolder = articles.filter(article => article.category === folderName);
-    
-    if (articlesInFolder.length > 0) {
-      if (!window.confirm(`This folder contains ${articlesInFolder.length} articles. Deleting it will remove all articles in this category. Are you sure?`)) {
-        return;
+ const handleDeleteFolder = async (folderName) => {
+  if (!window.confirm(
+    `This will permanently delete all articles in "${folderName}". Continue?`
+  )) return;
+
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${BASE_URL}/category/${encodeURIComponent(folderName)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-      
-      // Delete all articles in this category
-      const deletePromises = articlesInFolder.map(article => 
-        fetch(`${BASE_URL}/${article.id}`, { method: "DELETE" })
-      );
-      
-      Promise.all(deletePromises)
-        .then(() => {
-          alert(`Folder "${folderName}" and all its articles deleted successfully!`);
-          fetchArticles();
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Failed to delete folder and articles");
-        });
-    }
-  };
+    );
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    alert(`Category "${folderName}" deleted successfully`);
+    fetchArticles();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete category");
+  }
+};
+
 
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(search.toLowerCase())

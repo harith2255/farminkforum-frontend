@@ -104,7 +104,7 @@ useEffect(() => {
   const [bookForm, setBookForm] = useState({
     title: "",
     author: "",
-    category: "", // Changed from "Agriculture" to empty string
+    category: "",
     price: "",
     description: "",
     tags: "",
@@ -115,7 +115,7 @@ useEffect(() => {
   const [noteForm, setNoteForm] = useState({
     title: "",
     author: "",
-    category: "", // Changed from "Agriculture" to empty string
+    category: "",
     price: "",
     description: "",
     file: null as File | null,
@@ -123,7 +123,7 @@ useEffect(() => {
 
   const [testForm, setTestForm] = useState({
     title: "",
-    subject: "", // Changed from "Agriculture" to empty string
+    subject: "",
     difficulty: "Easy",
     total_questions: "",
     duration_minutes: "",
@@ -479,29 +479,31 @@ const uploadTest = async () => {
   // ---------- Helpers ----------
 const renderCover = (item: any) => {
   const url = item?.cover_url || item?.file_url;
+  const isTest =
+    item?.total_questions !== undefined &&
+    item?.duration_minutes !== undefined;
 
-  // If cover exists, show it
-  if (url && item?.type !== "test") {
+  if (url && !isTest) {
     return (
       <img
         src={url}
         alt={item.title}
-        className="w-full h-44 object-cover rounded-t-md"
+        className="w-full h-44 object-cover"
       />
     );
   }
 
   // Mock test placeholder
-  if (item?.type === "test") {
+  if (isTest) {
     return (
-      <div className="w-full h-44 bg-blue-50 flex items-center justify-center rounded-t-md">
+      <div className="w-full h-44 bg-blue-50 flex items-center justify-center">
         <span className="text-blue-600 font-semibold">Mock Test</span>
       </div>
     );
   }
 
     return (
-      <div className="w-full h-44 bg-gray-100 flex items-center justify-center rounded-t-md">
+      <div className="w-full h-44 bg-gray-100 flex items-center justify-center">
         <ImageIcon className="w-8 h-8 text-gray-400" />
       </div>
     );
@@ -568,7 +570,7 @@ const renderCover = (item: any) => {
                       </h3>
                       <p className="text-xs text-gray-500">{book.author}</p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {book.category}
+                        {book.categories?.name || "—"}
                       </p>
                     </div>
                     <div className="text-right">
@@ -629,7 +631,9 @@ const renderCover = (item: any) => {
                         {note.title}
                       </h3>
                       <p className="text-xs text-gray-500">{note.author}</p>
-                      <p className="text-xs text-gray-400 mt-1">{note.category}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {note.category|| "—"}
+                      </p>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium">
@@ -797,13 +801,13 @@ const renderCover = (item: any) => {
             </div>
 
             <div>
-              <Label>Category/Subject</Label>
+              <Label>Category</Label>
               <Input
                 value={bookForm.category}
                 onChange={(e) =>
                   setBookForm({ ...bookForm, category: e.target.value })
                 }
-                placeholder="e.g., Agriculture, Mathematics, Physics"
+                placeholder="Agriculture, Adult Education...."
               />
             </div>
 
@@ -915,13 +919,13 @@ const renderCover = (item: any) => {
             </div>
 
             <div>
-              <Label>Category/Subject</Label>
+              <Label>Category</Label>
               <Input
                 value={noteForm.category}
                 onChange={(e) =>
                   setNoteForm({ ...noteForm, category: e.target.value })
                 }
-                placeholder="e.g., Agriculture, Mathematics, Physics"
+                placeholder="e.g., Agriculture, Adult Education...."
               />
             </div>
 
@@ -1003,7 +1007,7 @@ const renderCover = (item: any) => {
                   onChange={(e) =>
                     setTestForm({ ...testForm, subject: e.target.value })
                   }
-                  placeholder="e.g., Agriculture, Physics, Chemistry"
+                  placeholder="e.g., Agriculture, Adult Education...."
                 />
               </div>
 
@@ -1344,13 +1348,13 @@ const renderCover = (item: any) => {
                   </div>
 
                   <div>
-                    <Label>Category/Subject</Label>
+                    <Label>Category</Label>
                     <Input
                       value={editItem.category || ""}
                       onChange={(e) =>
                         setEditItem({ ...editItem, category: e.target.value })
                       }
-                      placeholder="e.g., Agriculture, Mathematics, Physics"
+                      placeholder="e.g., Agriculture, Adult Education...."
                     />
                   </div>
 
@@ -1400,7 +1404,7 @@ const renderCover = (item: any) => {
                       onChange={(e) =>
                         setEditItem({ ...editItem, subject: e.target.value })
                       }
-                      placeholder="e.g., Agriculture, Physics, Chemistry"
+                      placeholder="e.g., Agriculture, Adult Education...."
                     />
                   </div>
 

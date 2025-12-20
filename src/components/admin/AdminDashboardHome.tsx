@@ -129,12 +129,15 @@ export default function AdminDashboardHome() {
       </div>
     );
   }
-  return (
+return (
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpiData.map((kpi, index) => (
-          <Card key={index} className="border-none shadow-md hover:shadow-lg transition-all">
+          <Card
+            key={index}
+            className="border-none shadow-md hover:shadow-lg transition-all"
+          >
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -142,8 +145,9 @@ export default function AdminDashboardHome() {
                   <h3 className="text-[#1d4d6a] mb-2">{kpi.value}</h3>
 
                   <div
-                    className={`flex items-center gap-1 text-xs ${kpi.change >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
+                    className={`flex items-center gap-1 text-xs ${
+                      kpi.change >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
                   >
                     {kpi.change >= 0 ? (
                       <ArrowUp className="w-3 h-3" />
@@ -152,7 +156,6 @@ export default function AdminDashboardHome() {
                     )}
                     <span>{Math.abs(kpi.change)}%</span>
                   </div>
-
                 </div>
 
                <div
@@ -160,16 +163,19 @@ export default function AdminDashboardHome() {
 >
   <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
 </div>
+
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Revenue Trend */}
+      {/* Revenue & Growth Chart */}
       <Card className="border-none shadow-md">
         <CardHeader>
-          <CardTitle className="text-[#1d4d6a]">Revenue & User Growth</CardTitle>
+          <CardTitle className="text-[#1d4d6a]">
+            Revenue & User Growth
+          </CardTitle>
           <CardDescription>6-month trend analysis</CardDescription>
         </CardHeader>
         <CardContent>
@@ -204,7 +210,7 @@ export default function AdminDashboardHome() {
         </CardContent>
       </Card>
 
-      {/* Recent Activity */}
+      {/* Recent Activity with Pagination */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Recent Activity</CardTitle>
@@ -212,37 +218,76 @@ export default function AdminDashboardHome() {
         </CardHeader>
 
         <CardContent>
-          <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                <div
-                  className={`w-2 h-2 rounded-full mt-2 ${activity.type === "subscription"
-                      ? "bg-green-500"
-                      : activity.type === "activity"
-                        ? "bg-blue-500"
-                        : activity.type === "content"
-                          ? "bg-purple-500"
-                          : activity.type === "service"
-                            ? "bg-orange-500"
-                            : "bg-gray-500"
-                    }`}
-                />
-                <div className="flex-1">
-                  <p className="text-sm text-[#1d4d6a]">
-                    <span>{activity.user_name}</span> {activity.action}
-                  </p>
+ <div className="space-y-4">
+  {loadingActivity ? (
+    <p className="text-sm text-gray-500">Loading activity...</p>
+  ) : recentActivity.length === 0 ? (
+    <p className="text-sm text-gray-400">No recent activity</p>
+  ) : (
+    recentActivity.map((activity) => (
+      <div
+        key={activity.id || activity.created_at} // ✅ stable key
+        className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0"
+      >
+        {/* indicator */}
+        <div
+          className={`w-2 h-2 rounded-full mt-2 ${
+            activity.type === "subscription"
+              ? "bg-green-500"
+              : activity.type === "activity"
+              ? "bg-blue-500"
+              : activity.type === "content"
+              ? "bg-purple-500"
+              : activity.type === "service"
+              ? "bg-orange-500"
+              : "bg-gray-500"
+          }`}
+        />
 
-                  <p className="text-xs text-gray-500">
-                    {new Date(activity.created_at).toLocaleString("en-IN", {
-                      timeZone: "Asia/Kolkata",
-                    })}
-                  </p>
+        {/* content */}
+        <div className="flex-1">
+          <p className="text-sm text-[#1d4d6a]">
+            <span className="font-medium">
+              {activity.user_name || "User"}
+            </span>{" "}
+            {activity.action}
+          </p>
 
-                </div>
+          <p className="text-xs text-gray-500">
+            {new Date(activity.created_at).toLocaleString("en-IN", {
+              timeZone: "Asia/Kolkata",
+            })}
+          </p>
+        </div>
+      </div>
+    ))
+  )}
+</div>
 
 
-              </div>
-            ))}
+          {/* Pagination Buttons */}
+          <div className="flex items-center justify-between pt-6">
+            <button
+            type="button"
+              disabled={activityPage === 1}
+              onClick={() => setActivityPage(activityPage - 1)}
+              className="px-4 py-2 bg-gray-200 rounded-md text-sm hover:bg-gray-300 disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            <p className="text-sm text-gray-600">
+              Page {activityInfo.page} of {activityInfo.totalPages}
+            </p>
+
+            <button
+             type="button"
+              disabled={activityPage === activityInfo.totalPages}
+              onClick={() => setActivityPage(activityPage + 1)}
+              className="px-4 py-2 bg-gray-200 rounded-md text-sm hover:bg-gray-300 disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         </CardContent>
       </Card>

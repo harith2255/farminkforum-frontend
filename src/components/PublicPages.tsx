@@ -86,55 +86,53 @@ useEffect(() => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async () => {
-    setError("");
-    setLoading(true);
+const handleLogin = async () => {
+  setError("");
+  setLoading(true);
 
-    try {
-      const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/login", {
-        email: formData.email,
-        password: formData.password,
-      });
+  try {
+    const res = await axios.post("https://ebook-backend-lxce.onrender.com/api/auth/login", {
+      email: formData.email,
+      password: formData.password,
+    });
 
-      const { user, access_token, token } = res.data;
-      localStorage.clear();
+    const { user, access_token, token, session_id } = res.data;
+    const finalToken = token || access_token;
 
-      const finalToken = token || access_token;
+    // ✅ DO NOT CLEAR STORAGE
+    localStorage.setItem("token", finalToken);
+        localStorage.setItem("current_session_id", session_id);
 
-      // STORE ONLY ONE KEY
-      localStorage.setItem("token", finalToken);
-      // Store user info (IMPORTANT for read-only mode)
-localStorage.setItem(
-  "user",
-  JSON.stringify({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    read_only: user.read_only === true, // ✅ THIS LINE
-  })
-);
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        read_only: user.read_only === true,
+      })
+    );
 
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("role", user.role);
 
-     localStorage.setItem("isLoggedIn", "true");
-localStorage.setItem("role", user.role);
+    window.dispatchEvent(new Event("authChanged"));
 
-// notify the whole app ONCE
-window.dispatchEvent(new Event("authChanged"));
+    onLogin?.(user.role === "super_admin" ? "admin" : "user");
 
-// single role resolution
-onLogin?.(user.role === "super_admin" ? "admin" : "user");
+  } catch (err: any) {
+    console.error(err);
 
-    } catch (err: any) {
-  console.error(err);
+    if (err.response?.data?.mode === "read_only") {
+      toast.error("Your account is suspended. Read-only access enabled.");
+      return;
+    }
 
-  if (err.response?.data?.mode === "read_only") {
-    toast.error("Your account is suspended. Read-only access enabled.");
-    return;
+    setError(err.response?.data?.error || "Invalid email or password");
+  } finally {
+    setLoading(false);
   }
-
-  setError(err.response?.data?.error || "Invalid email or password");
-}
-  }
+};
 
     // Handle Enter key press on inputs
   const handleKeyPress = (e: React.KeyboardEvent) => {

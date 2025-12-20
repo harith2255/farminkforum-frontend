@@ -6,7 +6,7 @@ import DashboardBooksGrid from "../DashboardBooksGrid";
 import * as React from "react";
 
 function Explore({ onOpenBook, onNavigate }) {
-  const [books, setBooks] = useState([]);
+  const [books, setBooks] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
 
@@ -15,34 +15,40 @@ function Explore({ onOpenBook, onNavigate }) {
     return token && token.length > 10;
   };
 
-  // ✅ Stable fetchBooks method
+  /* ---------------------------------------------------
+        FETCH BOOKS (STABLE)
+  --------------------------------------------------- */
   const fetchBooks = useCallback(async () => {
     try {
       setLoading(true);
 
       const token = localStorage.getItem("token");
 
-      /* ---------------------------------------------------
-            1️⃣ Fetch all books
-      --------------------------------------------------- */
+      /* ----------------------------
+         1️⃣ FETCH ALL BOOKS
+      ---------------------------- */
       const res = await axios.get(
         "https://ebook-backend-lxce.onrender.com/api/content?type=books"
       );
+
       let list = res.data?.contents || [];
 
-      /* ---------------------------------------------------
-            2️⃣ Fetch purchased + collection book IDs
-      --------------------------------------------------- */
-      let purchasedIds = [];
-      let collectionIds = [];
+      /* ----------------------------
+         2️⃣ FETCH PURCHASED IDS
+      ---------------------------- */
+      let purchasedIds: string[] = [];
+      let collectionIds: string[] = [];
 
       if (token) {
         try {
           const pres = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/purchase/purchased/book-ids",
+            "https://ebook-backend-lxce.onrender.com/api/purchases/purchased/book-ids",
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          purchasedIds = Array.isArray(pres.data) ? pres.data : pres.data?.bookIds || [];
+
+          purchasedIds = Array.isArray(pres.data)
+            ? pres.data
+            : pres.data?.bookIds || [];
         } catch (err) {
           console.log("⚠️ Could not fetch purchased IDs", err);
         }
@@ -56,62 +62,57 @@ function Explore({ onOpenBook, onNavigate }) {
           collectionIds = Array.isArray(cres.data)
             ? cres.data
             : cres.data?.bookIds || [];
-
         } catch (err) {
           console.log("⚠️ Could not fetch collection IDs", err);
         }
       }
 
-      /* ---------------------------------------------------
-            3️⃣ Merge flags into books
-      --------------------------------------------------- */
+      /* ----------------------------
+         3️⃣ MERGE FLAGS
+      ---------------------------- */
       const normPurchased = purchasedIds.map(String);
       const normCollection = collectionIds.map(String);
 
-      const merged = list.map((b) => ({
+      const merged = list.map((b: any) => ({
         ...b,
+
+        // normalize category
+        category: b.categories?.name || null,
+
         purchased: normPurchased.includes(String(b.id)),
         inCollection: normCollection.includes(String(b.id)),
       }));
 
       setBooks(merged);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Failed to load books", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   /* ---------------------------------------------------
-        LOAD BOOKS INITIALLY
+        INITIAL LOAD
   --------------------------------------------------- */
   useEffect(() => {
     fetchBooks();
   }, [fetchBooks]);
 
   /* ---------------------------------------------------
-        REFRESH AFTER PAYMENT SUCCESS
+        🔥 REFRESH AFTER PURCHASE / LIBRARY UPDATE
   --------------------------------------------------- */
   useEffect(() => {
     const refresh = () => fetchBooks();
-    window.addEventListener("refresh-library", refresh);
 
-    return () => window.removeEventListener("refresh-library", refresh);
-  }, [fetchBooks]);
-
-  useEffect(() => {
-    window.addEventListener("collections:changed", fetchBooks);
-    return () => window.removeEventListener("collections:changed", fetchBooks);
-  }, []);
-
-  /* ---------------------------------------------------
-        OPTIONAL GLOBAL REFRESH
-  --------------------------------------------------- */
-  useEffect(() => {
-    const refresh = () => fetchBooks();
+    window.addEventListener("library:updated", refresh);
     window.addEventListener("refresh-explore", refresh);
+    window.addEventListener("collections:changed", refresh);
 
-    return () => window.removeEventListener("refresh-explore", refresh);
+    return () => {
+      window.removeEventListener("library:updated", refresh);
+      window.removeEventListener("refresh-explore", refresh);
+      window.removeEventListener("collections:changed", refresh);
+    };
   }, [fetchBooks]);
 
   /* ---------------------------------------------------
@@ -119,7 +120,9 @@ function Explore({ onOpenBook, onNavigate }) {
   --------------------------------------------------- */
   const categories = [
     "All",
-    ...Array.from(new Set(books.map((b) => b.category).filter(Boolean))),
+    ...Array.from(
+      new Set(books.map((b) => b.category).filter(Boolean))
+    ),
   ];
 
   const filteredBooks =
@@ -127,9 +130,9 @@ function Explore({ onOpenBook, onNavigate }) {
       ? books
       : books.filter((b) => b.category === selectedCategory);
 
-  /* ---------------------------------------------------
+  /* ----------
         RENDER
-  --------------------------------------------------- */
+  ------------- */
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}

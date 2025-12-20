@@ -6,14 +6,6 @@ import { Folder, ArrowLeft, Clock, FileText, Download, Loader2 } from "lucide-re
    TOKEN HANDLING
 ------------------------------------------------------- */
 const getToken = () => {
-  try {
-    const raw = localStorage.getItem("supabase.auth.token");
-    if (raw) {
-      const session = JSON.parse(raw);
-      return session?.currentSession?.access_token || null;
-    }
-  } catch {}
-
   return localStorage.getItem("token") || null;
 };
 

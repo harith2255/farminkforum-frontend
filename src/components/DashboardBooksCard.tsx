@@ -24,6 +24,7 @@ export default function DashboardBookCard({
   const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
 
 const [inCollection, setInCollection] = useState(false);
+const [isPurchased, setIsPurchased] = useState(book.purchased);
 
 
 
@@ -161,30 +162,41 @@ const handleBuyNow = () => {
 const handleReadNow = () => {
   if (!isLoggedIn()) return onNavigate("login");
 
-  if (book.purchased) {
-    return onOpenBook(book, { preview: false });
-  }
-
-  return onOpenBook(book, {
-    preview: true,
-    previewPages: 2,
-  });
+  return onOpenBook(book, { preview: false });
 };
 
 const handleViewDetails = () => {
   if (!isLoggedIn()) return onNavigate("login");
 
-  // Purchased => open normally
-  if (book.purchased) {
-    return onOpenBook(book, { preview: false });
-  }
-
-  // Not purchased => open preview with X pages free
   return onOpenBook(book, {
-    preview: true,
-    previewPages: 2, // configure free pages
+    preview: !isPurchased,
+    previewPages: isPurchased ? undefined : 2,
   });
 };
+
+
+useEffect(() => {
+  const onPurchase = () => {
+    setIsPurchased(true);
+  };
+
+  window.addEventListener("library:updated", onPurchase);
+  return () => window.removeEventListener("library:updated", onPurchase);
+}, []);
+
+
+
+
+useEffect(() => {
+  const onPurchase = (e: any) => {
+    if (String(e?.detail?.bookId) === String(book.id)) {
+      setIsPurchased(true);
+    }
+  };
+
+  window.addEventListener("library:updated", onPurchase);
+  return () => window.removeEventListener("library:updated", onPurchase);
+}, [book.id]);
 
 
 
@@ -230,11 +242,12 @@ const handleViewDetails = () => {
 
         {/* CONTENT */}
         <CardContent className="p-4">
-          {book.category && (
-            <Badge className="bg-blue-100 text-blue-700 text-xs mb-2">
-              {book.category}
-            </Badge>
-          )}
+         {book.categories?.name && (
+  <Badge className="bg-blue-100 text-blue-700 text-xs mb-2">
+    {book.categories.name}
+  </Badge>
+)}
+
 
           <h3 className="text-[#1d4d6a] mb-1 text-lg font-semibold line-clamp-1">
             {book.title}
@@ -256,7 +269,7 @@ const handleViewDetails = () => {
 
           {/* ACTION BUTTONS */}
           <div className="flex items-center justify-between gap-2">
-            {book.purchased ? (
+            {isPurchased ? (
               <>
                 <Button
                   onClick={handleReadNow}

@@ -72,6 +72,7 @@ type UserSection =
   | "reader-note";
 
 export default function UserDashboard({
+  activeTab = "dashboard",  
   onNavigate,
   onOpenBook,
   onLogout,
@@ -96,7 +97,6 @@ export default function UserDashboard({
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [activeSub, setActiveSub] = useState<any | null>(null);
-
   const [sidebarOpen, setSidebarOpen] = useState(false); // MOBILE sidebar
 
   function UpgradeRequired({ onNavigate }) {
@@ -122,8 +122,6 @@ export default function UserDashboard({
   useEffect(() => {
     const handler = () => {
       setActiveSection("notes");
-
-      // Keep URL in sync
       window.history.pushState({}, "", "/user-dashboard/notes");
     };
 
@@ -151,8 +149,7 @@ export default function UserDashboard({
     return () => window.removeEventListener("collections:changed", handler);
   }, []);
 
-
-
+  // 🔥 Improved Dashboard Update Listener with error handling
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -173,14 +170,12 @@ export default function UserDashboard({
     return () => window.removeEventListener("dashboard:update", fetchDashboard);
   }, []);
 
-
   // ✅ FIX: Load Profile CLEANLY here
   useEffect(() => {
     async function loadProfile() {
       try {
         const session = JSON.parse(localStorage.getItem("session") || "{}");
-        const token =
-          session?.access_token || localStorage.getItem("token");
+        const token = session?.access_token || localStorage.getItem("token");
 
         const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
@@ -194,72 +189,79 @@ export default function UserDashboard({
     loadProfile();
   }, []);
 
-  // 🔥 Get section from URL on first load
+  // 🔥 IMPROVED: fetch dashboard with retry logic (from friend's code)
   useEffect(() => {
-    const path = window.location.pathname;
+    let cancelled = false;
 
-    if (path.startsWith("/user-dashboard/")) {
-      const sub = path.replace("/user-dashboard/", "").trim();
-      if (sub) {
-        setActiveSection(sub as UserSection);
-      }
-    }
-  }, []);
-
-
-
-  // Dashboard fetch
-  useEffect(() => {
+    const resolveToken = () => {
+      return (
+        localStorage.getItem("token") ||
+        JSON.parse(localStorage.getItem("session") || "{}")?.access_token ||
+        null
+      );
+    };
 
     const fetchDashboard = async () => {
-      try {
-        setLoading(true);
-        setError("");
+      const token = resolveToken();
 
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("You are not logged in.");
-          setLoading(false);
-          return;
+      if (!token) {
+        console.warn("⏳ Token not ready yet — retrying...");
+        setTimeout(fetchDashboard, 300); // retry instead of failing
+        return;
+      }
+
+      try {
+        if (!cancelled) {
+          setLoading(true);
+          setError("");
         }
 
-        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/dashboard", {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 8000,
-        });
+        const res = await axios.get(
+          "https://ebook-backend-lxce.onrender.com/api/dashboard",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 8000,
+          }
+        );
 
-        setDashboardData(res.data);
+        if (!cancelled) {
+          setDashboardData(res.data);
+        }
       } catch (err: any) {
         console.error("Dashboard fetch error:", err);
 
-        if (err.code === "ECONNABORTED") {
-          setError("Server timeout.");
-        } else if (err.response) {
-          setError("Server error " + err.response.status);
-        } else {
-          setError("Failed to load dashboard.");
+        if (!cancelled) {
+          if (err.code === "ECONNABORTED") {
+            setError("Server timeout.");
+          } else if (err.response) {
+            setError("Server error " + err.response.status);
+          } else {
+            setError("Failed to load dashboard.");
+          }
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchDashboard();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // 🔥 Listen for subscription changes globally
+  // 🔥 IMPROVED: Listen for subscription changes globally (from friend's code)
   useEffect(() => {
     const handler = async () => {
-      await fetchSubscription();             // refresh active plan
-      window.dispatchEvent(new Event("dashboard:update"));  // refresh dashboard stats
+      await fetchSubscription(); // refresh active plan
+      window.dispatchEvent(new Event("dashboard:update")); // refresh dashboard stats
     };
 
     window.addEventListener("subscription:updated", handler);
 
     return () => window.removeEventListener("subscription:updated", handler);
   }, []);
-
-
 
   // Load cart
   useEffect(() => {
@@ -327,7 +329,7 @@ export default function UserDashboard({
       ? [{ id: "exams", icon: Trophy, label: "Exams" }]
       : []),
 
-    { id: "pyqs", icon: Clock, label: "PYQs" }, // lowercase "pyqs"
+    { id: "pyqs", icon: Clock, label: "PYQs" },
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
     { id: "writing", icon: Grid, label: "Services" },
@@ -370,6 +372,7 @@ export default function UserDashboard({
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", sidebarCollapsed.toString());
   }, [sidebarCollapsed]);
+
   useEffect(() => {
     const handler = () => {
       const last = localStorage.getItem("lastSection") as UserSection;
@@ -379,7 +382,7 @@ export default function UserDashboard({
     return () => window.removeEventListener("restore-user-section", handler);
   }, []);
 
-  // 🚀 MASTER URL ⟶ SECTION SYNC (replace all old ones)
+  // 🚀 IMPROVED: MASTER URL ⟶ SECTION SYNC (from friend's code)
   useEffect(() => {
     const syncFromURL = () => {
       let path = window.location.pathname;
@@ -453,23 +456,30 @@ export default function UserDashboard({
     onLogout();
   };
 
-  // 1. Define function OUTSIDE useEffect
-  // outside useEffect
+  // 🔥 IMPROVED: fetchSubscription with better error handling (from friend's code)
   async function fetchSubscription() {
     try {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        console.warn("⏳ Subscription check skipped — no token");
+        return;
+      }
 
-      const { data } = await axios.get(
+      const res = await axios.get(
         "https://ebook-backend-lxce.onrender.com/api/subscriptions/active",
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          validateStatus: (s) => s < 500, // 🔒 ignore 401 / 403
+        }
       );
 
-      setActiveSub(data || null);
-
+      // only update if request succeeded
+      if (res.status === 200) {
+        setActiveSub(res.data || null);
+      }
     } catch (err) {
-      console.error("Failed to load subscription:", err);
-      setActiveSub(null);
+      // ⛔ DO NOT TOUCH activeSub
+      console.warn("⚠️ Subscription check failed (ignored)", err);
     }
   }
 
@@ -491,6 +501,14 @@ export default function UserDashboard({
     return () => window.removeEventListener("subscription:updated", handler);
   }, []);
 
+  // 🔥 ADDED: Sync route tab → dashboard section (from friend's code)
+  useEffect(() => {
+    if (activeTab) {
+      setActiveSection(activeTab as UserSection);
+    }
+  }, [activeTab]);
+
+  // Close dropdowns and mobile sidebar on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -499,16 +517,18 @@ export default function UserDashboard({
       if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
         setAvatarOpen(false);
       }
+      if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
+        setCartOpen(false);
+      }
       // Close mobile sidebar if clicked outside
-      // We check if the click target is outside the sidebar AND we are on a mobile screen
-      const isMobile = window.innerWidth < 1024; // Tailwind's 'lg' breakpoint is 1024px
-      if (isMobile && (event.target as HTMLElement).closest('#sidebar') === null) {
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile && sidebarOpen && (event.target as HTMLElement).closest('#sidebar') === null) {
         setSidebarOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [sidebarOpen]);
 
   // *** NEW Function to handle button click across all screens ***
   const handleMenuToggle = () => {
@@ -523,320 +543,329 @@ export default function UserDashboard({
   };
   // ***************************************************************
 
-
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
-  {/* Overlay for mobile */}
-  <div
-    className={`fixed inset-0 bg-black/40 z-40 transition-opacity 
-      ${sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} 
-      lg:hidden`}
-    onClick={() => setSidebarOpen(false)} // Added close on click for better UX
-  />
+      {/* Overlay for mobile */}
+      <div
+        className={`fixed inset-0 bg-black/40 z-40 transition-opacity 
+          ${sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} 
+          lg:hidden`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-  {/* Sidebar */}
-  <aside
-    id="sidebar"
-    className={`fixed z-50 top-0 left-0 h-full bg-white border-r border-gray-200 
-      flex flex-col transition-all duration-300
-      ${sidebarCollapsed ? "w-20" : "w-64"}
-      ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-      lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
-  >
-    <div className="p-6 border-b border-gray-200 flex items-center justify-center">
-      <div className="flex flex-col items-center leading-tight text-center">
-        <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
-        <p className="text-xs text-gray-500">Student Portal</p>
-      </div>
-    </div>
-
-    {/* Scrollable navigation */}
-    <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-      <nav className="p-4">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-              setActiveSection(item.id as UserSection);
-              setDropdownOpen(false);
-              setAvatarOpen(false);
-              // Close sidebar on mobile after selection
-              setSidebarOpen(false); 
-
-              // URL update without navigation
-              window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
-              activeSection === item.id
-                ? "bg-[#bf2026] text-white shadow-md"
-                : "text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            <item.icon className="w-5 h-5" />
-            {!sidebarCollapsed && (
-              <span className="text-sm">{item.label}</span>
-            )}
-          </button>
-        ))}
-      </nav>
-    </div>
-
-    <div className="p-4 border-t border-gray-200 bg-white">
-      <button
-        onClick={handleLogoutClick}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
+      {/* Sidebar */}
+      <aside
+        id="sidebar"
+        className={`fixed z-50 top-0 left-0 h-full bg-white border-r border-gray-200 
+          flex flex-col transition-all duration-300
+          ${sidebarCollapsed ? "w-20" : "w-64"}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
       >
-        <LogOut className="w-5 h-5" />
-        {!sidebarCollapsed && <span className="text-sm">Logout</span>}
-      </button>
-    </div>
-  </aside>
+        <div className="p-6 border-b border-gray-200 flex items-center justify-center">
+          <div className="flex flex-col items-center leading-tight text-center">
+            <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
+            <p className="text-xs text-gray-500">Student Portal</p>
+          </div>
+        </div>
 
-  {/* Main Content */}
-  <div
-    className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
-  >
-    {/* Header */}
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        {/* Scrollable navigation */}
+        <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+          <nav className="p-4">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveSection(item.id as UserSection);
+                  setDropdownOpen(false);
+                  setAvatarOpen(false);
+                  // Close sidebar on mobile after selection
+                  setSidebarOpen(false);
+
+                  // URL update without navigation
+                  window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
+                  activeSection === item.id
+                    ? "bg-[#bf2026] text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                {!sidebarCollapsed && (
+                  <span className="text-sm">{item.label}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="p-4 border-t border-gray-200 bg-white">
+          <button
+            onClick={handleLogoutClick}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div
+        className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
+      >
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
               {/* This is the single button for all screens */}
               <Button onClick={handleMenuToggle} variant="ghost" size="sm" className="inline-flex">
                 <Menu className="w-5 h-5" />
               </Button>
 
-          <div>
-            <h1 className="text-[#1d4d6a] mb-1 text-base sm:text-lg">
-              Welcome back, {dashboardData?.user?.full_name || "Student"}!
-            </h1>
-            <p className="text-sm text-gray-500 hidden sm:block">
-              Continue your learning journey
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-4">
-          {/* Notifications */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              className="relative p-2 hover:bg-gray-100 rounded-lg"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-            >
-              <Bell className="w-5 h-5 text-gray-600" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
-              )}
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                <div className="p-3 border-b font-semibold text-gray-700">
-                  Notifications
-                </div>
-
-                <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-                  {notifications.length === 0 && (
-                    <p className="px-3 py-2 text-sm text-gray-400 text-center">
-                      No notifications
-                    </p>
-                  )}
-
-                  {notifications.map((n) => (
-                    <li
-                      key={n.id}
-                      className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                      onClick={async () => {
-                        try {
-                          const token = localStorage.getItem("token");
-                          await axios.patch(
-                            `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
-                            {},
-                            {
-                              headers: { Authorization: `Bearer ${token}` },
-                            }
-                          );
-
-                          setNotifications((prev) =>
-                            prev.map((item) =>
-                              item.id === n.id
-                                ? { ...item, is_read: true }
-                                : item
-                            )
-                          );
-
-                          setUnreadCount((prev) => Math.max(prev - 1, 0));
-
-                          setActiveSection("notifications");
-                          setDropdownOpen(false);
-                        } catch (err) {
-                          console.error("Failed to mark read:", err);
-                        }
-                      }}
-                    >
-                      <p
-                        className={`text-gray-700 ${
-                          n.is_read ? "opacity-70" : "font-medium"
-                        }`}
-                      >
-                        {n.message}
-                      </p>
-                      <p className="text-xs text-gray-400">{n.time}</p>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="text-center py-2 border-t">
-                  <button
-                    onClick={() => {
-                      setActiveSection("notifications");
-                      setDropdownOpen(false);
-                    }}
-                    className="text-[#bf2026] text-sm font-medium hover:underline"
-                  >
-                    View all
-                  </button>
-                </div>
+              <div>
+                <h1 className="text-[#1d4d6a] mb-1 text-base sm:text-lg">
+                  Welcome back, {dashboardData?.user?.full_name || "Student"}!
+                </h1>
+                <p className="text-sm text-gray-500 hidden sm:block">
+                  Continue your learning journey
+                </p>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Cart Dropdown */}
-          <div className="relative" ref={cartRef}>
-            <button
-              className="relative p-2 hover:bg-gray-100 rounded-lg"
-              onClick={() => setCartOpen(!cartOpen)}
-            >
-              <ShoppingCart className="w-5 h-5 text-gray-600" />
-              {cartItems.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
-              )}
-            </button>
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Search (if you want to add it back) */}
+              {/* <div className="relative hidden sm:block">
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-64"
+                />
+              </div> */}
 
-            {cartOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
-                  <span>Cart</span>
-                  <span className="text-xs text-gray-500">
-                    {cartItems.length} items
-                  </span>
-                </div>
+              {/* Notifications */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  className="relative p-2 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                >
+                  <Bell className="w-5 h-5 text-gray-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                  )}
+                </button>
 
-                {cartItems.length > 0 ? (
-                  <>
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                    <div className="p-3 border-b font-semibold text-gray-700">
+                      Notifications
+                    </div>
+
                     <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-                      {cartItems.map((item) => {
-                        const product = item.book || item.note;
+                      {notifications.length === 0 && (
+                        <p className="px-3 py-2 text-sm text-gray-400 text-center">
+                          No notifications
+                        </p>
+                      )}
 
-                        return (
-                          <li
-                            key={item.id}
-                            className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
-                          >
-                            <img
-                              src={
-                                product?.file_url?.match(
-                                  /\.(png|jpg|jpeg)$/i
+                      {notifications.map((n) => (
+                        <li
+                          key={n.id}
+                          className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem("token");
+                              await axios.patch(
+                                `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
+                                {},
+                                {
+                                  headers: { Authorization: `Bearer ${token}` },
+                                }
+                              );
+
+                              setNotifications((prev) =>
+                                prev.map((item) =>
+                                  item.id === n.id
+                                    ? { ...item, is_read: true }
+                                    : item
                                 )
-                                  ? product.file_url
-                                  : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
-                              }
-                              className="w-10 h-10 rounded object-cover"
-                            />
+                              );
 
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-700">
-                                {product?.title}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                ₹{product?.price}
-                              </p>
-                            </div>
-                          </li>
-                        );
-                      })}
+                              setUnreadCount((prev) => Math.max(prev - 1, 0));
+
+                              setActiveSection("notifications");
+                              setDropdownOpen(false);
+                            } catch (err) {
+                              console.error("Failed to mark read:", err);
+                            }
+                          }}
+                        >
+                          <p
+                            className={`text-gray-700 ${
+                              n.is_read ? "opacity-70" : "font-medium"
+                            }`}
+                          >
+                            {n.message}
+                          </p>
+                          <p className="text-xs text-gray-400">{n.time}</p>
+                        </li>
+                      ))}
                     </ul>
 
                     <div className="text-center py-2 border-t">
                       <button
                         onClick={() => {
-                          setActiveSection("cartpage");
-                          setCartOpen(false);
+                          setActiveSection("notifications");
+                          setDropdownOpen(false);
                         }}
                         className="text-[#bf2026] text-sm font-medium hover:underline"
                       >
-                        View Cart
+                        View all
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center text-gray-500 py-6 text-sm">
-                    Your cart is empty 🛍️
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Avatar Dropdown (FINAL & FIXED — only one rendered) */}
-          <div className="relative" ref={avatarRef}>
-            <button
-              className="p-1 rounded-full hover:bg-gray-100"
-              aria-label="User Menu"
-              onClick={() => setAvatarOpen(!avatarOpen)}
-            >
-              <Avatar className="w-8 h-8">
-                {user?.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <AvatarFallback>
-                    {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-            </button>
+              {/* Cart Dropdown */}
+              <div className="relative" ref={cartRef}>
+                <button
+                  className="relative p-2 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setCartOpen(!cartOpen)}
+                >
+                  <ShoppingCart className="w-5 h-5 text-gray-600" />
+                  {cartItems.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                  )}
+                </button>
 
-            {avatarOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                <div className="p-4 border-b border-gray-200 flex items-center gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      {user?.full_name ||
-                        `${user?.first_name || ""} ${user?.last_name || ""}` ||
-                        "Guest User"}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {user?.email || "no-email@example.com"}
-                    </p>
+                {cartOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                    <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
+                      <span>Cart</span>
+                      <span className="text-xs text-gray-500">
+                        {cartItems.length} items
+                      </span>
+                    </div>
+
+                    {cartItems.length > 0 ? (
+                      <>
+                        <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                          {cartItems.map((item) => {
+                            const product = item.book || item.note;
+
+                            return (
+                              <li
+                                key={item.id}
+                                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
+                              >
+                                <img
+                                  src={
+                                    product?.file_url?.match(
+                                      /\.(png|jpg|jpeg)$/i
+                                    )
+                                      ? product.file_url
+                                      : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                                  }
+                                  className="w-10 h-10 rounded object-cover"
+                                />
+
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-700">
+                                    {product?.title}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    ₹{product?.price}
+                                  </p>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+
+                        <div className="text-center py-2 border-t">
+                          <button
+                            onClick={() => {
+                              setActiveSection("cartpage");
+                              setCartOpen(false);
+                            }}
+                            className="text-[#bf2026] text-sm font-medium hover:underline"
+                          >
+                            View Cart
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-500 py-6 text-sm">
+                        Your cart is empty 🛍️
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <ul className="py-2">
-                  <li>
-                    <button
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                      onClick={() => setActiveSection("profile")}
-                    >
-                      <Settings className="w-4 h-4" /> Settings
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                      onClick={handleLogoutClick}
-                    >
-                      <LogOut className="w-4 h-4" /> Logout
-                    </button>
-                  </li>
-                </ul>
+                )}
               </div>
-            )}
+
+              {/* Avatar Dropdown */}
+              <div className="relative" ref={avatarRef}>
+                <button
+                  className="p-1 rounded-full hover:bg-gray-100"
+                  aria-label="User Menu"
+                  onClick={() => setAvatarOpen(!avatarOpen)}
+                >
+                  <Avatar className="w-8 h-8">
+                    {user?.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                </button>
+
+                {avatarOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                    <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          {user?.full_name ||
+                            `${user?.first_name || ""} ${user?.last_name || ""}` ||
+                            "Guest User"}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {user?.email || "no-email@example.com"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <ul className="py-2">
+                      <li>
+                        <button
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                          onClick={() => setActiveSection("profile")}
+                        >
+                          <Settings className="w-4 h-4" /> Settings
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                          onClick={handleLogoutClick}
+                        >
+                          <LogOut className="w-4 h-4" /> Logout
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </header>
+        </header>
 
         {/* Main Content with Scroll */}
         <main className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-80px)] scscroll-smooth [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
@@ -919,7 +948,6 @@ export default function UserDashboard({
               />
             )}
 
-
           </Suspense>
         </main>
       </div>
@@ -927,10 +955,7 @@ export default function UserDashboard({
   );
 }
 
-// src/components/DashboardHome.tsx
-
-const API_URL = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
-
+// DashboardHome component with improved stats display
 export function DashboardHome({
   onOpenBook,
   dashboardData,
@@ -973,8 +998,8 @@ export function DashboardHome({
             <p className="text-sm text-gray-500 mb-1">Books Read</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
-              {/* <TrendingUp className="w-3 h-3" /> */}
-              {/* <span>+{stats.booksThisMonth ?? 0} this month</span> */}
+              <TrendingUp className="w-3 h-3" />
+              <span>+{stats.booksThisMonth ?? 0} this month</span>
             </div>
           </div>
           <BookOpen className="w-6 h-6 text-[#bf2026]" />
@@ -988,10 +1013,10 @@ export function DashboardHome({
             <p className="text-sm text-gray-500 mb-1">Tests Completed</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.testsCompleted ?? 0}</h3>
             <div className="flex items-center gap-1 text-xs text-green-600">
-              {/* <Trophy className="w-3 h-3" />
+              <Trophy className="w-3 h-3" />
               <span>
                 {stats.avgScore ? `${stats.avgScore}% avg` : "No tests yet"}
-              </span> */}
+              </span>
             </div>
           </div>
           <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
@@ -1004,15 +1029,12 @@ export function DashboardHome({
           <div>
             <p className="text-sm text-gray-500 mb-1">Study Hours</p>
             <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
-
-            {/* <div className="flex items-center gap-1 text-xs text-green-600">
+            <div className="flex items-center gap-1 text-xs text-green-600">
               <Clock className="w-3 h-3" />
-
               <span>+{stats.weeklyHours ?? 0}h this week</span>
-            </div> */}
+            </div>
           </div>
-
-          {/* <TrendingUp className="w-6 h-6 text-[#bf2026]" /> */}
+          <TrendingUp className="w-6 h-6 text-[#bf2026]" />
         </CardContent>
       </Card>
 

@@ -1,3 +1,20 @@
+// 🔥 DEBUG: trace who clears auth
+const originalClear = localStorage.clear;
+localStorage.clear = function () {
+  console.error("❌ localStorage.clear() CALLED");
+  console.trace(); // ← THIS IS THE KEY
+  originalClear.apply(this, arguments as any);
+};
+
+const originalRemoveItem = localStorage.removeItem;
+localStorage.removeItem = function (key) {
+  if (key === "token") {
+    console.error("❌ token REMOVED");
+    console.trace(); // ← EXACT FILE + LINE
+  }
+  originalRemoveItem.apply(this, arguments as any);
+};
+
 import { useEffect, useState } from "react";
 import { Home } from "./components/Home";
 
@@ -38,51 +55,23 @@ const ReadNotePage = lazy(() =>
    AXIOS INTERCEPTOR – AUTO LOGOUT ON BAN + EXPIRED TOKEN
 ============================================================ */
 
-axios.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const status = err?.response?.status;
-    const msg = err?.response?.data?.error?.toLowerCase() || "";
-    const path = window.location.pathname;
+// axios.interceptors.response.use(
+//   (res) => res,
+//   (err) => {
+//     const status = err?.response?.status;
+//     const url = err?.config?.url || "";
 
-    const isDashboard =
-      path.startsWith("/user-dashboard") ||
-      path.startsWith("/admin-dashboard");
+//     // 🔒 NEVER logout automatically
+//     if (status === 401 || status === 403) {
+//       console.warn("⏭ Auth error ignored:", url);
+//       return Promise.reject(err);
+//     }
 
-    /* ========================================================
-       1. SUSPENDED / BANNED USER
-       - Backend should return 403 with message "suspended" or "ban"
-    ========================================================= */
-    if (
-      status === 403 &&
-      (msg.includes("suspend") || msg.includes("ban"))
-    ) {
-      console.warn("⚠ Suspended/Banned — force logout");
+//     return Promise.reject(err);
+//   }
+// );
 
-      // Clear session
-      localStorage.clear();
 
-      // Redirect without back button
-      window.location.replace("/login?reason=suspended");
-      return Promise.reject(err);
-    }
-
-    /* ========================================================
-       2. TOKEN EXPIRED / REVOKED
-       - Supabase often returns 401 on revoked tokens
-    ========================================================= */
-    if (status === 401 && isDashboard) {
-      console.warn("⚠ Token expired / invalid — force logout");
-
-      localStorage.clear();
-
-      window.location.replace("/login?reason=expired");
-      return Promise.reject(err);
-    }
-
-    return Promise.reject(err);
-  }
-);
 
 
 
@@ -102,58 +91,83 @@ type Page =
   | "reader-note";
   
 
+
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page | null>(null);
+const [currentPage, setCurrentPage] = useState<Page>("home");
+
   const [pageParam, setPageParam] = useState<any>(null);
   const [previousPage, setPreviousPage] = useState<Page>("home");
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 /* ============================================================
    GLOBAL BOOK READING PROGRESS LISTENER
 ============================================================ */
 useEffect(() => {
-  async function handleReaderProgress(e: any) {
+  let isMounted = true;
+  let lastSentPage = 0;
+  let debounceTimer: any = null;
+
+  const handleReaderProgress = async (e: any) => {
+    if (!isMounted) return;
+
     const { bookId, page, totalPages } = e.detail || {};
 
-    if (!bookId || !page || !totalPages) {
-      console.warn("⚠️ Invalid progress event payload", e.detail);
+    // ---------- VALIDATION ----------
+    if (!bookId || !page || !totalPages || totalPages <= 0) {
+      console.warn("⚠️ Invalid progress payload", e.detail);
       return;
     }
 
+    // ---------- TOKEN GUARD ----------
     const token = localStorage.getItem("token");
-    if (!token) {
-      console.warn("⚠️ No token — skipping progress update");
-      return;
-    }
+    if (!token) return;
 
-    const percent = Math.min(100, Math.round((page / totalPages) * 100));
+    // ---------- PREVENT SPAM ----------
+    if (page === lastSentPage) return;
+    lastSentPage = page;
 
-    console.log("📩 RECEIVED PROGRESS EVENT", {
-      bookId,
-      page,
-      percent,
-      totalPages,
-    });
+    const percent = Math.min(
+      100,
+      Math.round((page / totalPages) * 100)
+    );
 
-    try {
-      const res = await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/library/progress/${bookId}`,
-        { progress: percent, last_page: page },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    // ---------- DEBOUNCE ----------
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      try {
+        await axios.put(
+          `https://ebook-backend-lxce.onrender.com/api/library/progress/${bookId}`,
+          { progress: percent, last_page: page },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            // 🚨 prevent interceptor logout
+            validateStatus: (status) => status < 500,
+          }
+        );
+      } catch (err: any) {
+        // ❌ NEVER logout for progress errors
+        if (err?.response?.status === 401) {
+          console.warn("⏭ Progress skipped (unauthenticated)");
+          return;
+        }
 
-      console.log("✅ Progress updated:", res.data);
-    } catch (err: any) {
-      console.error("❌ Progress update failed:", err.response?.data || err);
-    }
-  }
+        console.error("❌ Progress update failed:", err);
+      }
+    }, 800); // send only after pause
+  };
 
   window.addEventListener("reader:progress", handleReaderProgress);
 
   return () => {
+    isMounted = false;
+    clearTimeout(debounceTimer);
     window.removeEventListener("reader:progress", handleReaderProgress);
   };
 }, []);
+
 
   /* ============================================================
      1) RESTORE TOKEN — FIXED (runs only once)
@@ -219,9 +233,16 @@ const handleOpenBook = (book: any) => {
     return { page: "purchase", param: id };
   }
 
-  if (path.startsWith("/user-dashboard")) {
-    return { page: "user-dashboard", param: null };
-  }
+  if (path === "/user-dashboard") {
+  window.history.replaceState({}, "", "/user-dashboard/dashboard");
+  return { page: "user-dashboard", param: "dashboard" };
+}
+
+if (path.startsWith("/user-dashboard/")) {
+  const section = path.split("/")[2] || "dashboard";
+  return { page: "user-dashboard", param: section };
+}
+
   if (path.startsWith("/test/")) {
   const id = path.split("/").pop();
   return { page: "test", param: id };
@@ -270,16 +291,16 @@ const handleOpenBook = (book: any) => {
   /* ============================================================
      5) AUTO LOGIN RESTORE
   ============================================================ */
-  useEffect(() => {
-    const logged = localStorage.getItem("isLoggedIn");
-    const role = localStorage.getItem("role");
 
-    if (logged && role) {
-      setUserRole(role as any);
-    }
 
-    setLoading(false);
-  }, []);
+useEffect(() => {
+  const role = localStorage.getItem("role");
+  if (role) setUserRole(role as any);
+
+  setAuthReady(true);
+  setLoading(false); // ✅ REQUIRED
+}, []);
+
 
   /* ============================================================
      6) SCROLL RESTORE
@@ -304,71 +325,72 @@ const handleOpenBook = (book: any) => {
   /* ============================================================
      8) NAVIGATE
   ============================================================ */
-  const handleNavigate = (page: string, param?: string) => {
-    setPreviousPage(currentPage!);
+const handleNavigate = (page: Page, param?: any) => {
+  setPreviousPage(currentPage);
+  setPageParam(param ?? null);
+  setCurrentPage(page);
 
-    if (page === "reader-note") {
-      setCurrentPage("reader-note");
-      setPageParam(Number(param));
+  switch (page) {
+    case "user-dashboard":
+      window.history.pushState({}, "", "/user-dashboard");
+      break;
+
+    case "admin-dashboard":
+      window.history.pushState({}, "", "/admin-dashboard");
+      break;
+
+    case "purchase":
+      window.history.pushState({}, "", `/purchase/${param ?? ""}`);
+      break;
+
+    case "reader":
+      if (param?.id) {
+        window.history.pushState({}, "", `/reader/${param.id}`);
+      }
+      break;
+
+    case "reader-note":
       window.history.pushState({}, "", `/notes/read/${param}`);
-      return;
-    }
-if (page === "reader") {
-  const meta =
-    typeof param === "object"
-      ? param
-      : { id: param, last_page: 1 };
+      break;
 
-  // Save full metadata in localStorage
-  localStorage.setItem("open_book_meta", JSON.stringify(meta));
+    case "test":
+      window.history.pushState({}, "", `/test/${param}`);
+      break;
 
-  setCurrentPage("reader");
-  setPageParam(meta);
+    default:
+      window.history.pushState({}, "", `/${page}`);
+  }
+};
 
-  window.history.pushState({}, "", `/reader/${meta.id}`);
-  return;
-}
-
-
-    if (page === "purchase") {
-      const id = param || "";
-      setCurrentPage("purchase");
-      setPageParam(id);
-      window.history.pushState({}, "", `/purchase/${id}`);
-      return;
-    }
-
-    setCurrentPage(page as Page);
-    window.history.pushState({}, "", `/${page}`);
-  };
 
   /* ============================================================
      9) LOGOUT
   ============================================================ */
-  const handleLogout = () => {
-    // Remove all tokens ALWAYS
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("isLoggedIn");
+const handleLogout = () => {
+  console.trace("🔥 LOGOUT CALLED");
+  debugger;
 
-    // Notify app
-    window.dispatchEvent(new Event("authChanged"));
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("isLoggedIn");
 
-    setUserRole(null);
-    setCurrentPage("home");
-    window.history.pushState({}, "", "/");
-  };
+  window.dispatchEvent(new Event("authChanged"));
+
+  setUserRole(null);
+setCurrentPage("home");
+window.history.pushState({}, "", "/");
+
+
+};
+
 
   /* ============================================================
      LOADING SCREEN
   ============================================================ */
-  if (loading || currentPage === null) {
-    return (
-      <div className="min-h-screen flex justify-center items-center">
-        <div>Loading...</div>
-      </div>
-    );
-  }
+if (!authReady) {
+  return <div className="min-h-screen bg-[#f5f6f8]" />;
+}
+
 
   /* ============================================================
      RENDER PAGES
@@ -379,35 +401,30 @@ if (page === "reader") {
       {currentPage === "home" && <Home onNavigate={handleNavigate} />}
 
       {/* USER DASHBOARD */}
-     {currentPage === "user-dashboard" && (
-  userRole === "user" && localStorage.getItem("token") ? (
-    <Suspense fallback={<div className="p-6">Loading dashboard…</div>}>
-      <UserDashboard
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-        onOpenBook={handleOpenBook}
-      />
-    </Suspense>
-  ) : (
-    (() => {
-      // force logout + redirect
-      handleLogout();
-      window.location.replace("/login?reason=expired");
-      return null;
-    })()
-  )
+   {currentPage === "user-dashboard" && (
+  <Suspense fallback={<div className="p-6">Loading dashboard…</div>}>
+    <UserDashboard
+  activeTab={pageParam || "dashboard"}
+  onNavigate={handleNavigate}
+  onLogout={handleLogout}
+  onOpenBook={handleOpenBook}
+/>
+
+  </Suspense>
 )}
+
+
 
 
       {/* ADMIN DASHBOARD */}
-      {currentPage === "admin-dashboard" && (
-  <Suspense fallback={<div className="p-6">Loading admin panel…</div>}>
-    <AdminDashboard
-      onNavigate={handleNavigate}
-      onLogout={handleLogout}
-    />
-  </Suspense>
+    {currentPage === "admin-dashboard" && (
+  <AdminDashboard
+    onNavigate={handleNavigate}
+    onLogout={handleLogout}
+  />
 )}
+
+
 
 
       {/* READER */}
@@ -454,15 +471,22 @@ if (page === "reader") {
       )}
 
       {/* PUBLIC PAGES */}
-      {["explore", "pricing", "about", "contact", "login", "register"].includes(
-        currentPage
-      ) && (
-        <PublicPages
-          page={currentPage as any}
-          onNavigate={handleNavigate}
-          onLogin={handleLogin}
-        />
-      )}
+     {["explore", "pricing", "about", "contact"].includes(currentPage) && (
+  <PublicPages
+    page={currentPage as any}
+    onNavigate={handleNavigate}
+    onLogin={handleLogin}
+  />
+)}
+
+{["login", "register"].includes(currentPage) && (
+  <PublicPages
+    page={currentPage as any}
+    onNavigate={handleNavigate}
+    onLogin={handleLogin}
+  />
+)}
+
 
       
   {currentPage === "test" && pageParam && (
