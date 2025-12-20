@@ -58,7 +58,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
         const payload = JSON.parse(pendingRaw);
 
         const verifyRes = await fetch(
-          `${apiBase}/api/writing/payments/verify`,
+          `${apiBase}/writing/payments/verify`,
           {
             method: "POST",
             headers: {
@@ -81,7 +81,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           return;
         }
 
-        const createRes = await fetch(`${apiBase}/api/writing/order`, {
+        const createRes = await fetch(`${apiBase}/writing/order`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -125,7 +125,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
        
 
 const res = await axios.post(
-  `${apiBase}/api/subscriptions/upgrade`,
+  `${apiBase}/subscriptions/upgrade`,
   { planId },
   {
     headers: {
@@ -187,7 +187,7 @@ if (res.status !== 200) {
       }
 
 const purchaseRes = await axios.post(
-  `${apiBase}/api/purchases/unified`,
+  `${apiBase}/purchases/unified`,
   { items: purchaseItems },
   {
     headers: {
