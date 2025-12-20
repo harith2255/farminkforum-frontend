@@ -402,7 +402,7 @@ if (!authReady) {
 
       {/* USER DASHBOARD */}
    {currentPage === "user-dashboard" && (
-  <Suspense fallback={<div className="p-6">Loading dashboard…</div>}>
+  
     <UserDashboard
   activeTab={pageParam || "dashboard"}
   onNavigate={handleNavigate}
@@ -410,7 +410,7 @@ if (!authReady) {
   onOpenBook={handleOpenBook}
 />
 
-  </Suspense>
+ 
 )}
 
 

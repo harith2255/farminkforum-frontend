@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Search, Calendar, Clock, Filter, ChevronDown, Eye } from "lucide-react";
+import { Search, Calendar, Clock, Filter, ChevronDown, Eye, X, Share2, Bookmark, ExternalLink } from "lucide-react";
 
 const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/current-affairs";
 
@@ -11,6 +11,8 @@ function CurrentAffairs() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [selectedNews, setSelectedNews] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -90,8 +92,60 @@ function CurrentAffairs() {
     }
   };
 
+  const getImportanceColor = (importance) => {
+    switch(importance) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleCardClick = (newsItem) => {
+    setSelectedNews(newsItem);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedNews(null);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share && selectedNews) {
+      try {
+        await navigator.share({
+          title: selectedNews.title,
+          text: selectedNews.description,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Sharing cancelled or failed');
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      navigator.clipboard.writeText(`${selectedNews.title}\n\n${selectedNews.description}\n\n${window.location.href}`);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  // Close modal on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    
+    if (isModalOpen) {
+      window.addEventListener('keydown', handleEscape);
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isModalOpen]);
+
   return (
-    <div className="space-y-6 p-4 sm:p-0">
+    <div className="space-y-6 p-4 sm:p-0 relative">
       {/* Header Row with Heading and Search/Filter */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         {/* Left: Heading and Tagline */}
@@ -142,13 +196,17 @@ function CurrentAffairs() {
         {sortedNews.map((item) => (
           <div 
             key={item.id} 
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden cursor-pointer"
+            onClick={() => handleCardClick(item)}
           >
             {/* Card Header */}
             <div className="p-5">
-              <div className="mb-3">
+              <div className="flex justify-between items-start mb-3">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}>
                   {categories.find(cat => cat.id === item.category)?.name}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImportanceColor(item.importance)}`}>
+                  {item.importance.charAt(0).toUpperCase() + item.importance.slice(1)}
                 </span>
               </div>
 
@@ -186,10 +244,8 @@ function CurrentAffairs() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 text-gray-500 text-xs">
-                    <button className="flex items-center gap-1 text-gray-500 text-xs">
-                      <Eye className="h-3 w-3" />
-                      <span>{item.views.toLocaleString()}</span>
-                    </button>
+                    <Eye className="h-3 w-3" />
+                    <span>{item.views.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -197,6 +253,144 @@ function CurrentAffairs() {
           </div>
         ))}
       </div>
+
+      {/* News Detail Modal */}
+      {isModalOpen && selectedNews && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedNews.category)}`}>
+                    {categories.find(cat => cat.id === selectedNews.category)?.name}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getImportanceColor(selectedNews.importance)}`}>
+                    {selectedNews.importance.charAt(0).toUpperCase() + selectedNews.importance.slice(1)} Priority
+                  </span>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">{selectedNews.title}</h2>
+            </div>
+
+            {/* Modal Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="p-6">
+                {/* Date and Time */}
+                <div className="flex items-center gap-6 mb-6 text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>{new Date(selectedNews.date).toLocaleDateString('en-US', { 
+                      weekday: 'long',
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>{selectedNews.time}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    <span>{selectedNews.views.toLocaleString()} views</span>
+                  </div>
+                </div>
+
+                {/* Full Description */}
+                <div className="prose max-w-none mb-8">
+                  <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
+                    {selectedNews.fullDescription || selectedNews.description}
+                  </p>
+                </div>
+
+                {/* Tags */}
+                <div className="mb-8">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Tags</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedNews.tags.map(tag => (
+                      <span 
+                        key={tag} 
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Additional Details if available */}
+                {selectedNews.source && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Source</h4>
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="h-4 w-4 text-gray-500" />
+                      <a 
+                        href={selectedNews.source} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-sm"
+                      >
+                        {selectedNews.source}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {selectedNews.relatedTopics && selectedNews.relatedTopics.length > 0 && (
+                  <div className="mb-8">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Related Topics</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNews.relatedTopics.map((topic, index) => (
+                        <span 
+                          key={index} 
+                          className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-lg"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span>Share</span>
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                    <Bookmark className="h-4 w-4" />
+                    <span>Save</span>
+                  </button>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="px-6 py-2.5 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* No Results Message */}
       {sortedNews.length === 0 && (

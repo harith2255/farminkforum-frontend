@@ -77,7 +77,7 @@ export default function UserDashboard({
   onOpenBook,
   onLogout,
 }: UserDashboardProps) {
-  const [activeSection, setActiveSection] = useState<UserSection>("dashboard");
+  const [activeSection, setActiveSection] = useState<UserSection | null>(null);  
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -503,10 +503,10 @@ export default function UserDashboard({
 
   // 🔥 ADDED: Sync route tab → dashboard section (from friend's code)
   useEffect(() => {
-    if (activeTab) {
+    if (activeTab && !activeSection) {
       setActiveSection(activeTab as UserSection);
     }
-  }, [activeTab]);
+  }, [activeTab, activeSection]);
 
   // Close dropdowns and mobile sidebar on outside click
   useEffect(() => {

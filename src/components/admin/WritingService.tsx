@@ -135,11 +135,14 @@ return { ...o, unread_count: unread };
   =================================*/
   const acceptOrder = async (id: number) => {
     try {
-      await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${id}/accept`,
-        {},
-        { headers }
-      );
+     await axios.put(
+  `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+  {
+    notes_url,
+    final_text: finalText,
+  },
+  { headers }
+);
       toast.success("Order accepted");
       loadOrders();
     } catch (err) {
