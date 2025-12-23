@@ -77,7 +77,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
     { id: 'writing' as AdminSection, icon: FileText, label: 'Services' },
     { id: 'payments' as AdminSection, icon: CreditCard, label: 'Payments' },
     { id: 'reports' as AdminSection, icon: FileText, label: 'Reports' },
-    { id: 'ai' as AdminSection, icon: Cpu, label: 'AI Automation' },
+    // { id: 'ai' as AdminSection, icon: Cpu, label: 'AI Automation' },
     { id: 'notifications' as AdminSection, icon: Bell, label: 'Notifications' },
     { id: 'jobs' as AdminSection, icon: Briefcase, label: 'Job Portal' },
     { id: 'settings' as AdminSection, icon: Settings, label: 'Settings' },
@@ -371,7 +371,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
           {activeSection === 'writing' && <WritingService />}
           {activeSection === 'payments' && <PaymentsAdmin />}
           {activeSection === 'reports' && <ReportsAnalytics />}
-          {activeSection === 'ai' && <AIAutomation />}
+          {/* {activeSection === 'ai' && <AIAutomation />} */}
           {activeSection === 'notifications' && <NotificationsAdmin />}
           {activeSection === 'jobs' && <JobPortalAdmin />}
           {activeSection === 'settings' && <SystemSettings />}

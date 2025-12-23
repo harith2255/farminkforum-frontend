@@ -48,7 +48,53 @@ const ReadNotePage = lazy(() =>
   import("./components/ReadNotePage")
 );
 
+/* ============================================================
+   AXIOS REQUEST INTERCEPTOR – SESSION + JWT
+============================================================ */
 
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("app_token");
+  const sessionId = localStorage.getItem("current_session_id");
+
+  config.headers = config.headers || {};
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // 🔥 THIS WAS MISSING
+  if (sessionId) {
+    config.headers["x-session-id"] = sessionId;
+  }
+
+  return config;
+});
+/* ============================================================
+   AXIOS RESPONSE INTERCEPTOR – AUTO LOGOUT ON AUTH FAILURE
+============================================================ */
+
+axios.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status;
+    const reason = err?.response?.data?.error;
+
+    if (status === 401) {
+      console.warn("🔒 Auth expired:", reason);
+
+      // clear auth
+      localStorage.removeItem("app_token");
+      localStorage.removeItem("current_session_id");
+      localStorage.removeItem("role");
+      localStorage.removeItem("isLoggedIn");
+
+      // hard redirect (prevents back button)
+      window.location.replace("/login?reason=expired");
+    }
+
+    return Promise.reject(err);
+  }
+);
 
 
 /* ============================================================

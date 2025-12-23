@@ -149,70 +149,70 @@ onNavigate(isAdmin ? "admin-dashboard" : "user-dashboard");
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-6 px-4 sm:px-6 bg-[#f5f6f8]">
-      <Card className="mt-8 sm:mt-20 w-full max-w-sm sm:max-w-md border-none shadow-lg sm:shadow-xl">
-        <CardHeader className="text-center p-4 sm:p-6">
-          <CardTitle className="text-[#1d4d6a] text-lg sm:text-xl">
-            Welcome Back
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Sign in to access your academic resources
-          </CardDescription>
-        </CardHeader>
+<div className="min-h-[80vh] flex items-center justify-center py-6 px-4 sm:px-6 bg-[#f5f6f8]">
+  <Card className="mt-8 sm:mt-20 w-full max-w-sm sm:max-w-md border-none shadow-lg sm:shadow-xl">
+    <CardHeader className="text-center pb-2 px-4 sm:px-6 pt-4 sm:pt-6"> {/* Reduced bottom padding */}
+      <CardTitle className="text-[#1d4d6a] text-lg sm:text-xl">
+        Welcome Back
+      </CardTitle>
+      <CardDescription className="text-xs sm:text-sm mt-1"> {/* Added small margin-top */}
+        Sign in to access your academic resources
+      </CardDescription>
+    </CardHeader>
 
-        <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
-          <div className="space-y-2">
-            <Label className="text-sm sm:text-base">Email Address</Label>
-            <Input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              onKeyPress={handleKeyPress}
-              placeholder="your@email.com"
-              className="text-sm sm:text-base"
-            />
-          </div>
+    <CardContent className="space-y-4 px-4 sm:px-6 pt-2 pb-4 sm:pb-6"> {/* Reduced top padding */}
+      <div className="space-y-2">
+        <Label className="text-sm sm:text-base">Email Address</Label>
+        <Input
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          onKeyPress={handleKeyPress}
+          placeholder="your@email.com"
+          className="text-sm sm:text-base"
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm sm:text-base">Password</Label>
-            <Input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              onKeyPress={handleKeyPress}
-              placeholder="••••••••"
-              className="text-sm sm:text-base"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label className="text-sm sm:text-base">Password</Label>
+        <Input
+          type="password"
+          name="password"
+          value={formData.password}
+          onChange={handleChange}
+          onKeyPress={handleKeyPress}
+          placeholder="••••••••"
+          className="text-sm sm:text-base"
+        />
+      </div>
 
-          {error && (
-            <p className="text-red-500 text-xs sm:text-sm">{error}</p>
-          )}
+      {error && (
+        <p className="text-red-500 text-xs sm:text-sm">{error}</p>
+      )}
 
-          <Button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white text-sm sm:text-base py-2 sm:py-2.5"
+      <Button
+        onClick={handleLogin}
+        disabled={loading}
+        className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white text-sm sm:text-base py-2 sm:py-2.5"
+      >
+        {loading ? "Signing In..." : "Sign In"}
+      </Button>
+
+      <div className="text-center mt-4">
+        <p className="text-xs sm:text-sm text-gray-600">
+          Don't have an account?{" "}
+          <button
+            onClick={() => onNavigate("register")}
+            className="text-[#bf2026] hover:underline font-medium"
           >
-            {loading ? "Signing In..." : "Sign In"}
-          </Button>
-
-          <div className="text-center mt-4">
-            <p className="text-xs sm:text-sm text-gray-600">
-              Don't have an account?{" "}
-              <button
-                onClick={() => onNavigate("register")}
-                className="text-[#bf2026] hover:underline font-medium"
-              >
-                Sign up free
-              </button>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            Sign up free
+          </button>
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+</div>
   );
 }
 
@@ -274,102 +274,102 @@ const handleRegister = async () => {
 
   return (
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#f5f6f8]">
-      <Card className="mt-8 sm:mt-20 w-full max-w-sm sm:max-w-md border-none shadow-lg sm:shadow-xl">
-        <CardHeader className="text-center p-4 sm:p-6">
-          <CardTitle className="text-[#1d4d6a] text-lg sm:text-xl">
-            Create Your Account
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Join thousands of learners worldwide
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm sm:text-base">First Name</Label>
-              <Input
-                name="firstName"
-                type="text"
-                placeholder="John"
-                value={formData.firstName}
-                onChange={handleChange}
-                className="text-sm sm:text-base"
-              />
-            </div>
+  <Card className="mt-8 sm:mt-20 w-full max-w-sm sm:max-w-md border-none shadow-lg sm:shadow-xl">
+    <CardHeader className="text-center pb-2 px-4 sm:px-6 pt-4 sm:pt-6"> {/* Reduced bottom padding */}
+      <CardTitle className="text-[#1d4d6a] text-lg sm:text-xl">
+        Create Your Account
+      </CardTitle>
+      <CardDescription className="text-xs sm:text-sm mt-1"> {/* Added small margin-top */}
+        Join thousands of learners worldwide
+      </CardDescription>
+    </CardHeader>
+    
+    <CardContent className="space-y-4 px-4 sm:px-6 pt-2 pb-4 sm:pb-6"> {/* Reduced top padding */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm sm:text-base">First Name</Label>
+          <Input
+            name="firstName"
+            type="text"
+            placeholder="John"
+            value={formData.firstName}
+            onChange={handleChange}
+            className="text-sm sm:text-base"
+          />
+        </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm sm:text-base">Last Name</Label>
-              <Input
-                name="lastName"
-                type="text"
-                placeholder="Doe"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="text-sm sm:text-base"
-              />
-            </div>
-          </div>
+        <div className="space-y-2">
+          <Label className="text-sm sm:text-base">Last Name</Label>
+          <Input
+            name="lastName"
+            type="text"
+            placeholder="Doe"
+            value={formData.lastName}
+            onChange={handleChange}
+            className="text-sm sm:text-base"
+          />
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm sm:text-base">Email</Label>
-            <Input
-              name="email"
-              type="email"
-              placeholder="your@email.com"
-              value={formData.email}
-              onChange={handleChange}
-              className="text-sm sm:text-base"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label className="text-sm sm:text-base">Email</Label>
+        <Input
+          name="email"
+          type="email"
+          placeholder="your@email.com"
+          value={formData.email}
+          onChange={handleChange}
+          className="text-sm sm:text-base"
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm sm:text-base">Password</Label>
-            <Input
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              className="text-sm sm:text-base"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label className="text-sm sm:text-base">Password</Label>
+        <Input
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          value={formData.password}
+          onChange={handleChange}
+          className="text-sm sm:text-base"
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm sm:text-base">Confirm Password</Label>
-            <Input
-              name="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="text-sm sm:text-base"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label className="text-sm sm:text-base">Confirm Password</Label>
+        <Input
+          name="confirmPassword"
+          type="password"
+          placeholder="••••••••"
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          className="text-sm sm:text-base"
+        />
+      </div>
 
-          {error && (
-            <p className="text-red-500 text-xs sm:text-sm">{error}</p>
-          )}
+      {error && (
+        <p className="text-red-500 text-xs sm:text-sm">{error}</p>
+      )}
 
-          <Button
-            onClick={handleRegister}
-            disabled={loading}
-            className="w-full bg-[#bf2026] text-white text-sm sm:text-base py-2 sm:py-2.5"
-          >
-            {loading ? "Creating..." : "Create Account"}
-          </Button>
+      <Button
+        onClick={handleRegister}
+        disabled={loading}
+        className="w-full bg-[#bf2026] text-white text-sm sm:text-base py-2 sm:py-2.5"
+      >
+        {loading ? "Creating..." : "Create Account"}
+      </Button>
 
-          <p className="text-center text-xs sm:text-sm text-gray-600">
-            Already have an account?{" "}
-            <button
-              onClick={() => onNavigate("login")}
-              className="text-[#bf2026] hover:underline font-medium"
-            >
-              Sign in
-            </button>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+      <p className="text-center text-xs sm:text-sm text-gray-600">
+        Already have an account?{" "}
+        <button
+          onClick={() => onNavigate("login")}
+          className="text-[#bf2026] hover:underline font-medium"
+        >
+          Sign in
+        </button>
+      </p>
+    </CardContent>
+  </Card>
+</div>
   );
 }

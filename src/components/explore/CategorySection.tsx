@@ -25,19 +25,8 @@ const CategoryFilter: React.FC<Props> = ({
 
   return (
     <div className="mb-8">
-      {/* HEADER */}
-      {showHeading && layout === "default" && (
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[#1d4d6a] text-lg font-semibold">
-            Browse by Category
-          </h2>
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" />
-            More Filters
-          </Button>
-        </div>
-      )}
-
+      {/* HEADER - REMOVED */}
+      
       {/* CATEGORY BUTTONS */}
       <div className="flex gap-3 flex-wrap">
         {safeCategories.map((cat) => (
@@ -58,18 +47,7 @@ const CategoryFilter: React.FC<Props> = ({
       {/* USER LAYOUT EXTRA FILTERS */}
       {layout === "user" && (
         <div className="mt-4 flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" />
-            More Filters
-          </Button>
-          <Button
-            className="bg-[#1d4d6a] hover:bg-[#153a4f] text-white"
-            onClick={() =>
-              alert("Recommended books feature coming soon!")
-            }
-          >
-            Recommended
-          </Button>
+          {/* Empty container - all buttons removed */}
         </div>
       )}
     </div>
