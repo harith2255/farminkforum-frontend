@@ -1,84 +1,78 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { DollarSign, TrendingUp, CreditCard, Download, IndianRupee } from 'lucide-react';
-import axios from 'axios';
-import { useEffect, useState } from 'react';
-import * as React from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Download, IndianRupee, CreditCard, TrendingUp } from "lucide-react";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import * as React from "react";
+
+const ICONS: any = {
+  IndianRupee: IndianRupee,
+  CreditCard: CreditCard,
+  Download: Download,
+  TrendingUp:TrendingUp,
+};
 
 export default function PaymentsAdmin() {
-  const [stats, setStats] = useState<any[]>([]);          // ✅ FIXED
-  const [transactions, setTransactions] = useState<any[]>([]);  // ✅ FIXED
+  const [stats, setStats] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>({});
+  
+  const page = pagination.page || 1;
 
+  const loadPayments = async (page = 1) => {
+    try {
+      const token = localStorage.getItem("token");
 
- useEffect(() => {
-    const loadPayments = async () => {
-      try {
-       const token = localStorage.getItem("token");console.log("TOKEN SENT:", token);
+      /* ----------------- Stats ----------------- */
+      const statsRes = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/admin/payments/stats",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
+      setStats(statsRes.data.stats || []);
 
-        /* ---------------------------
-           1️⃣ Fetch Payment Stats
-        --------------------------- */
-        console.log("▶ Fetching Stats...");
-        
-        const statsRes = await axios.get(
-          "https://ebook-backend-lxce.onrender.com/api/admin/payments/stats",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+      /* ----------------- Transactions ----------------- */
+      const txRes = await axios.get(
+        `https://ebook-backend-lxce.onrender.com/api/admin/payments/transactions?page=${page}&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        console.log("📊 Stats Response:", statsRes.data);
+      setTransactions(txRes.data.transactions || []);
+      setPagination(txRes.data.pagination || {});
+    } catch (error: any) {
+      console.error("❌ Admin Payment Load Error:", error.response?.data || error);
+    }
+  };
 
-        /* ---------------------------
-           2️⃣ Fetch Transactions
-        --------------------------- */
-        console.log("▶ Fetching Transactions...");
-        const txnRes = await axios.get(
-          "https://ebook-backend-lxce.onrender.com/api/admin/payments/transactions",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        console.log("📦 Raw Transactions Response:", txnRes.data);
-
-        if (!txnRes.data || !Array.isArray(txnRes.data.transactions)) {
-          console.error("❌ transactions is NOT an array:", txnRes.data);
-        } else {
-          console.log("🔎 transactions array length:", txnRes.data.transactions.length);
-
-          // Log the first item for shape debugging
-          if (txnRes.data.transactions[0]) {
-            console.log("🧩 First transaction object:", txnRes.data.transactions[0]);
-          }
-        }
-
-        /* ---------------------------
-           3️⃣ Set State
-        --------------------------- */
-        setStats(statsRes.data.stats);
-        setTransactions(txnRes.data.transactions);
-
-      }  catch (error: any) {
-  console.error("❌ Payment Load Error:", error);
-
-  if (error.response) {
-    console.error("⚠ Backend Error Response:", error.response.data);
-    console.error("⚠ Backend Status:", error.response.status);
-  } else {
-    console.error("⚠ No backend response:", error.message);
-  }
-}
-
-    };
-
-    loadPayments();
+  useEffect(() => {
+    loadPayments(1);
   }, []);
+
+  /* Pagination buttons */
+  const nextPage = () => {
+    if (page < pagination.totalPages) loadPayments(page + 1);
+  };
+
+  const prevPage = () => {
+    if (page > 1) loadPayments(page - 1);
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[#1d4d6a] mb-1">Payment Management</h2>
-          <p className="text-sm text-gray-500">Monitor revenue and transactions</p>
+          <p className="text-sm text-gray-500">
+            Monitor revenue and user transactions
+          </p>
         </div>
         <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white gap-2">
           <Download className="w-4 h-4" />
@@ -88,63 +82,123 @@ export default function PaymentsAdmin() {
 
       {/* ---------- Stats Section ---------- */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="border-none shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
-                  <h3 className="text-[#1d4d6a] mb-1">{stat.value}</h3>
-                  <p className="text-xs text-green-600">{stat.change}</p>
+        {stats.map((stat, index) => {
+          const Icon = ICONS[stat.icon];
+
+          return (
+            <Card key={index} className="border-none shadow-md">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                    <h3 className="text-[#1d4d6a] mb-1 font-semibold text-lg">
+                      {stat.value}
+                    </h3>
+                    <p
+                      className={`text-xs`}
+                    >
+                      {stat.change}
+                    </p>
+                  </div>
+
+                  {Icon && (
+                    <div className="w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center">
+                      <Icon className="w-6 h-6 text-[#bf2026]" />
+                    </div>
+                  )}
                 </div>
-                <div className="w-12 h-12 bg-opacity-10 rounded-lg flex items-center justify-center">
-                  <stat.icon className="w-6 h-6 text-[#bf2026]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* ---------- Transactions Section ---------- */}
+      {/* ---------- Transaction List ---------- */}
       <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-[#1d4d6a]">Recent Transactions</CardTitle>
-          <CardDescription>Latest payment activity</CardDescription>
+          <CardDescription>
+            User payments & subscription purchases
+          </CardDescription>
         </CardHeader>
 
-        <CardContent>
-          <div className="space-y-3">
-            {transactions.map((txn) => (
-              <div key={txn.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h4 className="text-[#1d4d6a]">{txn.id}</h4>
+        <CardContent className="space-y-4">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+            >
+              {/* Left side */}
+              <div className="flex items-center gap-4 flex-1">
+                <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-[#bf2026]" />
+                </div>
 
-                    <Badge
-                      className={
-                        txn.status === 'Completed'
-                          ? 'bg-green-100 text-green-700'
-                          : txn.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-red-100 text-red-700'
-                      }
-                    >
-                      {txn.status}
-                    </Badge>
-                  </div>
+                <div className="flex-1">
+                  <h4 className="text-[#1d4d6a] font-semibold mb-1">
+                    {tx.type || "Payment"}
+                  </h4>
 
                   <p className="text-sm text-gray-500">
-                    {txn.user} • {txn.type} • {new Date(txn.date).toLocaleDateString()}
+                    User: {tx.user} • Method: {tx.method || "N/A"}
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
+                    {tx.date}
+                  </p>
+
                   </p>
                 </div>
-
-                <div className="text-right">
-                  <p className="text-[#1d4d6a]">{txn.amount}</p>
-                </div>
               </div>
-            ))}
-          </div>
+
+              {/* Right side */}
+              <div className="text-right">
+                <p className="text-[#1d4d6a] font-bold flex items-center justify-end gap-1">
+                  <IndianRupee className="w-3 h-3" />
+                  {tx.amount}
+                </p>
+
+                <Badge
+                  className={
+                    tx.status.toLowerCase().includes("success") ||
+                    tx.status.toLowerCase().includes("complete")
+                      ? "bg-green-100 text-green-700"
+                      : tx.status.toLowerCase().includes("pending")
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
+                  }
+                >
+                  {tx.status}
+                </Badge>
+              </div>
+            </div>
+          ))}
+
+          {/* ---------- Pagination ---------- */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="secondary"
+                disabled={page === 1}
+                onClick={prevPage}
+              >
+                Previous
+              </Button>
+
+              <p className="text-sm text-gray-600">
+                Page {page} of {pagination.totalPages}
+              </p>
+
+              <Button
+                variant="secondary"
+                disabled={page === pagination.totalPages}
+                onClick={nextPage}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -306,14 +306,14 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
             </div>
             
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="relative hidden sm:block w-40 md:w-64 lg:w-80">
+              {/* <div className="relative hidden sm:block w-40 md:w-64 lg:w-80">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search..."
                   className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] focus:outline-none"
                 />
-              </div>
+              </div> */}
               
               <div className="relative" ref={avatarRef}>
                 <button

@@ -382,6 +382,22 @@ async function handleAddHighlight(h: {
     );
   }
 }
+const isInterviewMaterial = type === "interview";
+const fetchProtectedPDF = async () => {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `https://ebook-backend-lxce.onrender.com/api/interview-materials/${id}/stream`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+};
 
   /* --------------------------------------------------
     UI STATES

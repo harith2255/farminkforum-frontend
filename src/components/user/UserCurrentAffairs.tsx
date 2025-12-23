@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Search, Calendar, Clock, Filter, ChevronDown, Eye, X, Share2, Bookmark, ExternalLink } from "lucide-react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { Search, Calendar, Clock, Filter, ChevronDown, Eye, X, ExternalLink } from "lucide-react";
 
 const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/current-affairs";
 
@@ -13,20 +13,35 @@ function CurrentAffairs() {
   const [hasMore, setHasMore] = useState(true);
   const [selectedNews, setSelectedNews] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const modalRef = useRef(null);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  const categories = [
-    { id: "all", name: "All Categories" },
-    { id: "national", name: "National" },
-    { id: "international", name: "International" },
-    { id: "economy", name: "Economy" },
-    { id: "science", name: "Science & Tech" },
-    { id: "sports", name: "Sports" },
-    { id: "environment", name: "Environment" },
-  ];
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No token found");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/categories`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to load categories");
+
+      const data = await res.json();
+      setCategories(data);
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+    }
+  };
 
   const fetchCurrentAffairs = async (reset = false) => {
     try {
@@ -68,9 +83,29 @@ function CurrentAffairs() {
     }
   };
 
+  // Initial load with categories
   useEffect(() => {
+    fetchCategories();
     fetchCurrentAffairs(true);
   }, []);
+
+  // Category change
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    fetchCurrentAffairs(true);
+  }, [selectedCategory]);
+
+  // Search with debounce
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setPage(1);
+      setHasMore(true);
+      fetchCurrentAffairs(true);
+    }, 400);
+
+    return () => clearTimeout(delay);
+  }, [searchQuery]);
 
   // Sort news by importance: high first, then medium, then low
   const sortedNews = useMemo(() => {
@@ -92,15 +127,6 @@ function CurrentAffairs() {
     }
   };
 
-  const getImportanceColor = (importance) => {
-    switch(importance) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleCardClick = (newsItem) => {
     setSelectedNews(newsItem);
     setIsModalOpen(true);
@@ -109,24 +135,6 @@ function CurrentAffairs() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedNews(null);
-  };
-
-  const handleShare = async () => {
-    if (navigator.share && selectedNews) {
-      try {
-        await navigator.share({
-          title: selectedNews.title,
-          text: selectedNews.description,
-          url: window.location.href,
-        });
-      } catch (error) {
-        console.log('Sharing cancelled or failed');
-      }
-    } else {
-      // Fallback: Copy to clipboard
-      navigator.clipboard.writeText(`${selectedNews.title}\n\n${selectedNews.description}\n\n${window.location.href}`);
-      alert('Link copied to clipboard!');
-    }
   };
 
   // Close modal on escape key
@@ -141,6 +149,23 @@ function CurrentAffairs() {
     
     return () => {
       window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isModalOpen]);
+
+  // Close modal when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        closeModal();
+      }
+    };
+
+    if (isModalOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isModalOpen]);
 
@@ -167,8 +192,11 @@ function CurrentAffairs() {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm appearance-none cursor-pointer"
               >
+                <option value="all">All Categories</option>
                 {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id || cat._id} value={cat.id || cat._id}>
+                    {cat.name}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
@@ -203,10 +231,7 @@ function CurrentAffairs() {
             <div className="p-5">
               <div className="flex justify-between items-start mb-3">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}>
-                  {categories.find(cat => cat.id === item.category)?.name}
-                </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImportanceColor(item.importance)}`}>
-                  {item.importance.charAt(0).toUpperCase() + item.importance.slice(1)}
+                  {categories.find(cat => (cat.id || cat._id) === item.category)?.name || item.category}
                 </span>
               </div>
 
@@ -220,7 +245,7 @@ function CurrentAffairs() {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {item.tags.map(tag => (
+                {item.tags && item.tags.map(tag => (
                   <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
                     #{tag}
                   </span>
@@ -245,7 +270,7 @@ function CurrentAffairs() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 text-gray-500 text-xs">
                     <Eye className="h-3 w-3" />
-                    <span>{item.views.toLocaleString()}</span>
+                    <span>{item.views?.toLocaleString() || '0'}</span>
                   </div>
                 </div>
               </div>
@@ -258,18 +283,15 @@ function CurrentAffairs() {
       {isModalOpen && selectedNews && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
+            ref={modalRef}
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-300"
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-6">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedNews.category)}`}>
-                    {categories.find(cat => cat.id === selectedNews.category)?.name}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getImportanceColor(selectedNews.importance)}`}>
-                    {selectedNews.importance.charAt(0).toUpperCase() + selectedNews.importance.slice(1)} Priority
+                    {categories.find(cat => (cat.id || cat._id) === selectedNews.category)?.name || selectedNews.category}
                   </span>
                 </div>
                 <button
@@ -302,7 +324,7 @@ function CurrentAffairs() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4" />
-                    <span>{selectedNews.views.toLocaleString()} views</span>
+                    <span>{selectedNews.views?.toLocaleString() || '0'} views</span>
                   </div>
                 </div>
 
@@ -314,19 +336,21 @@ function CurrentAffairs() {
                 </div>
 
                 {/* Tags */}
-                <div className="mb-8">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Tags</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedNews.tags.map(tag => (
-                      <span 
-                        key={tag} 
-                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
+                {selectedNews.tags && selectedNews.tags.length > 0 && (
+                  <div className="mb-8">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Tags</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNews.tags.map(tag => (
+                        <span 
+                          key={tag} 
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Additional Details if available */}
                 {selectedNews.source && (
@@ -366,20 +390,7 @@ function CurrentAffairs() {
 
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    <span>Share</span>
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
-                    <Bookmark className="h-4 w-4" />
-                    <span>Save</span>
-                  </button>
-                </div>
+              <div className="flex justify-end">
                 <button
                   onClick={closeModal}
                   className="px-6 py-2.5 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors font-medium"

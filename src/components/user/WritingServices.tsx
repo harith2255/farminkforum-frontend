@@ -91,7 +91,7 @@ interface InterviewMaterial {
   id: string;
   title: string;
   category: string;
-  file_url: string;
+  // file_url: string;
 }
 
 interface FormData {
@@ -415,9 +415,8 @@ const [openMaterial, setOpenMaterial] = useState<InterviewMaterial | null>(null)
 
   // Interview Preparation Functions
 const handleViewMaterial = useCallback((material: InterviewMaterial) => {
-  setViewingMaterial(material.id);
-  setOpenMaterial(material);
-  setViewingMaterial(null);
+  const readerUrl = `/reader/interview/${material.id}`;
+  window.open(readerUrl, "_blank", "noopener,noreferrer");
 }, []);
 const fetchInterviewMaterials = useCallback(async () => {
   try {
