@@ -238,17 +238,18 @@ export default function NotesReader({ note, drm, onClose }: any) {
       {/* PDF VIEW */}
       <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
         <PDFJSViewer
-          url={note.file_url}
-          page={currentPage}
-          scale={zoom}
-          onTotalPages={setTotalPages}
-          onPageChange={setCurrentPage}
-          highlightMode={highlightMode}
-          highlights={highlights}
-          onAddHighlight={handleAddHighlight}
-          onDeleteHighlight={handleDeleteHighlight}
-          drm={drm}
-        />
+  url={note.file_url}
+  page={currentPage}
+  scale={zoom}
+  onTotalPages={setTotalPages}
+  onPageChange={setCurrentPage}
+  highlightMode={highlightMode}
+  highlights={highlights}
+  onAddHighlight={handleAddHighlight}
+  onDeleteHighlight={handleDeleteHighlight}
+  watermarkText={drm?.watermarking ? userEmail : undefined}
+/>
+
       </div>
 
       {/* FOOTER + SLIDER */}

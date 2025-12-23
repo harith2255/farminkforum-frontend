@@ -74,6 +74,39 @@ export function BookReader({
     return 2;
   }, [previewPages]);
 
+
+  useEffect(() => {
+  if (!drmConfig?.copy_protection) return;
+
+  const disable = (e: Event) => e.preventDefault();
+
+  document.addEventListener("copy", disable);
+  document.addEventListener("cut", disable);
+  document.addEventListener("contextmenu", disable);
+
+  return () => {
+    document.removeEventListener("copy", disable);
+    document.removeEventListener("cut", disable);
+    document.removeEventListener("contextmenu", disable);
+  };
+}, [drmConfig?.copy_protection]);
+
+
+useEffect(() => {
+  if (!drmConfig?.screenshot_prevention) return;
+
+  const onBlur = () => document.body.classList.add("blur-sm");
+  const onFocus = () => document.body.classList.remove("blur-sm");
+
+  window.addEventListener("blur", onBlur);
+  window.addEventListener("focus", onFocus);
+
+  return () => {
+    window.removeEventListener("blur", onBlur);
+    window.removeEventListener("focus", onFocus);
+  };
+}, [drmConfig?.screenshot_prevention]);
+
   /* --------------------------------------------------
     HELPER: SAFE FETCH
   -------------------------------------------------- */
@@ -382,7 +415,7 @@ async function handleAddHighlight(h: {
     );
   }
 }
-const isInterviewMaterial = type === "interview";
+
 const fetchProtectedPDF = async () => {
   const token = localStorage.getItem("token");
 

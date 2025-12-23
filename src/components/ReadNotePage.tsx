@@ -15,8 +15,10 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
   --------------------------------------------------- */
   const registerDevice = async () => {
     const deviceId =
-      localStorage.getItem("device_id") || crypto.randomUUID();
-
+  localStorage.getItem("device_id") ||
+  (crypto?.randomUUID
+    ? crypto.randomUUID()
+    : `d-${Math.random().toString(36).slice(2)}`);
     localStorage.setItem("device_id", deviceId);
 
     await fetch("https://ebook-backend-lxce.onrender.com/api/drm/register-device", {
