@@ -10,14 +10,13 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import axios from "axios";
-import { BookOpen } from "lucide-react";
 import { Navbar } from "./home/NavBar";
 import { Footer } from "./home/Footer";
 import ExplorePage from "./explore/ExplorePage";
 import PricingPage from "./pricing/PricingPage";
 import AboutPage from "./about/AboutPage";
 import ContactPage from "./contact/ContactPage";
-import PurchasePage from "./PurchasePage";
+// import PurchasePage from "./PurchasePage";
 import ReadNotePage from "./NotesReader";
 import * as React from "react";
 import { toast } from "sonner";
@@ -97,11 +96,15 @@ const handleLogin = async () => {
     });
 
     const { user, access_token, token, session_id } = res.data;
-    const finalToken = token || access_token;
 
-    // ✅ DO NOT CLEAR STORAGE
-    localStorage.setItem("token", finalToken);
-        localStorage.setItem("current_session_id", session_id);
+
+    // ✅ Save token
+    localStorage.setItem("token", access_token);
+
+    // ✅ Save session id (only if exists)
+    if (session_id) {
+      localStorage.setItem("current_session_id", session_id);
+    }
 
     localStorage.setItem(
       "user",
@@ -118,8 +121,12 @@ const handleLogin = async () => {
 
     window.dispatchEvent(new Event("authChanged"));
 
-    onLogin?.(user.role === "super_admin" ? "admin" : "user");
+    const isAdmin =
+  user.role === "admin" || user.role === "super_admin";
 
+onLogin?.(isAdmin ? "admin" : "user");
+
+onNavigate(isAdmin ? "admin-dashboard" : "user-dashboard");
   } catch (err: any) {
     console.error(err);
 

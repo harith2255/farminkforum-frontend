@@ -136,7 +136,7 @@ return { ...o, unread_count: unread };
   const acceptOrder = async (id: number) => {
     try {
      await axios.put(
-  `http://localhost:5000/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+  `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
   {
     notes_url,
     final_text: finalText,
@@ -357,28 +357,20 @@ const uploadInterviewMaterial = async () => {
 
   try {
     const formData = new FormData();
+    formData.append("title", materialTitle);
+    formData.append("category", materialCategory);
+    formData.append("description", materialDescription);
     formData.append("file", materialFile);
 
-    const uploadRes = await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials/upload",
+    await axios.post(
+      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials",
       formData,
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
+          // ⚠️ DO NOT set Content-Type manually
         },
       }
-    );
-
-    await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/admin/writing-service/interview-materials",
-      {
-        title: materialTitle,
-        category: materialCategory,
-        description: materialDescription,
-        file_url: uploadRes.data.url,
-      },
-      { headers }
     );
 
     toast.success("Interview material added");

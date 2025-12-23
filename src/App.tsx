@@ -100,6 +100,9 @@ const [currentPage, setCurrentPage] = useState<Page>("home");
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
+
+  const [routerReady, setRouterReady] = useState(false);
+
 /* ============================================================
    GLOBAL BOOK READING PROGRESS LISTENER
 ============================================================ */
@@ -233,10 +236,10 @@ const handleOpenBook = (book: any) => {
     return { page: "purchase", param: id };
   }
 
-  if (path === "/user-dashboard") {
-  window.history.replaceState({}, "", "/user-dashboard/dashboard");
+ if (path === "/user-dashboard") {
   return { page: "user-dashboard", param: "dashboard" };
 }
+
 
 if (path.startsWith("/user-dashboard/")) {
   const section = path.split("/")[2] || "dashboard";
@@ -267,26 +270,27 @@ if (path.startsWith("/user-dashboard/")) {
   /* ============================================================
      4) SYNC ROUTER — Single clean listener
   ============================================================ */
-  useEffect(() => {
-   const sync = () => {
-  const r = resolveRoute();
-  if (!r) return;
+ useEffect(() => {
+  const sync = () => {
+    const r = resolveRoute();
+    if (!r) return;
 
-  setCurrentPage(r.page ?? "home");
-  setPageParam(r.param ?? null);
-};
+    setCurrentPage(r.page);
+    setPageParam(r.param);
+    setRouterReady(true); // ✅ key
+  };
 
+  window.addEventListener("popstate", sync);
+  window.addEventListener("pushstate", sync);
 
-    window.addEventListener("popstate", sync);
-    window.addEventListener("pushstate", sync);
+  sync(); // initial
 
-    sync(); // INITIAL
+  return () => {
+    window.removeEventListener("popstate", sync);
+    window.removeEventListener("pushstate", sync);
+  };
+}, []);
 
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("pushstate", sync);
-    };
-  }, []);
 
   /* ============================================================
      5) AUTO LOGIN RESTORE
@@ -387,9 +391,10 @@ window.history.pushState({}, "", "/");
   /* ============================================================
      LOADING SCREEN
   ============================================================ */
-if (!authReady) {
+if (!authReady || !routerReady) {
   return <div className="min-h-screen bg-[#f5f6f8]" />;
 }
+
 
 
   /* ============================================================
@@ -402,18 +407,13 @@ if (!authReady) {
 
       {/* USER DASHBOARD */}
    {currentPage === "user-dashboard" && (
-  
     <UserDashboard
   activeTab={pageParam || "dashboard"}
   onNavigate={handleNavigate}
   onLogout={handleLogout}
   onOpenBook={handleOpenBook}
 />
-
- 
 )}
-
-
 
 
       {/* ADMIN DASHBOARD */}

@@ -126,7 +126,14 @@ export const ProfileSettings: React.FC = () => {
 
   const formatTime = (iso?: string) => {
     if (!iso) return "Unknown";
-    return new Date(iso).toLocaleString();
+  // 🔑 FORCE UTC if timezone missing
+  const utcIso = iso.endsWith("Z") ? iso : `${iso}Z`;
+
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(utcIso));
   };
 
   useEffect(() => {
@@ -174,23 +181,30 @@ export const ProfileSettings: React.FC = () => {
     }
   };
 
-  const revoke = async (sessionId: string) => {
-    try {
-      setLoading(prev => ({ ...prev, revokingSession: true }));
-      await axios.delete(`${API}/sessions/${sessionId}`, {
-        headers: authHeaders(),
-      });
-      
-      await loadSessions();
-      setMessage("Session revoked");
-      setTimeout(() => setMessage(null), 3000);
-    } catch (err: any) {
-      console.error("Failed to revoke session", err);
-      setError("Could not revoke session");
-    } finally {
-      setLoading(prev => ({ ...prev, revokingSession: false }));
+const revoke = async (sessionId: string) => {
+  try {
+    const res = await axios.delete(`${API}/sessions/${sessionId}`, {
+      headers: {
+        ...authHeaders(),
+        "x-session-id": localStorage.getItem("current_session_id"),
+      },
+    });
+
+    // 🔥 CURRENT SESSION → LOGOUT
+    if (res.data.revoked_current) {
+      localStorage.clear();
+      window.location.replace("/login?reason=expired");
+      return;
     }
-  };
+
+    await loadSessions();
+    setMessage("Session revoked");
+    setTimeout(() => setMessage(null), 3000);
+
+  } catch (err) {
+    setError("Could not revoke session");
+  }
+};
 
   /* -------------------------
      AVATAR UPLOAD
@@ -238,38 +252,46 @@ export const ProfileSettings: React.FC = () => {
   /* -------------------------
      UPDATE PERSONAL INFO
   ------------------------- */
-  const updatePersonalInfo = async () => {
-    if (!profile) return;
-    setError(null);
-    
-    try {
-      setLoading(prev => ({ ...prev, personalInfo: true }));
-      const payload = {
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        email: profile.email,
-        phone: profile.phone,
-        dob: profile.dob,
-        institution: profile.institution,
-        field_of_study: profile.field_of_study,
-        academic_level: profile.academic_level,
-        bio: profile.bio,
-      };
+const updatePersonalInfo = async () => {
+  if (!profile) return;
 
-      const res = await axios.put(API, payload, {
-        headers: authHeaders(),
-      });
+  setError(null);
 
-      setProfile(res.data.profile || profile);
-      setMessage("Profile updated");
-      setTimeout(() => setMessage(null), 3000);
-    } catch (err: any) {
-      console.error("Failed to update profile", err);
-      setError(err?.response?.data?.error || "Could not update profile");
-    } finally {
-      setLoading(prev => ({ ...prev, personalInfo: false }));
-    }
-  };
+  try {
+    const payload = {
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      email: profile.email,
+      phone: profile.phone,
+      dob: profile.dob,
+      institution: profile.institution,
+      field_of_study: profile.field_of_study,
+      academic_level: profile.academic_level,
+      bio: profile.bio,
+    };
+
+    const res = await axios.put(API, payload, {
+      headers: authHeaders(),
+    });
+
+    setProfile(res.data.profile);
+
+// 🔥 notify dashboard + header
+window.dispatchEvent(
+  new CustomEvent("profileUpdated", {
+    detail: res.data.profile,
+  })
+);
+
+setMessage("Profile updated");
+
+    setMessage("Profile updated");
+    setTimeout(() => setMessage(null), 3000);
+  } catch (err: any) {
+    console.error(err);
+    setError(err?.response?.data?.error || "Could not update profile");
+  }
+};
 
   /* -------------------------
      CHANGE PASSWORD
@@ -468,14 +490,14 @@ export const ProfileSettings: React.FC = () => {
               Security
               {loading.sessions && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
             </TabsTrigger>
-            <TabsTrigger value="preferences">
+            {/* <TabsTrigger value="preferences">
               Preferences
               {loading.preferences && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
             </TabsTrigger>
             <TabsTrigger value="notifications">
               Notifications
               {loading.notifications && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           {/* Personal Information */}
@@ -693,7 +715,7 @@ export const ProfileSettings: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-md">
+            {/* <Card className="border-none shadow-md">
               <CardHeader>
                 <CardTitle className="text-[#1d4d6a]">Two-Factor Authentication</CardTitle>
                 <CardDescription>Add an extra layer of security to your account</CardDescription>
@@ -722,7 +744,7 @@ export const ProfileSettings: React.FC = () => {
                   />
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             <Card className="border-none shadow-md">
               <CardHeader>
@@ -875,16 +897,16 @@ export const ProfileSettings: React.FC = () => {
                 <div>
                   <Label>Timezone</Label>
                   <select
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#bf2026] focus:border-transparent"
-                    defaultValue={(profile && (profile as any).timezone) || "Eastern Time (ET)"}
-                    onChange={(e) => updatePrefs({ timezone: e.target.value })}
-                    disabled={loading.preferences}
-                  >
-                    <option>Eastern Time (ET)</option>
-                    <option>Pacific Time (PT)</option>
-                    <option>Central Time (CT)</option>
-                    <option>Mountain Time (MT)</option>
-                  </select>
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+  value={(profile as any)?.timezone || "Asia/Kolkata"}
+  onChange={(e) => updatePrefs({ timezone: e.target.value })}
+>
+  <option value="Asia/Kolkata">India (IST)</option>
+  <option value="Asia/Dubai">UAE (GST)</option>
+  <option value="Asia/Singapore">Singapore (SGT)</option>
+  <option value="Europe/London">UK (GMT)</option>
+  <option value="America/New_York">USA (EST)</option>
+</select>
                 </div>
               </CardContent>
             </Card>

@@ -72,12 +72,12 @@ type UserSection =
   | "reader-note";
 
 export default function UserDashboard({
-  activeTab = "dashboard",  
+  activeTab = "dashboard",
   onNavigate,
   onOpenBook,
   onLogout,
 }: UserDashboardProps) {
-  const [activeSection, setActiveSection] = useState<UserSection | null>(null);  
+  const [activeSection, setActiveSection] = useState<UserSection | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -96,6 +96,8 @@ export default function UserDashboard({
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  type SubStatus = "loading" | "active" | "inactive";
+  const [subStatus, setSubStatus] = useState<SubStatus>("loading");
   const [activeSub, setActiveSub] = useState<any | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false); // MOBILE sidebar
 
@@ -323,12 +325,7 @@ export default function UserDashboard({
     { id: "dashboard", icon: Home, label: "Dashboard" },
     { id: "explore", icon: Navigation, label: "Explore" },
     { id: "library", icon: BookOpen, label: "My Library" },
-
-    // 👇 only show if subscription active
-    ...(activeSub
-      ? [{ id: "exams", icon: Trophy, label: "Exams" }]
-      : []),
-
+    { id: "exams", icon: Trophy, label: "Exams" },
     { id: "pyqs", icon: Clock, label: "PYQs" },
     { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
     { id: "notes", icon: FileText, label: "Notes" },
@@ -420,10 +417,12 @@ export default function UserDashboard({
 
       if (valid.includes(sub as UserSection)) {
         setActiveSection(sub as UserSection);
-      } else {
-        setActiveSection("dashboard");
+      } if (valid.includes(sub as UserSection)) {
+        setActiveSection(sub as UserSection);
       }
+
     };
+
 
     // Run immediately (first load)
     syncFromURL();
@@ -459,9 +458,11 @@ export default function UserDashboard({
   // 🔥 IMPROVED: fetchSubscription with better error handling (from friend's code)
   async function fetchSubscription() {
     try {
+      setSubStatus("loading")
       const token = localStorage.getItem("token");
       if (!token) {
-        console.warn("⏳ Subscription check skipped — no token");
+        setSubStatus("inactive");
+        setActiveSub(null);
         return;
       }
 
@@ -469,17 +470,21 @@ export default function UserDashboard({
         "https://ebook-backend-lxce.onrender.com/api/subscriptions/active",
         {
           headers: { Authorization: `Bearer ${token}` },
-          validateStatus: (s) => s < 500, // 🔒 ignore 401 / 403
+          validateStatus: (s) => s < 500,
         }
       );
 
-      // only update if request succeeded
-      if (res.status === 200) {
-        setActiveSub(res.data || null);
+      if (res.status === 200 && res.data) {
+        setActiveSub(res.data);
+        setSubStatus("active");
+      } else {
+        setActiveSub(null);
+        setSubStatus("inactive");
       }
     } catch (err) {
-      // ⛔ DO NOT TOUCH activeSub
-      console.warn("⚠️ Subscription check failed (ignored)", err);
+      console.warn("Subscription check failed", err);
+      setActiveSub(null);
+      setSubStatus("inactive");
     }
   }
 
@@ -500,6 +505,27 @@ export default function UserDashboard({
 
     return () => window.removeEventListener("subscription:updated", handler);
   }, []);
+
+  useEffect(() => {
+  const handler = (e: any) => {
+    const updatedProfile = e.detail;
+
+    // 🔥 update header greeting
+    setDashboardData((prev: any) => ({
+      ...prev,
+      user: {
+        ...(prev?.user || {}),
+        ...updatedProfile,
+      },
+    }));
+
+    // 🔥 update avatar dropdown user
+    setUser(updatedProfile);
+  };
+
+  window.addEventListener("profileUpdated", handler);
+  return () => window.removeEventListener("profileUpdated", handler);
+}, []);
 
   // 🔥 ADDED: Sync route tab → dashboard section (from friend's code)
   useEffect(() => {
@@ -585,11 +611,10 @@ export default function UserDashboard({
                   // URL update without navigation
                   window.history.pushState({}, "", `/user-dashboard/${item.id}`);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${
-                  activeSection === item.id
-                    ? "bg-[#bf2026] text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${activeSection === item.id
+                  ? "bg-[#bf2026] text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100"
+                  }`}
               >
                 <item.icon className="w-5 h-5" />
                 {!sidebarCollapsed && (
@@ -703,9 +728,8 @@ export default function UserDashboard({
                           }}
                         >
                           <p
-                            className={`text-gray-700 ${
-                              n.is_read ? "opacity-70" : "font-medium"
-                            }`}
+                            className={`text-gray-700 ${n.is_read ? "opacity-70" : "font-medium"
+                              }`}
                           >
                             {n.message}
                           </p>
@@ -900,13 +924,15 @@ export default function UserDashboard({
               <NotesRepository onNavigate={onNavigate} />
             )}
             {activeSection === "exams" && (
-              activeSub ? (
+              subStatus === "loading" ? (
+                <p className="text-gray-500">Loading exam access…</p>
+              ) : subStatus === "active" ? (
                 <Exams />
               ) : (
                 <UpgradeRequired onNavigate={setActiveSection} />
               )
             )}
-            
+
             {activeSection === "pyqs" && <PYQSection />}
 
             {activeSection === "currentaffairs" && <CurrentAffairs />}
@@ -985,8 +1011,10 @@ export function DashboardHome({
         No dashboard data found.
       </div>
     );
-    
+
   const stats = dashboardData?.stats || {};
+    const totalHours = Number(stats.studyHours || 0).toFixed(1);
+const weeklyHours = Number(stats.weeklyHours || 0).toFixed(1);
   const recentBooks = dashboardData?.recentBooks || [];
 
   return (
@@ -1024,19 +1052,33 @@ export function DashboardHome({
       </Card>
 
       {/* Study Hours */}
-      <Card className="shadow-md hover:shadow-lg transition-shadow">
-        <CardContent className="p-6 flex justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Study Hours</p>
-            <h3 className="text-[#1d4d6a] mb-1">{stats.studyHours ?? 0}h</h3>
-            <div className="flex items-center gap-1 text-xs text-green-600">
-              <Clock className="w-3 h-3" />
-              <span>+{stats.weeklyHours ?? 0}h this week</span>
-            </div>
-          </div>
-          <TrendingUp className="w-6 h-6 text-[#bf2026]" />
-        </CardContent>
-      </Card>
+<Card className="shadow-md hover:shadow-lg transition-shadow">
+  <CardContent className="p-6 flex justify-between">
+    <div>
+      <p className="text-sm text-gray-500 mb-1">Study Hours</p>
+
+      <h3 className="text-[#1d4d6a] mb-1">
+        {totalHours}h
+      </h3>
+
+      <div className="flex items-center gap-1 text-xs">
+        <Clock className="w-3 h-3" />
+
+        {Number(weeklyHours) > 0 ? (
+          <span className="text-green-600">
+            +{weeklyHours}h this week
+          </span>
+        ) : (
+          <span className="text-gray-400">
+            No study time this week yet
+          </span>
+        )}
+      </div>
+    </div>
+
+    <TrendingUp className="w-6 h-6 text-[#bf2026]" />
+  </CardContent>
+</Card>
 
       {/* Streak */}
       <Card className="shadow-md hover:shadow-lg transition-shadow">
@@ -1048,9 +1090,12 @@ export function DashboardHome({
             </h3>
             <div className="flex items-center gap-1 text-xs text-orange-600">
               <Trophy className="w-3 h-3" />
-              <span>
-                {stats.activeStreak >= 5 ? "🔥 Great streak!" : "Keep going!"}
-              </span>
+             <span>
+  {stats.activeStreak === 0 && "Start learning today 🚀"}
+  {stats.activeStreak > 0 && stats.activeStreak < 5 && "Keep going 💪"}
+  {stats.activeStreak >= 5 && "🔥 Great streak!"}
+</span>
+
             </div>
           </div>
           <Trophy className="w-6 h-6 text-[#bf2026]" />

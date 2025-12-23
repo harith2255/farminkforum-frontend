@@ -19,7 +19,7 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
 
     localStorage.setItem("device_id", deviceId);
 
-    await fetch("https://ebook-backend-lxce.onrender.com/api/admin/drm/register-device", {
+    await fetch("https://ebook-backend-lxce.onrender.com/api/drm/register-device", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -62,7 +62,7 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
         const deviceId = await registerDevice();
 
         const drmRes = await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/admin/drm/check-access?note_id=${noteId}`,
+          `https://ebook-backend-lxce.onrender.com/api/drm/check-access?note_id=${noteId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

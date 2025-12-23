@@ -1,6 +1,5 @@
 // src/components/PDFJSViewer.tsx
 import { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import * as React from "react";
 
 let pdfjsLibPromise: Promise<any> | null = null;
@@ -9,17 +8,20 @@ async function loadPdfJs() {
   if (!pdfjsLibPromise) {
     pdfjsLibPromise = (async () => {
       const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
-      const worker = await import(
-        "pdfjs-dist/legacy/build/pdf.worker.min.js"
-      );
 
-      pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+      // ✅ CORRECT: real worker URL
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/legacy/build/pdf.worker.min.js",
+        import.meta.url
+      ).toString();
+
       return pdfjs;
     })();
   }
 
   return pdfjsLibPromise;
 }
+
 
 
 interface Highlight {
@@ -30,6 +32,7 @@ interface Highlight {
   wPct: number;
   hPct: number;
   color?: string;
+  
 }
 
 interface PDFJSViewerProps {
@@ -41,6 +44,15 @@ interface PDFJSViewerProps {
   onPageChange?: (page: number) => void;
   highlightMode?: boolean;
   highlights?: Highlight[];
+    // ✅ ADD THIS
+  onAddHighlight?: (h: {
+    page: number;
+    xPct: number;
+    yPct: number;
+    wPct: number;
+    hPct: number;
+    color?: string;
+  }) => void;
   isLocked?: boolean;
   previewPages?: number;
   purchased?: boolean;
@@ -62,6 +74,7 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
     onPageChange,
     highlightMode = false,
     highlights = [],
+    onAddHighlight,        
     isLocked = false,
     previewPages = 1,
     purchased = false,
@@ -81,6 +94,10 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
   const [pdfInstance, setPdfInstance] = useState<any>(null);
  
 
+  const isDrawingRef = useRef(false);
+const startPointRef = useRef<{ x: number; y: number } | null>(null);
+const tempRectRef = useRef<HTMLDivElement | null>(null);
+
   const isPageLocked = !purchased && isLocked && page > previewPages;
 
   /* ---------------------------
@@ -90,68 +107,72 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
      - disable right-click/context
      - block print and common shortcuts
   --------------------------- */
-  useEffect(() => {
-    // block canvas extraction
-    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+useEffect(() => {
+  // block canvas extraction
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  const originalToBlob = HTMLCanvasElement.prototype.toBlob;
 
-    HTMLCanvasElement.prototype.toDataURL = function () {
-      // @ts-ignore
-      if ((this as HTMLCanvasElement).dataset?.drmProtected === "1") {
-        throw new Error("Extraction disabled");
-      }
-      return originalToDataURL.apply(this, arguments as any);
-    };
+  HTMLCanvasElement.prototype.toDataURL = function () {
+    if ((this as HTMLCanvasElement).dataset?.drmProtected === "1") {
+      throw new Error("Extraction disabled");
+    }
+    return originalToDataURL.apply(this, arguments as any);
+  };
 
-    HTMLCanvasElement.prototype.toBlob = function () {
-      // @ts-ignore
-      if ((this as HTMLCanvasElement).dataset?.drmProtected === "1") {
-        throw new Error("Extraction disabled");
-      }
-      return originalToBlob.apply(this, arguments as any);
-    };
+  HTMLCanvasElement.prototype.toBlob = function () {
+    if ((this as HTMLCanvasElement).dataset?.drmProtected === "1") {
+      throw new Error("Extraction disabled");
+    }
+    return originalToBlob.apply(this, arguments as any);
+  };
 
-    // block contextmenu, selection, keys
-    const block = (e: Event) => e.preventDefault();
-    const kblock = (e: KeyboardEvent) => {
-      // block F12, ctrl+shift+I, ctrl+P, ctrl+S, PrintScreen
-      if (
-        e.key === "F12" ||
-        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") ||
-        (e.ctrlKey && e.key.toLowerCase() === "p") ||
-        (e.ctrlKey && e.key.toLowerCase() === "s") ||
-        e.key === "PrintScreen"
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
+  // block contextmenu, copy, cut
+  const block = (e: Event) => e.preventDefault();
 
-    document.addEventListener("contextmenu", block);
-    document.addEventListener("copy", block);
-    document.addEventListener("cut", block);
-    document.addEventListener("selectstart", block);
-    window.addEventListener("keydown", kblock);
+  // allow selection ONLY in highlight mode
+  const blockSelect = (e: Event) => {
+    if (!highlightMode) e.preventDefault();
+  };
 
-    // block print calls
-    const beforePrint = () => {
-      alert("Printing is disabled for protected content.");
-      return false;
-    };
-    window.addEventListener("beforeprint", beforePrint);
+  // block devtools / print shortcuts
+  const kblock = (e: KeyboardEvent) => {
+    if (
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p") ||
+      (e.ctrlKey && e.key.toLowerCase() === "s") ||
+      e.key === "PrintScreen"
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
-    return () => {
-      HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
-      HTMLCanvasElement.prototype.toBlob = originalToBlob;
+  document.addEventListener("contextmenu", block);
+  document.addEventListener("copy", block);
+  document.addEventListener("cut", block);
+  document.addEventListener("selectstart", blockSelect);
+  window.addEventListener("keydown", kblock);
 
-      document.removeEventListener("contextmenu", block);
-      document.removeEventListener("copy", block);
-      document.removeEventListener("cut", block);
-      document.removeEventListener("selectstart", block);
-      window.removeEventListener("keydown", kblock);
-      window.removeEventListener("beforeprint", beforePrint);
-    };
-  }, []);
+  const beforePrint = () => {
+    alert("Printing is disabled for protected content.");
+    return false;
+  };
+  window.addEventListener("beforeprint", beforePrint);
+
+  return () => {
+    HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+    HTMLCanvasElement.prototype.toBlob = originalToBlob;
+
+    document.removeEventListener("contextmenu", block);
+    document.removeEventListener("copy", block);
+    document.removeEventListener("cut", block);
+    document.removeEventListener("selectstart", blockSelect);
+    window.removeEventListener("keydown", kblock);
+    window.removeEventListener("beforeprint", beforePrint);
+  };
+}, [highlightMode]);
+
 
   /* ---------------------------
      DevTools / screen-record detection heuristics
@@ -204,10 +225,13 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         cache: "no-store",
-      });
+      });console.log("PDF status:", res.status);
+console.log("PDF content-type:", res.headers.get("content-type"));
+
       if (!res.ok) throw new Error("Failed to fetch PDF");
       const ab = await res.arrayBuffer();
       return ab;
+      
     } catch (err) {
       console.error("fetchProtectedPdf error:", err);
       return null;
@@ -280,8 +304,6 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
           } catch (_) {}
         }
 
-        // clear overlay
-        overlay.innerHTML = "";
 
         // locked page blur + overlay
         if (isPageLocked) {
@@ -313,6 +335,14 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
         canvas.style.width = `${Math.round(viewport.width)}px`;
         canvas.style.height = `${Math.round(viewport.height)}px`;
 
+        // ✅ SYNC overlay with canvas CSS size & position
+overlay.style.width = canvas.style.width;
+overlay.style.height = canvas.style.height;
+overlay.style.left = "50%";
+overlay.style.top = "0";
+overlay.style.transform = "translateX(-50%)";
+
+
         const renderContext = {
           canvasContext: ctx,
           viewport: pdfPage.getViewport({ scale: scaleVal * dpr }),
@@ -332,8 +362,7 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
           // non-fatal
         }
 
-        // draw highlights overlay (DOM elements on top) but ensure they are non-copyable
-        drawHighlights(canvas, overlay);
+    
 
         onPageChange?.(pageNum);
       } catch (err: any) {
@@ -361,38 +390,45 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
   /* ---------------------------
      Draw highlights (DOM overlay)
   ---------------------------*/
-  function drawHighlights(canvas: HTMLCanvasElement, overlay: HTMLDivElement) {
-    const cw = canvas.width;
-    const ch = canvas.height;
+function drawHighlights(_: HTMLCanvasElement, overlay: HTMLDivElement) {
+  overlay.innerHTML = "";
 
-    overlay.innerHTML = "";
+  highlights
+    .filter(h => Number(h.page) === Number(page))
+    .forEach(h => {
+      const el = document.createElement("div");
+      el.style.cssText = `
+        position:absolute;
+        left:${h.xPct * 100}%;
+        top:${h.yPct * 100}%;
+        width:${h.wPct * 100}%;
+        height:${h.hPct * 100}%;
+        background:${h.color || "rgba(255,255,0,0.4)"};
+        z-index:10;
+        cursor:pointer;
+        pointer-events:auto;
+      `;
 
-    highlights
-      .filter((h) => Number(h.page) === Number(page))
-      .forEach((h) => {
-        const el = document.createElement("div");
-        el.style.cssText = `
-          position:absolute;
-          left:${h.xPct * (cw / (window.devicePixelRatio || 1))}px;
-          top:${h.yPct * (ch / (window.devicePixelRatio || 1))}px;
-          width:${h.wPct * (cw / (window.devicePixelRatio || 1))}px;
-          height:${h.hPct * (ch / (window.devicePixelRatio || 1))}px;
-          background:${h.color || "rgba(255,255,0,0.35)"};
-          border-radius:2px;
-          cursor:pointer;
-          pointer-events:auto;
-        `;
+      el.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm("Delete highlight?")) {
+          onDeleteHighlight?.(h.id);
+        }
+      };
 
-        el.onclick = (e) => {
-          e.stopPropagation();
-          if (!isPageLocked && onDeleteHighlight && confirm("Delete highlight?")) {
-            onDeleteHighlight(h.id);
-          }
-        };
+      overlay.appendChild(el);
+    });
+}
 
-        overlay.appendChild(el);
-      });
-  }
+useEffect(() => {
+  const canvas = canvasRef.current;
+  const overlay = overlayRef.current;
+  if (!canvas || !overlay) return;
+
+  drawHighlights(canvas, overlay);
+}, [highlights, page]);
+
+
 
   /* ---------------------------
      Draw watermark text into canvas context
@@ -475,33 +511,102 @@ export default function PDFJSViewer(props: PDFJSViewerProps) {
     overlay.appendChild(wrap);
   }
 
+
+
+
   /* ---------------------------
      Root return (UI unchanged)
   ---------------------------*/
   return (
     <div ref={containerRef} style={{ position: "relative", touchAction: "none" }}>
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: "block",
-          margin: "auto",
-          maxWidth: "100%",
-          userSelect: "none",
-          pointerEvents: "auto",
-        }}
-        // disable context menu on canvas specifically
-        onContextMenu={(e) => e.preventDefault()}
-      />
+  <canvas
+  ref={canvasRef}
+  style={{
+    display: "block",
+    margin: "auto",
+    maxWidth: "100%",
+    userSelect: highlightMode ? "text" : "none",
+    cursor: highlightMode ? "text" : "default",
+    pointerEvents: "auto",
+  }}
+  onContextMenu={(e) => e.preventDefault()}
+/>
 
-      <div
-        ref={overlayRef}
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          pointerEvents: "auto",
-        }}
-      />
+
+    <div
+  ref={overlayRef}
+  style={{
+    position: "absolute",
+    inset: 0,
+    zIndex: 10,
+    cursor: highlightMode ? "crosshair" : "default",
+  }}
+  onMouseDown={(e) => {
+    if (!highlightMode) return;
+
+    const rect = overlayRef.current!.getBoundingClientRect();
+    isDrawingRef.current = true;
+    startPointRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+
+    const temp = document.createElement("div");
+    temp.style.cssText = `
+      position:absolute;
+      background: rgba(255,255,0,0.4);
+      border: 1px solid rgba(200,200,0,0.8);
+    `;
+    overlayRef.current!.appendChild(temp);
+    tempRectRef.current = temp;
+  }}
+  onMouseMove={(e) => {
+    if (!isDrawingRef.current || !startPointRef.current) return;
+
+    const rect = overlayRef.current!.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const sx = startPointRef.current.x;
+    const sy = startPointRef.current.y;
+
+    const left = Math.min(sx, x);
+    const top = Math.min(sy, y);
+    const width = Math.abs(x - sx);
+    const height = Math.abs(y - sy);
+
+    Object.assign(tempRectRef.current!.style, {
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${width}px`,
+      height: `${height}px`,
+    });
+  }}
+onMouseUp={() => {
+  if (!isDrawingRef.current || !startPointRef.current) return;
+
+  const overlay = overlayRef.current!;
+  const box = tempRectRef.current!.getBoundingClientRect();
+  const base = overlay.getBoundingClientRect();
+
+  isDrawingRef.current = false;
+
+  onAddHighlight?.({
+    page,
+    xPct: (box.left - base.left) / base.width,
+    yPct: (box.top - base.top) / base.height,
+    wPct: box.width / base.width,
+    hPct: box.height / base.height,
+    color: "rgba(255,255,0,0.4)",
+  });
+
+  tempRectRef.current?.remove();
+  tempRectRef.current = null;
+  startPointRef.current = null;
+}}
+
+/>
+
     </div>
   );
 }

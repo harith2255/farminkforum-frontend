@@ -332,6 +332,56 @@ const goToPurchase = (bookId: string | number) => {
   );
 }
 
+async function handleAddHighlight(h: {
+  page: number;
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
+  color?: string;
+}) {
+  if (!token || !book) return;
+
+  // 🔥 1. OPTIMISTIC ADD
+  const tempHighlight = {
+    ...h,
+    id: `temp-${Date.now()}`,
+  };
+
+  setHighlights((prev) => [...prev, tempHighlight]);
+
+  try {
+    // 🔥 2. SAVE TO BACKEND
+    const res = await fetch(`${API_BASE}/api/library/highlights`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        book_id: book.id,
+        page: h.page,
+        xPct: h.xPct,
+        yPct: h.yPct,
+        wPct: h.wPct,
+        hPct: h.hPct,
+        color: h.color,
+      }),
+    });
+
+    const saved = await res.json();
+
+    // 🔥 3. REPLACE TEMP WITH REAL
+    setHighlights((prev) =>
+      prev.map((x) => (x.id === tempHighlight.id ? saved : x))
+    );
+  } catch (err) {
+    // 🔥 4. ROLLBACK ON ERROR
+    setHighlights((prev) =>
+      prev.filter((x) => x.id !== tempHighlight.id)
+    );
+  }
+}
 
   /* --------------------------------------------------
     UI STATES
@@ -417,7 +467,7 @@ const goToPurchase = (bookId: string | number) => {
       </header>
 
       {/* PDF VIEW */}
-      <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
+      <div className="flex justify-center h-[calc(108vh-220px)] overflow-auto">
       <Suspense
   fallback={
     <div className="flex items-center justify-center h-full text-gray-500">
@@ -425,22 +475,25 @@ const goToPurchase = (bookId: string | number) => {
     </div>
   }
 >
-  <PDFJSViewer
-    url={book.file_url}
-    page={currentPage}
-    scale={zoom}
-    onTotalPages={setTotalPages}
-    onPageChange={handlePageChange}
-    highlightMode={highlightMode}
-    highlights={highlights}
-    isLocked={isLocked}
-    previewPages={effectivePreviewPages}
-    purchased={!isLocked}
-    bookId={book.id}
-    onBuyClick={() => goToPurchase(book.id)}
-    onDeleteHighlight={handleDeleteHighlight}
-    watermarkText={drmConfig?.watermark_text}
-  />
+ <PDFJSViewer
+  url={book.file_url}
+  page={currentPage}
+  scale={zoom}
+  onTotalPages={setTotalPages}
+  onPageChange={handlePageChange}
+  highlightMode={highlightMode}
+   
+  highlights={highlights}
+  isLocked={isLocked}
+  previewPages={effectivePreviewPages}
+  purchased={!isLocked}
+  bookId={book.id}
+  onBuyClick={() => goToPurchase(book.id)}
+  onDeleteHighlight={handleDeleteHighlight}
+  onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
+  watermarkText={drmConfig?.watermark_text}
+/>
+
 </Suspense>
 
       </div>

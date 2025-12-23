@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as React from "react";
+const PDFJSViewer = React.lazy(() => import("../PDFJSViewer"));
 
 // --- TYPES ---
 interface Order {
@@ -261,6 +262,7 @@ export function WritingServices({ onNavigate }: WritingServicesProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewingMaterial, setViewingMaterial] = useState<string | null>(null);
 const [interviewMaterials, setInterviewMaterials] = useState<InterviewMaterial[]>([]);
+const [openMaterial, setOpenMaterial] = useState<InterviewMaterial | null>(null);
 
   // Form Handlers
   const updateForm = (key: keyof FormData, value: string) =>
@@ -412,21 +414,11 @@ const [interviewMaterials, setInterviewMaterials] = useState<InterviewMaterial[]
   }, [handleApiError]);
 
   // Interview Preparation Functions
-  const handleViewMaterial = useCallback((material: InterviewMaterial) => {
-    setViewingMaterial(material.id);
-    
-    try {
-      // Open PDF in new tab
-      window.open(material.file_url, '_blank');
-      
-      toast.success(`Opening: ${material.title}`);
-      
-    } catch (err) {
-      toast.error("Failed to open material");
-    } finally {
-      setViewingMaterial(null);
-    }
-  }, []);
+const handleViewMaterial = useCallback((material: InterviewMaterial) => {
+  setViewingMaterial(material.id);
+  setOpenMaterial(material);
+  setViewingMaterial(null);
+}, []);
 const fetchInterviewMaterials = useCallback(async () => {
   try {
     setLoading(prev => ({ ...prev, services: true }));
