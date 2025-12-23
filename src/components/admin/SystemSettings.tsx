@@ -58,20 +58,6 @@ export default function SystemSettings() {
     alert("Settings updated!");
   };
 
-  /* -----------------------------
-      CREATE BACKUP
-  ----------------------------- */
-  const createBackup = async () => {
-    const token = localStorage.getItem("token");
-    const res = await axios.post(
-      "https://ebook-backend-lxce.onrender.com/api/admin/settings/backup",
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    alert("Backup created: " + res.data.file_url);
-  };
-
   return (
     <div className="space-y-6">
       <h2 className="text-[#1d4d6a] mb-1">System Settings</h2>
@@ -81,7 +67,6 @@ export default function SystemSettings() {
         <TabsList className="bg-white border border-gray-200">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="backups">Backups</TabsTrigger>
         </TabsList>
 
         {/* GENERAL SETTINGS */}
@@ -167,7 +152,7 @@ export default function SystemSettings() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedIntegration(item);   // FIXED
+                      setSelectedIntegration(item);
                       setShowModal(true);
                     }}
                   >
@@ -183,25 +168,8 @@ export default function SystemSettings() {
             open={showModal}
             onClose={() => setShowModal(false)}
             integration={selectedIntegration}
-            refresh={loadData}     // FIXED
+            refresh={loadData}
           />
-        </TabsContent>
-
-        {/* BACKUPS */}
-        <TabsContent value="backups" className="mt-6">
-          <Card className="border-none shadow-md">
-            <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">Automated Backups</CardTitle>
-              <CardDescription>Manage backup schedule</CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-[#1d4d6a] mb-1">Backup System</h4>
-                <Button onClick={createBackup}>Create Backup Now</Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
