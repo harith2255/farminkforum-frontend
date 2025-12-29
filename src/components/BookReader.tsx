@@ -269,10 +269,7 @@ const goToPurchase = (bookId: string | number) => {
             watermarking: drmData.watermarking,
             screenshot_prevention: drmData.screenshot_prevention,
             device_limit: drmData.device_limit ?? 3,
-            watermark_text:
-              drmData.watermark_text ||
-              localStorage.getItem("email") ||
-              "User",
+            watermark_text: drmData.watermark_text ?? null,
           });
           return;
         }
@@ -540,8 +537,7 @@ const fetchProtectedPDF = async () => {
   onBuyClick={() => goToPurchase(book.id)}
   onDeleteHighlight={handleDeleteHighlight}
   onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
-  watermarkText={drmConfig?.watermark_text}
-/>
+ watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}/>
 
 </Suspense>
 

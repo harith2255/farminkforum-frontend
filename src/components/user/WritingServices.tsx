@@ -1550,12 +1550,12 @@ const categories = useMemo(() => {
                           </div>
 
                           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 text-sm">
-                            <div className="bg-gray-50 rounded-lg px-4 py-2">
+                            {/* <div className="bg-gray-50 rounded-lg px-4 py-2">
                               <p className="text-xs text-gray-500 mb-1">Grade Received</p>
                               <p className="text-[#1d4d6a]">{order.grade || "N/A"}</p>
-                            </div>
+                            </div> */}
 
-                            <div className="bg-gray-50 rounded-lg px-4 py-2">
+                            {/* <div className="bg-gray-50 rounded-lg px-4 py-2">
                               <p className="text-xs text-gray-500 mb-1">Your Rating</p>
                               <div className="flex items-center gap-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
@@ -1573,7 +1573,7 @@ const categories = useMemo(() => {
                                   </Button>
                                 ))}
                               </div>
-                            </div>
+                            </div> */}
 
                             <div className="flex items-center gap-4">
                               {(order.final_text || order.notes_url) && (

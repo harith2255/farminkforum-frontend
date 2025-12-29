@@ -339,7 +339,7 @@ setTimeout(() => {
 
   return (
     <div className="px-4 py-8 max-w-5xl mx-auto">
-      <button onClick={() => onNavigate("user-dashboard")} className="mb-6 flex items-center gap-2 text-gray-600">
+      <button onClick={() => onNavigate("user-dashboard","dashboard")} className="mb-6 flex items-center gap-2 text-gray-600">
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
@@ -409,7 +409,17 @@ setTimeout(() => {
         </div>
       </div>
 
-      <PaymentModal open={showPayment} item={item} onSuccess={handleSuccess} onClose={() => setShowPayment(false)} />
+      <PaymentModal 
+  open={showPayment} 
+  item={item} 
+  onSuccess={handleSuccess} 
+  onClose={() => {
+  setShowPayment(false);
+  onNavigate("user-dashboard", "dashboard");
+; // 🔥 correct
+}}
+
+/>
     </div>
   );
 }

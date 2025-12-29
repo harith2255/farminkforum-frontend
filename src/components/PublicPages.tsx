@@ -59,6 +59,36 @@ export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
   );
 }
 
+// 🚨 auto logout on expired token
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const msg = error?.response?.data?.error || "";
+
+    // cases your backend sends
+    const expired =
+      msg === "jwt_invalid" ||
+      msg === "missing_token" ||
+      msg === "session_expired";
+
+    if (expired) {
+      localStorage.removeItem("app_token");
+      localStorage.removeItem("current_session_id");
+      localStorage.removeItem("user");
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("role");
+
+      toast.error("Session expired. Please log in again.");
+
+      // redirect to login
+      window.location.href = "/login?reason=expired";
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+
 export function LoginPage({
   onNavigate,
   onLogin,

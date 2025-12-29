@@ -22,10 +22,10 @@ function CurrentAffairs() {
 
 const fetchCategories = async () => {
   try {
-    const token = localStorage.getItem("app_token");
+    const token = localStorage.getItem("token");
 
     const res = await fetch(
-      "http://localhost:5000/api/current-affairs/categories",
+      "https://ebook-backend-lxce.onrender.com/api/current-affairs/categories",
       {
         headers: {
           Authorization: `Bearer ${token}`,

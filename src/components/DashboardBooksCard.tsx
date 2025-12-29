@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -23,15 +23,15 @@ export default function DashboardBookCard({
   const [collections, setCollections] = useState<any[]>([]);
   const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
 
-  const [inCollection, setInCollection] = useState(false);
-  const [isPurchased, setIsPurchased] = useState(book.purchased);
+const [inCollection, setInCollection] = useState(false);
+const [isPurchased, setIsPurchased] = useState(book.purchased);
 
-  const [showRatingPopup, setShowRatingPopup] = useState(false);
-  const [userRating, setUserRating] = useState<number | null>(
-    book.user_rating ?? null
-  );
-  const [avgRating, setAvgRating] = useState(book.rating ?? 4.5);
-  const ratingRef = useRef<HTMLDivElement | null>(null);
+const [showRatingPopup, setShowRatingPopup] = useState(false);
+const [userRating, setUserRating] = useState<number | null>(
+  book.user_rating ?? null
+);
+const [avgRating, setAvgRating] = useState(book.rating ?? 4.5);
+const ratingRef = useRef<HTMLDivElement | null>(null);
 
 
   const isLoggedIn = () => !!localStorage.getItem("token");
@@ -46,84 +46,84 @@ export default function DashboardBookCard({
   /* ---------------------------------------------------
        LOAD USER COLLECTIONS
   --------------------------------------------------- */
-  useEffect(() => {
-    const loadCollections = async () => {
-      if (!isLoggedIn()) return;
+ useEffect(() => {
+  const loadCollections = async () => {
+    if (!isLoggedIn()) return;
 
-      try {
-        const res = await axios.get(
-          "https://ebook-backend-lxce.onrender.com/api/library/collections",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+    try {
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/library/collections",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        setCollections(res.data || []);
+      setCollections(res.data || []);
 
-        // CHECK IF THIS BOOK EXISTS IN ANY COLLECTION
-        const contains = res.data.some((c) =>
-          c.books?.some((b) => b.id === book.id)
-        );
+      // CHECK IF THIS BOOK EXISTS IN ANY COLLECTION
+      const contains = res.data.some((c) =>
+        c.books?.some((b) => b.id === book.id)
+      );
 
-        setInCollection(contains);
+      setInCollection(contains);
 
-      } catch (err) {
-        console.log("Failed to load collections");
-      }
-    };
+    } catch (err) {
+      console.log("Failed to load collections");
+    }
+  };
 
-    loadCollections();
-  }, []);
+  loadCollections();
+}, []);
 
 
-  useEffect(() => {
-    const loadCollections = async () => {
-      if (!isLoggedIn()) return;
+useEffect(() => {
+  const loadCollections = async () => {
+    if (!isLoggedIn()) return;
 
-      try {
-        const res = await axios.get(
-          "https://ebook-backend-lxce.onrender.com/api/library/collections",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+    try {
+      const res = await axios.get(
+        "https://ebook-backend-lxce.onrender.com/api/library/collections",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        setCollections(res.data || []);
+      setCollections(res.data || []);
 
-        const contains = res.data.some((c) =>
-          c.books?.some((b) => b.id === book.id)
-        );
+      const contains = res.data.some((c) =>
+        c.books?.some((b) => b.id === book.id)
+      );
 
-        setInCollection(contains);
+      setInCollection(contains);
 
-      } catch { }
-    };
+    } catch {}
+  };
 
-    loadCollections();
-  }, []);
+  loadCollections();
+}, []);
 
   /* ---------------------------------------------------
         ADD BOOK TO COLLECTION
   --------------------------------------------------- */
-  const addToCollection = async (collectionId: string) => {
-    try {
-      await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/library/collections/${collectionId}/add`,
-        { book_id: book.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+ const addToCollection = async (collectionId: string) => {
+  try {
+    await axios.post(
+      `https://ebook-backend-lxce.onrender.com/api/library/collections/${collectionId}/add`,
+      { book_id: book.id },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      toast.success("Added to collection ✓");
+    toast.success("Added to collection ✓");
 
-      setIsCollectionDialogOpen(false);
+    setIsCollectionDialogOpen(false);
 
-      // instantly change UI
-      setInCollection(true);
+    // instantly change UI
+    setInCollection(true);
 
-      // notify library/explore screens to refetch
-      window.dispatchEvent(new Event("library:updated"));
-      window.dispatchEvent(new Event("refresh-explore"));
+    // notify library/explore screens to refetch
+    window.dispatchEvent(new Event("library:updated"));
+    window.dispatchEvent(new Event("refresh-explore"));
 
-    } catch (err: any) {
-      toast.error("Failed to add to collection");
-    }
-  };
+  } catch (err: any) {
+    toast.error("Failed to add to collection");
+  }
+};
 
 
   /* ---------------------------------------------------
@@ -150,99 +150,100 @@ export default function DashboardBookCard({
   /* ---------------------------------------------------
                  BUY NOW
   --------------------------------------------------- */
-  const handleBuyNow = () => {
-    if (!isLoggedIn()) return onNavigate("login");
+const handleBuyNow = () => {
+  if (!isLoggedIn()) return onNavigate("login");
 
-    localStorage.setItem("purchaseType", "book");
-    localStorage.setItem("purchaseId", String(book.id));
-    localStorage.setItem("purchaseItems", JSON.stringify([{ id: book.id, type: "book" }]));
-    localStorage.setItem("previousSection", "explore");
+  localStorage.setItem("purchaseType", "book");
+  localStorage.setItem("purchaseId", String(book.id));
+  localStorage.setItem("purchaseItems", JSON.stringify([{ id: book.id, type: "book" }]));
+  localStorage.setItem("previousSection", "explore");
 
-    onNavigate("purchase", book.id);
+  onNavigate("purchase", book.id);
 
-  };
+};
 
   /* ---------------------------------------------------
               READ / VIEW DETAILS
   --------------------------------------------------- */
-  const handleReadNow = () => {
-    if (!isLoggedIn()) return onNavigate("login");
+const handleReadNow = () => {
+  if (!isLoggedIn()) return onNavigate("login");
 
-    return onOpenBook(book, { preview: false });
+  return onOpenBook(book, { preview: false });
+};
+
+const handleViewDetails = () => {
+  if (!isLoggedIn()) return onNavigate("login");
+
+  return onOpenBook(book, {
+    preview: !isPurchased,
+    previewPages: isPurchased ? undefined : 2,
+  });
+};
+
+
+useEffect(() => {
+  const onPurchase = () => {
+    setIsPurchased(true);
   };
 
-  const handleViewDetails = () => {
-    if (!isLoggedIn()) return onNavigate("login");
-
-    return onOpenBook(book, {
-      preview: !isPurchased,
-      previewPages: isPurchased ? undefined : 2,
-    });
-  };
+  window.addEventListener("library:updated", onPurchase);
+  return () => window.removeEventListener("library:updated", onPurchase);
+}, []);
 
 
-  useEffect(() => {
-    const onPurchase = () => {
+
+
+useEffect(() => {
+  const onPurchase = (e: any) => {
+    if (String(e?.detail?.bookId) === String(book.id)) {
       setIsPurchased(true);
-    };
-
-    window.addEventListener("library:updated", onPurchase);
-    return () => window.removeEventListener("library:updated", onPurchase);
-  }, []);
-
-
-
-
-  useEffect(() => {
-    const onPurchase = (e: any) => {
-      if (String(e?.detail?.bookId) === String(book.id)) {
-        setIsPurchased(true);
-      }
-    };
-
-    window.addEventListener("library:updated", onPurchase);
-    return () => window.removeEventListener("library:updated", onPurchase);
-  }, [book.id]);
-
-  const submitRating = async (rating: number) => {
-    if (!isLoggedIn()) return onNavigate("login");
-
-    try {
-
-
-
-      const res = await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/books/${book.id}/rate`,
-        { rating },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setUserRating(rating);
-      setAvgRating(res.data.rating);   // actual avg from DB
-      setShowRatingPopup(false);
-      toast.success("Rating submitted ✓");
-    } catch (err) {
-      toast.error("Failed to submit rating");
     }
   };
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        ratingRef.current &&
-        !ratingRef.current.contains(e.target as Node)
-      ) {
-        setShowRatingPopup(false);
-      }
-    };
 
-    if (showRatingPopup) {
-      document.addEventListener("mousedown", handleClickOutside);
+  window.addEventListener("library:updated", onPurchase);
+  return () => window.removeEventListener("library:updated", onPurchase);
+}, [book.id]);
+
+
+const submitRating = async (rating: number) => {
+  if (!isLoggedIn()) return onNavigate("login");
+
+  try {
+
+
+
+   const res = await axios.post(
+  `https://ebook-backend-lxce.onrender.com/api/books/${book.id}/rate`,
+  { rating },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
+
+   setUserRating(rating);
+setAvgRating(res.data.rating);   // actual avg from DB
+setShowRatingPopup(false);
+    toast.success("Rating submitted ✓");
+  } catch (err) {
+    toast.error("Failed to submit rating");
+  }
+};
+useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    if (
+      ratingRef.current &&
+      !ratingRef.current.contains(e.target as Node)
+    ) {
+      setShowRatingPopup(false);
     }
+  };
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showRatingPopup]);
+  if (showRatingPopup) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [showRatingPopup]);
 
 
   return (
@@ -287,11 +288,11 @@ export default function DashboardBookCard({
 
         {/* CONTENT */}
         <CardContent className="p-4">
-          {book.categories?.name && (
-            <Badge className="bg-blue-100 text-blue-700 text-xs mb-2">
-              {book.categories.name}
-            </Badge>
-          )}
+         {book.categories?.name && (
+  <Badge className="bg-blue-100 text-blue-700 text-xs mb-2">
+    {book.categories.name}
+  </Badge>
+)}
 
 
           <h3 className="text-[#1d4d6a] mb-1 text-lg font-semibold line-clamp-1">
@@ -300,46 +301,60 @@ export default function DashboardBookCard({
 
           <p className="text-sm text-gray-500 mb-3">{book.author}</p>
 
-          <div className="relative flex items-center gap-1 cursor-pointer">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Star
-                key={i}
-                onClick={() => setShowRatingPopup(true)}
-                className={`w-4 h-4 ${i <= Math.round(avgRating)
-                    ? "text-yellow-500 fill-yellow-500"
-                    : "text-gray-300"
-                  }`}
-              />
-            ))}
+<div
+  className={`relative flex items-center gap-1 cursor-pointer ${
+    !isPurchased ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  {[1, 2, 3, 4, 5].map((i) => (
+    <Star
+      key={i}
+      onClick={() => {
+        if (!isPurchased) {
+          toast("Purchase required to rate ⭐", {
+            description: "Buy this book to share your rating.",
+          });
+          return;
+        }
+        setShowRatingPopup(true);
+      }}
+      className={`w-4 h-4 ${
+        i <= Math.round(avgRating)
+          ? "text-yellow-500 fill-yellow-500"
+          : "text-gray-300"
+      }`}
+    />
+  ))}
 
-            <span className="text-sm ml-1">{avgRating.toFixed(1)}</span>
+  <span className="text-sm ml-1">{avgRating.toFixed(1)}</span>
 
-            {/* ⭐ Rating Popup */}
-            {showRatingPopup && (
-              <div
-                ref={ratingRef}
-                className="absolute top-6 left-0 bg-white shadow-lg border rounded-md p-2 z-50"
-              >
+  {showRatingPopup && isPurchased && (
+    <div
+      ref={ratingRef}
+      className="absolute top-6 left-0 bg-white shadow-lg border rounded-md p-2 z-50"
+    >
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Star
+            key={i}
+            onClick={() => submitRating(i)}
+            className={`w-6 h-6 cursor-pointer ${
+              i <= (userRating ?? 0)
+                ? "text-yellow-500 fill-yellow-500"
+                : "text-gray-300"
+            } hover:scale-110 transition`}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+</div>
 
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      onClick={() => submitRating(i)}
-                      className={`w-6 h-6 cursor-pointer ${i <= (userRating ?? 0)
-                          ? "text-yellow-500 fill-yellow-500"
-                          : "text-gray-300"
-                        } hover:scale-110 transition`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          <span className="text-[#bf2026] font-semibold">
-            ₹{book.price ?? 0}
-          </span>
+            <span className="text-[#bf2026] font-semibold">
+              ₹{book.price ?? 0}
+            </span>
+          
 
           {/* ACTION BUTTONS */}
           <div className="flex items-center justify-between gap-2">
@@ -354,20 +369,20 @@ export default function DashboardBookCard({
                 </Button>
 
                 {/* Add To Collection Button */}
-                {inCollection ? (
-                  <Button disabled className="flex-1 bg-gray-300 text-gray-600" size="sm">
-                    Added ✓
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => setIsCollectionDialogOpen(true)}
-                    className="flex-1 bg-[#1d4d6a] hover:bg-[#153a4f] text-white"
-                    size="sm"
-                  >
-                    <FolderPlus className="w-4 h-4 mr-1" />
-                    Add to Collection
-                  </Button>
-                )}
+       {inCollection ? (
+  <Button disabled className="flex-1 bg-gray-300 text-gray-600" size="sm">
+    Added ✓
+  </Button>
+) : (
+  <Button
+    onClick={() => setIsCollectionDialogOpen(true)}
+    className="flex-1 bg-[#1d4d6a] hover:bg-[#153a4f] text-white"
+    size="sm"
+  >
+    <FolderPlus className="w-4 h-4 mr-1" />
+    Add to Collection
+  </Button>
+)}
 
 
 

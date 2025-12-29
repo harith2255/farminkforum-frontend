@@ -20,6 +20,8 @@ import {
   ShoppingCart,
   Grid,
   Calendar,
+  MessageCircle,
+  X,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -82,15 +84,18 @@ export default function UserDashboard({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-
   const [error, setError] = useState("");
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [showQRModal, setShowQRModal] = useState(false); // QR Modal state
+  const [selectedQR, setSelectedQR] = useState<string>(""); // Which QR to show
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
+  const whatsappRef = useRef<HTMLDivElement>(null);
 
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -99,7 +104,7 @@ export default function UserDashboard({
   type SubStatus = "loading" | "active" | "inactive";
   const [subStatus, setSubStatus] = useState<SubStatus>("loading");
   const [activeSub, setActiveSub] = useState<any | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // MOBILE sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function UpgradeRequired({ onNavigate }) {
     return (
@@ -120,6 +125,89 @@ export default function UserDashboard({
       </div>
     );
   }
+
+  // QR Code Modal Component
+  const QRModal = () => {
+    if (!showQRModal) return null;
+
+    const qrData = {
+      "farmink": {
+        title: "FarmInk Forum - Agricultural Social Sciences",
+        description: "WhatsApp group for Agricultural & Social Sciences",
+        qrUrl:"public\\qrimage\\FarmInkForumQR1.png", // Replace with your actual image path
+        instruction: "Scan this QR code using the WhatsApp camera to join this group",
+        color: "bg-green-50",
+        textColor: "text-green-800",
+        buttonColor: "bg-green-600 hover:bg-green-700",
+        whatsappUrl: "https://wa.me/?text=Hello!%20I%20want%20to%20join%20FarmInk%20Forum%20-%20Agricultural,%20Social%20Sciences"
+      },
+      "ugc-net": {
+        title: "UGC NET JRF - Adult Education Preparation",
+        subtitle: "Intensive Extension Knowledge Forum",
+        description: "WhatsApp group for UGC NET/JRF Adult Education Preparation",
+        qrUrl: "public\\qrimage\\FarmInkForumQR2.png", // Replace with your actual image path
+        instruction: "Scan this QR code using the WhatsApp camera to join this group",
+        color: "bg-blue-50",
+        textColor: "text-blue-800",
+        buttonColor: "bg-blue-600 hover:bg-blue-700",
+        whatsappUrl: "https://wa.me/?text=Hello!%20I%20want%20to%20join%20UGC%20NET%20JRF%20-%20Adult%20Education%20Preparation%20-%20Intensive%20Extension%20Knowledge%20Forum"
+      }
+    };
+
+    const data = qrData[selectedQR as keyof typeof qrData] || qrData.farmink;
+
+    return (
+      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+        <div className={`${data.color} rounded-2xl max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300`}>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex-1">
+                <h2 className={`text-lg font-bold ${data.textColor} leading-tight`}>
+                  {data.title}
+                </h2>
+                {data.subtitle && (
+                  <p className={`text-sm ${data.textColor} font-medium mt-1`}>
+                    {data.subtitle}
+                  </p>
+                )}
+                <p className="text-sm text-gray-600 mt-1">{data.description}</p>
+              </div>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="p-2 hover:bg-white/50 rounded-full transition-colors ml-4"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-4 rounded-xl shadow-lg mb-4 border border-gray-200">
+                <img
+                  src={data.qrUrl}
+                  alt="WhatsApp QR Code"
+                  className="w-64 h-64 object-contain"
+                />
+              </div>
+
+              <div className="text-center mb-6">
+                <p className="text-gray-700 font-medium mb-1">
+                  {data.instruction}
+                </p>
+             
+              </div>
+
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center">
+                Can't scan? Open WhatsApp and search for the group name
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const handler = () => {
@@ -191,7 +279,7 @@ export default function UserDashboard({
     loadProfile();
   }, []);
 
-  // 🔥 IMPROVED: fetch dashboard with retry logic (from friend's code)
+  // 🔥 IMPROVED: fetch dashboard with retry logic
   useEffect(() => {
     let cancelled = false;
 
@@ -208,7 +296,7 @@ export default function UserDashboard({
 
       if (!token) {
         console.warn("⏳ Token not ready yet — retrying...");
-        setTimeout(fetchDashboard, 300); // retry instead of failing
+        setTimeout(fetchDashboard, 300);
         return;
       }
 
@@ -253,11 +341,11 @@ export default function UserDashboard({
     };
   }, []);
 
-  // 🔥 IMPROVED: Listen for subscription changes globally (from friend's code)
+  // 🔥 IMPROVED: Listen for subscription changes globally
   useEffect(() => {
     const handler = async () => {
-      await fetchSubscription(); // refresh active plan
-      window.dispatchEvent(new Event("dashboard:update")); // refresh dashboard stats
+      await fetchSubscription();
+      window.dispatchEvent(new Event("dashboard:update"));
     };
 
     window.addEventListener("subscription:updated", handler);
@@ -339,20 +427,17 @@ export default function UserDashboard({
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
-      if (
-        avatarRef.current &&
-        !avatarRef.current.contains(event.target as Node)
-      ) {
+      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
         setAvatarOpen(false);
       }
       if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
         setCartOpen(false);
+      }
+      if (whatsappRef.current && !whatsappRef.current.contains(event.target as Node)) {
+        setWhatsAppOpen(false);
       }
     };
 
@@ -379,7 +464,7 @@ export default function UserDashboard({
     return () => window.removeEventListener("restore-user-section", handler);
   }, []);
 
-  // 🚀 IMPROVED: MASTER URL ⟶ SECTION SYNC (from friend's code)
+  // 🚀 IMPROVED: MASTER URL ⟶ SECTION SYNC
   useEffect(() => {
     const syncFromURL = () => {
       let path = window.location.pathname;
@@ -391,7 +476,6 @@ export default function UserDashboard({
 
       let sub = path.replace("/user-dashboard/", "").trim();
 
-      // normalize weird patterns
       if (sub === "" || sub === "/") sub = "dashboard";
       if (sub.startsWith("purchase")) sub = "purchase";
       if (sub.startsWith("cart")) sub = "cartpage";
@@ -417,20 +501,12 @@ export default function UserDashboard({
 
       if (valid.includes(sub as UserSection)) {
         setActiveSection(sub as UserSection);
-      } if (valid.includes(sub as UserSection)) {
-        setActiveSection(sub as UserSection);
       }
-
     };
 
-
-    // Run immediately (first load)
     syncFromURL();
-
-    // Browser back/forward
     window.addEventListener("popstate", syncFromURL);
 
-    // restore-user-section support
     const restore = (e: any) => {
       if (e.detail) {
         setActiveSection(e.detail as UserSection);
@@ -440,7 +516,6 @@ export default function UserDashboard({
     };
     window.addEventListener("restore-user-section", restore);
 
-    // safety retry
     const retry = setTimeout(syncFromURL, 50);
 
     return () => {
@@ -455,7 +530,7 @@ export default function UserDashboard({
     onLogout();
   };
 
-  // 🔥 IMPROVED: fetchSubscription with better error handling (from friend's code)
+  // 🔥 IMPROVED: fetchSubscription with better error handling
   async function fetchSubscription() {
     try {
       setSubStatus("loading")
@@ -510,7 +585,6 @@ export default function UserDashboard({
   const handler = (e: any) => {
     const updatedProfile = e.detail;
 
-    // 🔥 update header greeting
     setDashboardData((prev: any) => ({
       ...prev,
       user: {
@@ -519,7 +593,6 @@ export default function UserDashboard({
       },
     }));
 
-    // 🔥 update avatar dropdown user
     setUser(updatedProfile);
   };
 
@@ -527,7 +600,7 @@ export default function UserDashboard({
   return () => window.removeEventListener("profileUpdated", handler);
 }, []);
 
-  // 🔥 ADDED: Sync route tab → dashboard section (from friend's code)
+  // 🔥 ADDED: Sync route tab → dashboard section
   useEffect(() => {
     if (activeTab && !activeSection) {
       setActiveSection(activeTab as UserSection);
@@ -546,7 +619,9 @@ export default function UserDashboard({
       if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
         setCartOpen(false);
       }
-      // Close mobile sidebar if clicked outside
+      if (whatsappRef.current && !whatsappRef.current.contains(event.target as Node)) {
+        setWhatsAppOpen(false);
+      }
       const isMobile = window.innerWidth < 1024;
       if (isMobile && sidebarOpen && (event.target as HTMLElement).closest('#sidebar') === null) {
         setSidebarOpen(false);
@@ -556,428 +631,479 @@ export default function UserDashboard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [sidebarOpen]);
 
-  // *** NEW Function to handle button click across all screens ***
   const handleMenuToggle = () => {
-    // Check screen width for mobile vs. desktop logic
     if (window.innerWidth < 1024) {
-      // Mobile/Tablet View (less than lg breakpoint)
       setSidebarOpen(!sidebarOpen);
     } else {
-      // Desktop View (lg breakpoint and up)
       setSidebarCollapsed(!sidebarCollapsed);
     }
   };
-  // ***************************************************************
 
   return (
-    <div className="min-h-screen bg-[#f5f6f8] flex">
-      {/* Overlay for mobile */}
-      <div
-        className={`fixed inset-0 bg-black/40 z-40 transition-opacity 
-          ${sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} 
-          lg:hidden`}
-        onClick={() => setSidebarOpen(false)}
-      />
+    <>
+      <div className="min-h-screen bg-[#f5f6f8] flex">
+        {/* QR Modal */}
+        <QRModal />
 
-      {/* Sidebar */}
-      <aside
-        id="sidebar"
-        className={`fixed z-50 top-0 left-0 h-full bg-white border-r border-gray-200 
-          flex flex-col transition-all duration-300
-          ${sidebarCollapsed ? "w-20" : "w-64"}
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
-      >
-        <div className="p-6 border-b border-gray-200 flex items-center justify-center">
-          <div className="flex flex-col items-center leading-tight text-center">
-            <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
-            <p className="text-xs text-gray-500">Student Portal</p>
-          </div>
-        </div>
+        {/* Overlay for mobile */}
+        <div
+          className={`fixed inset-0 bg-black/40 z-40 transition-opacity 
+            ${sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} 
+            lg:hidden`}
+          onClick={() => setSidebarOpen(false)}
+        />
 
-        {/* Scrollable navigation */}
-        <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-          <nav className="p-4">
-            {menuItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveSection(item.id as UserSection);
-                  setDropdownOpen(false);
-                  setAvatarOpen(false);
-                  // Close sidebar on mobile after selection
-                  setSidebarOpen(false);
-
-                  // URL update without navigation
-                  window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${activeSection === item.id
-                  ? "bg-[#bf2026] text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100"
-                  }`}
-              >
-                <item.icon className="w-5 h-5" />
-                {!sidebarCollapsed && (
-                  <span className="text-sm">{item.label}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <button
-            onClick={handleLogoutClick}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div
-        className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
-      >
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* This is the single button for all screens */}
-              <Button onClick={handleMenuToggle} variant="ghost" size="sm" className="inline-flex">
-                <Menu className="w-5 h-5" />
-              </Button>
-
-              <div>
-                <h1 className="text-[#1d4d6a] mb-1 text-base sm:text-lg">
-                  Welcome back, {dashboardData?.user?.full_name || "Student"}!
-                </h1>
-                <p className="text-sm text-gray-500 hidden sm:block">
-                  Continue your learning journey
-                </p>
-              </div>
+        {/* Sidebar */}
+        <aside
+          id="sidebar"
+          className={`fixed z-50 top-0 left-0 h-full bg-white border-r border-gray-200 
+            flex flex-col transition-all duration-300
+            ${sidebarCollapsed ? "w-20" : "w-64"}
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
+        >
+          <div className="p-6 border-b border-gray-200 flex items-center justify-center">
+            <div className="flex flex-col items-center leading-tight text-center">
+              <span className="text-[#1d4d6a] font-medium">FarmInk Forum</span>
+              <p className="text-xs text-gray-500">Student Portal</p>
             </div>
+          </div>
 
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Search (if you want to add it back) */}
-              {/* <div className="relative hidden sm:block">
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 pr-4 py-2 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-[#bf2026] w-64"
-                />
-              </div> */}
-
-              {/* Notifications */}
-              <div className="relative" ref={dropdownRef}>
+          {/* Scrollable navigation */}
+          <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+            <nav className="p-4">
+              {menuItems.map((item) => (
                 <button
-                  className="relative p-2 hover:bg-gray-100 rounded-lg"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  key={item.id}
+                  onClick={() => {
+                    setActiveSection(item.id as UserSection);
+                    setDropdownOpen(false);
+                    setAvatarOpen(false);
+                    setWhatsAppOpen(false);
+                    setSidebarOpen(false);
+
+                    window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${activeSection === item.id
+                    ? "bg-[#bf2026] text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-100"
+                    }`}
                 >
-                  <Bell className="w-5 h-5 text-gray-600" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                  <item.icon className="w-5 h-5" />
+                  {!sidebarCollapsed && (
+                    <span className="text-sm">{item.label}</span>
                   )}
                 </button>
+              ))}
+            </nav>
+          </div>
 
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b font-semibold text-gray-700">
-                      Notifications
-                    </div>
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <button
+              onClick={handleLogoutClick}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
+            >
+              <LogOut className="w-5 h-5" />
+              {!sidebarCollapsed && <span className="text-sm">Logout</span>}
+            </button>
+          </div>
+        </aside>
 
-                    <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-                      {notifications.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-gray-400 text-center">
-                          No notifications
-                        </p>
-                      )}
+        {/* Main Content */}
+        <div
+          className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
+        >
+          {/* Header */}
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <div className="px-4 sm:px-8 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button onClick={handleMenuToggle} variant="ghost" size="sm" className="inline-flex">
+                  <Menu className="w-5 h-5" />
+                </Button>
 
-                      {notifications.map((n) => (
-                        <li
-                          key={n.id}
-                          className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                          onClick={async () => {
-                            try {
-                              const token = localStorage.getItem("token");
-                              await axios.patch(
-                                `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
-                                {},
-                                {
-                                  headers: { Authorization: `Bearer ${token}` },
-                                }
-                              );
-
-                              setNotifications((prev) =>
-                                prev.map((item) =>
-                                  item.id === n.id
-                                    ? { ...item, is_read: true }
-                                    : item
-                                )
-                              );
-
-                              setUnreadCount((prev) => Math.max(prev - 1, 0));
-
-                              setActiveSection("notifications");
-                              setDropdownOpen(false);
-                            } catch (err) {
-                              console.error("Failed to mark read:", err);
-                            }
-                          }}
-                        >
-                          <p
-                            className={`text-gray-700 ${n.is_read ? "opacity-70" : "font-medium"
-                              }`}
-                          >
-                            {n.message}
-                          </p>
-                          <p className="text-xs text-gray-400">{n.time}</p>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="text-center py-2 border-t">
-                      <button
-                        onClick={() => {
-                          setActiveSection("notifications");
-                          setDropdownOpen(false);
-                        }}
-                        className="text-[#bf2026] text-sm font-medium hover:underline"
-                      >
-                        View all
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <h1 className="text-[#1d4d6a] mb-1 text-base sm:text-lg">
+                    Welcome back, {dashboardData?.user?.full_name || "Student"}!
+                  </h1>
+                  <p className="text-sm text-gray-500 hidden sm:block">
+                    Continue your learning journey
+                  </p>
+                </div>
               </div>
 
-              {/* Cart Dropdown */}
-              <div className="relative" ref={cartRef}>
-                <button
-                  className="relative p-2 hover:bg-gray-100 rounded-lg"
-                  onClick={() => setCartOpen(!cartOpen)}
-                >
-                  <ShoppingCart className="w-5 h-5 text-gray-600" />
-                  {cartItems.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
-                  )}
-                </button>
+              <div className="flex items-center gap-2 sm:gap-4">
+                {/* WhatsApp Dropdown */}
+                <div className="relative" ref={whatsappRef}>
+                  <button
+                    className="relative p-2 hover:bg-gray-100 rounded-lg group"
+                    onClick={() => setWhatsAppOpen(!whatsAppOpen)}
+                    title="Chat with Support on WhatsApp"
+                  >
+                    <MessageCircle className="w-5 h-5 text-gray-600 transition-colors" />                  
+                  </button>
 
-                {cartOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
-                      <span>Cart</span>
-                      <span className="text-xs text-gray-500">
-                        {cartItems.length} items
-                      </span>
-                    </div>
-
-                    {cartItems.length > 0 ? (
-                      <>
-                        <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-                          {cartItems.map((item) => {
-                            const product = item.book || item.note;
-
-                            return (
-                              <li
-                                key={item.id}
-                                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
-                              >
-                                <img
-                                  src={
-                                    product?.file_url?.match(
-                                      /\.(png|jpg|jpeg)$/i
-                                    )
-                                      ? product.file_url
-                                      : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
-                                  }
-                                  className="w-10 h-10 rounded object-cover"
-                                />
-
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-700">
-                                    {product?.title}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    ₹{product?.price}
-                                  </p>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-
-                        <div className="text-center py-2 border-t">
+                  {whatsAppOpen && (
+                    <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                      <div className="p-3 border-b font-semibold text-gray-700">
+                        Select Support Channel
+                      </div>
+                      
+                      <ul className="py-2">
+                        <li>
                           <button
+                            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100"
                             onClick={() => {
-                              setActiveSection("cartpage");
-                              setCartOpen(false);
+                              setSelectedQR("farmink");
+                              setShowQRModal(true);
+                              setWhatsAppOpen(false);
                             }}
-                            className="text-[#bf2026] text-sm font-medium hover:underline"
                           >
-                            View Cart
+                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                              <MessageCircle className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-medium">FarmInk Forum</p>
+                              <p className="text-xs text-gray-500">Agricultural, Social Science</p>
+                            </div>
                           </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center text-gray-500 py-6 text-sm">
-                        Your cart is empty 🛍️
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Avatar Dropdown */}
-              <div className="relative" ref={avatarRef}>
-                <button
-                  className="p-1 rounded-full hover:bg-gray-100"
-                  aria-label="User Menu"
-                  onClick={() => setAvatarOpen(!avatarOpen)}
-                >
-                  <Avatar className="w-8 h-8">
-                    {user?.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <AvatarFallback>
-                        {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                </button>
-
-                {avatarOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
-                    <div className="p-4 border-b border-gray-200 flex items-center gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          {user?.full_name ||
-                            `${user?.first_name || ""} ${user?.last_name || ""}` ||
-                            "Guest User"}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {user?.email || "no-email@example.com"}
-                        </p>
+                        </li>
+                        
+                        <li>
+                          <button
+                            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => {
+                              setSelectedQR("ugc-net");
+                              setShowQRModal(true);
+                              setWhatsAppOpen(false);
+                            }}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <BookOpen className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-medium">UGC NET/JRF Preparation</p>
+                              <p className="text-xs text-gray-500">Adult Education - Intensive Extension Knowledge Forum</p>
+                            </div>
+                          </button>
+                        </li>
+                      </ul>
+                      
+                      <div className="p-3 border-t text-center">
+                        <p className="text-xs text-gray-500">Typically replies within 30 minutes</p>
                       </div>
                     </div>
+                  )}
+                </div>
 
-                    <ul className="py-2">
-                      <li>
+                {/* Notifications */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    className="relative p-2 hover:bg-gray-100 rounded-lg"
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                  >
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                    )}
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                      <div className="p-3 border-b font-semibold text-gray-700">
+                        Notifications
+                      </div>
+
+                      <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                        {notifications.length === 0 && (
+                          <p className="px-3 py-2 text-sm text-gray-400 text-center">
+                            No notifications
+                          </p>
+                        )}
+
+                        {notifications.map((n) => (
+                          <li
+                            key={n.id}
+                            className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                            onClick={async () => {
+                              try {
+                                const token = localStorage.getItem("token");
+                                await axios.patch(
+                                  `https://ebook-backend-lxce.onrender.com/api/notifications/read/${n.id}`,
+                                  {},
+                                  {
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  }
+                                );
+
+                                setNotifications((prev) =>
+                                  prev.map((item) =>
+                                    item.id === n.id
+                                      ? { ...item, is_read: true }
+                                      : item
+                                  )
+                                );
+
+                                setUnreadCount((prev) => Math.max(prev - 1, 0));
+
+                                setActiveSection("notifications");
+                                setDropdownOpen(false);
+                              } catch (err) {
+                                console.error("Failed to mark read:", err);
+                              }
+                            }}
+                          >
+                            <p
+                              className={`text-gray-700 ${n.is_read ? "opacity-70" : "font-medium"
+                                }`}
+                            >
+                              {n.message}
+                            </p>
+                            <p className="text-xs text-gray-400">{n.time}</p>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <div className="text-center py-2 border-t">
                         <button
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                          onClick={() => setActiveSection("profile")}
+                          onClick={() => {
+                            setActiveSection("notifications");
+                            setDropdownOpen(false);
+                          }}
+                          className="text-[#bf2026] text-sm font-medium hover:underline"
                         >
-                          <Settings className="w-4 h-4" /> Settings
+                          View all
                         </button>
-                      </li>
-                      <li>
-                        <button
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                          onClick={handleLogoutClick}
-                        >
-                          <LogOut className="w-4 h-4" /> Logout
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Cart Dropdown */}
+                <div className="relative" ref={cartRef}>
+                  <button
+                    className="relative p-2 hover:bg-gray-100 rounded-lg"
+                    onClick={() => setCartOpen(!cartOpen)}
+                  >
+                    <ShoppingCart className="w-5 h-5 text-gray-600" />
+                    {cartItems.length > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-[#bf2026] rounded-full"></span>
+                    )}
+                  </button>
+
+                  {cartOpen && (
+                    <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                      <div className="p-3 border-b font-semibold text-gray-700 flex justify-between">
+                        <span>Cart</span>
+                        <span className="text-xs text-gray-500">
+                          {cartItems.length} items
+                        </span>
+                      </div>
+
+                      {cartItems.length > 0 ? (
+                        <>
+                          <ul className="max-h-60 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            {cartItems.map((item) => {
+                              const product = item.book || item.note;
+
+                              return (
+                                <li
+                                  key={item.id}
+                                  className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
+                                >
+                                  <img
+                                    src={
+                                      product?.file_url?.match(
+                                        /\.(png|jpg|jpeg)$/i
+                                      )
+                                        ? product.file_url
+                                        : "https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                                    }
+                                    className="w-10 h-10 rounded object-cover"
+                                  />
+
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-700">
+                                      {product?.title}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      ₹{product?.price}
+                                    </p>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+
+                          <div className="text-center py-2 border-t">
+                            <button
+                              onClick={() => {
+                                setActiveSection("cartpage");
+                                setCartOpen(false);
+                              }}
+                              className="text-[#bf2026] text-sm font-medium hover:underline"
+                            >
+                              View Cart
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center text-gray-500 py-6 text-sm">
+                          Your cart is empty 🛍️
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Avatar Dropdown */}
+                <div className="relative" ref={avatarRef}>
+                  <button
+                    className="p-1 rounded-full hover:bg-gray-100"
+                    aria-label="User Menu"
+                    onClick={() => setAvatarOpen(!avatarOpen)}
+                  >
+                    <Avatar className="w-8 h-8">
+                      {user?.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          {user?.full_name?.slice(0, 2).toUpperCase() || "NA"}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </button>
+
+                  {avatarOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
+                      <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            {user?.full_name ||
+                              `${user?.first_name || ""} ${user?.last_name || ""}` ||
+                              "Guest User"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {user?.email || "no-email@example.com"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <ul className="py-2">
+                        <li>
+                          <button
+                            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                            onClick={() => setActiveSection("profile")}
+                          >
+                            <Settings className="w-4 h-4" /> Settings
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                            onClick={handleLogoutClick}
+                          >
+                            <LogOut className="w-4 h-4" /> Logout
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content with Scroll */}
-        <main className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-80px)] scscroll-smooth [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          <Suspense fallback={
-            <div className="flex justify-center items-center h-64">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
-                <p className="text-gray-600 mt-3">Loading...</p>
+          {/* Main Content with Scroll */}
+          <main className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-80px)] scscroll-smooth [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <Suspense fallback={
+              <div className="flex justify-center items-center h-64">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
+                  <p className="text-gray-600 mt-3">Loading...</p>
+                </div>
               </div>
-            </div>
-          }>
-            {activeSection === "dashboard" && (
-              <DashboardHome
-                onOpenBook={onOpenBook}
-                dashboardData={dashboardData}
-                loading={loading}
-                error={error}
-              />
-            )}
+            }>
+              {activeSection === "dashboard" && (
+                <DashboardHome
+                  onOpenBook={onOpenBook}
+                  dashboardData={dashboardData}
+                  loading={loading}
+                  error={error}
+                />
+              )}
 
-            {activeSection === "explore" && (
-              <Explore onOpenBook={onOpenBook} onNavigate={onNavigate} />
-            )}
+              {activeSection === "explore" && (
+                <Explore onOpenBook={onOpenBook} onNavigate={onNavigate} />
+              )}
 
-            {activeSection === "library" && (
-              <MyLibrary onOpenBook={onOpenBook} />
-            )}
+              {activeSection === "library" && (
+                <MyLibrary onOpenBook={onOpenBook} />
+              )}
 
-            {activeSection === "tests" && <MockTests />}
+              {activeSection === "tests" && <MockTests />}
 
-            {activeSection === "notes" && (
-              <NotesRepository onNavigate={onNavigate} />
-            )}
-            {activeSection === "exams" && (
-              subStatus === "loading" ? (
-                <p className="text-gray-500">Loading exam access…</p>
-              ) : subStatus === "active" ? (
-                <Exams />
-              ) : (
-                <UpgradeRequired onNavigate={setActiveSection} />
-              )
-            )}
+              {activeSection === "notes" && (
+                <NotesRepository onNavigate={onNavigate} />
+              )}
+              {activeSection === "exams" && (
+                subStatus === "loading" ? (
+                  <p className="text-gray-500">Loading exam access…</p>
+                ) : subStatus === "active" ? (
+                  <Exams />
+                ) : (
+                  <UpgradeRequired onNavigate={setActiveSection} />
+                )
+              )}
 
-            {activeSection === "pyqs" && <PYQSection />}
+              {activeSection === "pyqs" && <PYQSection />}
 
-            {activeSection === "currentaffairs" && <CurrentAffairs />}
+              {activeSection === "currentaffairs" && <CurrentAffairs />}
 
-            {activeSection === "writing" && (
-              <WritingServices onNavigate={onNavigate} />
-            )}
+              {activeSection === "writing" && (
+                <WritingServices onNavigate={onNavigate} />
+              )}
 
-            {activeSection === "jobs" && <JobPortal />}
+              {activeSection === "jobs" && <JobPortal />}
 
-            {activeSection === "payments" && (
-              <PaymentsSubscriptions
-                onNavigate={(page) => setActiveSection(page)}
-              />
-            )}
+              {activeSection === "payments" && (
+                <PaymentsSubscriptions
+                  onNavigate={(page) => setActiveSection(page)}
+                />
+              )}
 
-            {activeSection === "profile" && <ProfileSettings />}
+              {activeSection === "profile" && <ProfileSettings />}
 
-            {activeSection === "notifications" && (
-              <NotificationView onNavigate={onNavigate} />
-            )}
+              {activeSection === "notifications" && (
+                <NotificationView onNavigate={onNavigate} />
+              )}
 
-            {activeSection === "cartpage" && (
-              <CartPage
-                items={cartItems}
-                onNavigate={(page) => {
-                  setActiveSection(page as UserSection);
-                  window.history.pushState({}, "", `/user-dashboard/${page}`);
-                }}
-              />
-            )}
+              {activeSection === "cartpage" && (
+                <CartPage
+                  items={cartItems}
+                  onNavigate={(page) => {
+                    setActiveSection(page as UserSection);
+                    window.history.pushState({}, "", `/user-dashboard/${page}`);
+                  }}
+                />
+              )}
 
-            {activeSection === "purchase" && (
-              <UniversalPurchasePage
-                onNavigate={(page) => {
-                  setActiveSection(page as UserSection);
-                  window.history.pushState({}, "", `/${page}`);
-                }}
-              />
-            )}
+              {activeSection === "purchase" && (
+                <UniversalPurchasePage
+                  onNavigate={(page) => {
+                    setActiveSection(page as UserSection);
+                    window.history.pushState({}, "", `/${page}`);
+                  }}
+                />
+              )}
 
-          </Suspense>
-        </main>
+            </Suspense>
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

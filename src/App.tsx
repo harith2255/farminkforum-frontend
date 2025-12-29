@@ -48,12 +48,15 @@ const ReadNotePage = lazy(() =>
   import("./components/ReadNotePage")
 );
 
+
+
+
 /* ============================================================
    AXIOS REQUEST INTERCEPTOR – SESSION + JWT
 ============================================================ */
 
 axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("app_token");
+  const token = localStorage.getItem("token");
   const sessionId = localStorage.getItem("current_session_id");
 
   config.headers = config.headers || {};
@@ -83,7 +86,7 @@ axios.interceptors.response.use(
       console.warn("🔒 Auth expired:", reason);
 
       // clear auth
-      localStorage.removeItem("app_token");
+      localStorage.removeItem("token");
       localStorage.removeItem("current_session_id");
       localStorage.removeItem("role");
       localStorage.removeItem("isLoggedIn");
@@ -95,7 +98,6 @@ axios.interceptors.response.use(
     return Promise.reject(err);
   }
 );
-
 
 /* ============================================================
    AXIOS INTERCEPTOR – AUTO LOGOUT ON BAN + EXPIRED TOKEN
@@ -302,6 +304,12 @@ if (path.startsWith("/user-dashboard/")) {
     return { page: "admin-dashboard", param: null };
   }
 
+  if (path === "/user-dashboard") {
+  window.history.replaceState({}, "", "/user-dashboard/dashboard")
+  return { page: "user-dashboard", param: "dashboard" }
+}
+
+
   // fallback static pages
   const staticPages = ["explore", "pricing", "about", "contact", "login", "register"];
   const page = path.replace("/", "");
@@ -381,9 +389,16 @@ const handleNavigate = (page: Page, param?: any) => {
   setCurrentPage(page);
 
   switch (page) {
+
     case "user-dashboard":
-      window.history.pushState({}, "", "/user-dashboard");
-      break;
+  if (param === "dashboard") {
+    window.history.pushState({}, "", "/user-dashboard/dashboard");
+  } else {
+    window.history.pushState({}, "", "/user-dashboard");
+  }
+  break;
+
+
 
     case "admin-dashboard":
       window.history.pushState({}, "", "/admin-dashboard");
@@ -452,14 +467,17 @@ if (!authReady || !routerReady) {
       {currentPage === "home" && <Home onNavigate={handleNavigate} />}
 
       {/* USER DASHBOARD */}
-   {currentPage === "user-dashboard" && (
-    <UserDashboard
-  activeTab={pageParam || "dashboard"}
-  onNavigate={handleNavigate}
-  onLogout={handleLogout}
-  onOpenBook={handleOpenBook}
-/>
+  {currentPage === "user-dashboard" && (
+  <UserDashboard
+    key={`${currentPage}-${pageParam}`}
+              // 👈 FORCE RE-MOUNT WHEN TAB CHANGES
+    activeTab={pageParam || "dashboard"}
+    onNavigate={handleNavigate}
+    onLogout={handleLogout}
+    onOpenBook={handleOpenBook}
+  />
 )}
+
 
 
       {/* ADMIN DASHBOARD */}

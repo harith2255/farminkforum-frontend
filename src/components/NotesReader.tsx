@@ -236,7 +236,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
       </header>
 
       {/* PDF VIEW */}
-      <div className="flex justify-center h-[calc(100vh-220px)] overflow-auto">
+      <div className="flex justify-center h-[calc(100vh-200px)] overflow-auto">
         <PDFJSViewer
   url={note.file_url}
   page={currentPage}
@@ -254,7 +254,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
 
       {/* FOOTER + SLIDER */}
       <div
-        className={`fixed left-0 right-0 border-t ${
+        className={`fixed left-0 right-0 border-t  ${
           theme === "dark"
             ? "border-gray-800 bg-black"
             : "border-gray-200 bg-white"
