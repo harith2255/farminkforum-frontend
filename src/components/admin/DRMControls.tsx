@@ -36,6 +36,21 @@ export default function DRMControls() {
   const API_BASE = "https://ebook-backend-lxce.onrender.com/api";
   const token = localStorage.getItem("token");
 
+  const [page, setPage] = useState(1);
+const limit = 10;
+
+const loadLogs = async () => {
+  const res = await axios.get(
+    `http://localhost:5000/api/admin/drm/access-logs?page=${page}&limit=${limit}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  setAccessLogs(res.data.logs);
+};
+
+useEffect(() => {
+  loadLogs();
+}, [page]);
+
   // Load initial data
   useEffect(() => {
     (async () => {
@@ -159,10 +174,10 @@ export default function DRMControls() {
     }
   };
 
-  // View active licenses
-  const viewLicenses = () => {
-    setActiveTab('licenses');
-  };
+  // // View active licenses
+  // const viewLicenses = () => {
+  //   setActiveTab('licenses');
+  // };
 
   if (loading) {
     return (
@@ -291,7 +306,7 @@ export default function DRMControls() {
               Add Watermark to Book
             </Button>
             
-            <Button 
+            {/* <Button 
               variant="outline" 
               className="w-full justify-start"
               onClick={viewLicenses}
@@ -299,7 +314,7 @@ export default function DRMControls() {
             >
               <Eye className="w-4 h-4 mr-2" />
               View Active Licenses ({licenses.length})
-            </Button>
+            </Button> */}
             
             <Button 
               variant="outline" 
@@ -336,14 +351,14 @@ export default function DRMControls() {
             >
               Access Logs ({accessLogs.length})
             </button>
-            <button
+            {/* <button
               className={`px-4 py-2 font-medium text-sm ${activeTab === 'licenses' 
                 ? 'text-[#1d4d6a] border-b-2 border-[#1d4d6a]' 
                 : 'text-gray-500 hover:text-gray-700'}`}
               onClick={() => setActiveTab('licenses')}
             >
               Active Licenses ({licenses.length})
-            </button>
+            </button> */}
           </div>
         </CardHeader>
         
@@ -445,6 +460,22 @@ export default function DRMControls() {
               )}
             </div>
           )}
+           {/* PAGINATION */}
+<div className="flex justify-between items-center mt-4">
+  <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+    Prev
+  </Button>
+
+  <span className="text-sm text-gray-500">Page {page}</span>
+
+  <Button
+    variant="outline"
+    disabled={accessLogs.length < limit}
+    onClick={() => setPage(page + 1)}
+  >
+    Next
+  </Button>
+</div>
         </CardContent>
       </Card>
     </div>
