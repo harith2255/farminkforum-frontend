@@ -13,6 +13,9 @@ import {
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import { lazy, Suspense } from "react";
+import { useLocation } from "react-router-dom";
+
+
 
 const PDFJSViewer = lazy(() => import("./PDFJSViewer"));
 
@@ -49,6 +52,9 @@ export function BookReader({
   const [isLocked, setIsLocked] = useState(true);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [drmConfig, setDrmConfig] = useState<any>(null);
+const params = new URLSearchParams(window.location.search);
+const urlParam = params.get("src");
+
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -182,119 +188,110 @@ const goToPurchase = (bookId: string | number) => {
       console.warn("tryRegisterDevice:", (err as Error).message || err);
     }
   }
+  
+    // -------- INTERVIEW DETECTION --------
+  const pathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
+
+  const isInterviewViaPath = pathname.includes("/reader/interview/");
+  const interviewIdFromPath = isInterviewViaPath
+    ? pathname.split("/reader/interview/")[1]?.split("/")[0]
+    : null;
+
+  const isInterviewViaBookId =
+    typeof bookId === "string" && bookId.startsWith("interview:");
+
+  const interviewIdFromBookId = isInterviewViaBookId
+    ? String(bookId).replace("interview:", "")
+    : null;
+
+  const isInterview = isInterviewViaPath || isInterviewViaBookId;
+  const interviewId = interviewIdFromPath || interviewIdFromBookId;
 
   /* --------------------------------------------------
     Load Book Metadata + DRM
   -------------------------------------------------- */
-  useEffect(() => {
-    if (!bookId) {
-      setError("Invalid book ID.");
-      setLoading(false);
-      return;
-    }
+useEffect(() => {
+let mounted = true;
+async function load() {
+try {
+setLoading(true);
+setError(null);
 
-    let mounted = true;
+// -------- INTERVIEW MODE (FASTER + NO DOUBLE FETCH) --------
+if (isInterview && interviewId) {
+  // ✅ get URL passed from opener: /reader/interview/:id?src=....
+  const params = new URLSearchParams(window.location.search);
+  const directPdfUrl = params.get("src");
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  if (!directPdfUrl) {
+    throw new Error(
+      "Interview PDF URL missing (src parameter). Open material using handleViewMaterial()."
+    );
+  }
 
-        // Book metadata
-        let data: any;
-        try {
-          data = await fetchJson(`${API_BASE}/api/books/${bookId}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-        } catch (err: any) {
-          throw new Error(`Book fetch error: ${err?.message}`);
-        }
+  // 🚀 Optionally: load metadata only (very small & fast)
+const material = await fetchJson(
+  `${API_BASE}/api/writing/interview-materials/${interviewId}`,
+  token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+);
 
-        if (!mounted) return;
-        setBook(data.book ?? null);
+  if (!mounted) return;
+  if (!material) throw new Error("Interview material not found");
 
-        // DEFAULT fallback if event hasn't set start_page yet
-        if (!data.book?.last_page) {
-          // if no saved page, don't overwrite event-based page
-        } else if (currentPage === 1) {
-          // only override if event didn't already set page
-          setCurrentPage(data.book.last_page);
-        }
+  // 👇 no need to call /pdf again!
+  setBook({
+    id: material.id,
+    title: material.title,
+    category: material.category,
+    file_url: directPdfUrl, // 🟢 already resolved URL
+  });
 
-        await tryRegisterDevice();
+  // 📕 interview materials are not locked
+  setIsLocked(false);
+  setDrmConfig(null);
+  return;
+}
 
-        if (!token) {
-          const bookPrice = data?.book?.price ?? null;
-          const isFree = Number(bookPrice) === 0;
-          setIsLocked(!isFree);
-          return;
-        }
+if (!bookId) {
+setError("Invalid book ID.");
+setLoading(false);
+return;
+}
 
-        // DRM Check
-        let drmData: any;
-        try {
-          drmData = await fetchJson(
-            `${API_BASE}/api/drm/check-access?book_id=${bookId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "x-device-id": deviceId ?? "",
-              },
-            }
-          );
-        } catch (err: any) {
-          if (err?.body?.error === "no_valid_access") {
-            setIsLocked(true);
-            setDrmConfig({
-              copy_protection: false,
-              watermarking: true,
-              screenshot_prevention: false,
-              device_limit: 3,
-              watermark_text: localStorage.getItem("email") || "User",
-            });
-            return;
-          }
 
-          if (err?.status === 401 || err?.status === 403) {
-            throw new Error("Unauthorized — please login again.");
-          }
+const data = await fetchJson(`${API_BASE}/api/books/${bookId}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+if (!mounted) return;
+setBook(data.book ?? null);
+if (data.book?.last_page && currentPage === 1) setCurrentPage(data.book.last_page);
+await tryRegisterDevice();
 
-          throw new Error(err?.message || "DRM access failed");
-        }
 
-        if (!drmData?.can_read) {
-          setIsLocked(true);
-          setDrmConfig({
-            copy_protection: drmData.copy_protection,
-            watermarking: drmData.watermarking,
-            screenshot_prevention: drmData.screenshot_prevention,
-            device_limit: drmData.device_limit ?? 3,
-            watermark_text: drmData.watermark_text ?? null,
-          });
-          return;
-        }
+if (!token) {
+const bookPrice = data?.book?.price ?? null;
+const isFree = Number(bookPrice) === 0;
+setIsLocked(!isFree);
+return;
+}
 
-        setIsLocked(false);
-        setDrmConfig({
-          copy_protection: drmData.copy_protection,
-          watermarking: drmData.watermarking,
-          screenshot_prevention: drmData.screenshot_prevention,
-          device_limit: drmData.device_limit ?? 3,
-          watermark_text:
-            drmData.watermark_text ||
-            localStorage.getItem("email") ||
-            "User",
-        });
-      } catch (err: any) {
-        setError(err?.message || "Failed to load book");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
 
-    load();
-    return () => (mounted = false);
-  }, [bookId, token, deviceId]);
+const drmData = await fetchJson(`${API_BASE}/api/drm/check-access?book_id=${bookId}`, { headers: { Authorization: `Bearer ${token}`, "x-device-id": deviceId ?? "" } });
+if (!drmData?.can_read) {
+setIsLocked(true);
+setDrmConfig(drmData);
+return;
+}
+setIsLocked(false);
+setDrmConfig(drmData);
+} catch (err: any) {
+setError(err?.message || "Failed to load content");
+} finally {
+if (mounted) setLoading(false);
+}
+}
+load();
+return () => (mounted = false);
+}, [bookId, interviewId, isInterview, token, deviceId]);
 
   /* --------------------------------------------------
     Load highlights
@@ -466,9 +463,20 @@ const fetchProtectedPDF = async () => {
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={onClose} variant="ghost">
-              <X />
-            </Button>
+          <Button
+  onClick={() => {
+    if (window.opener) {
+      window.close();      // closes tab
+      window.opener.focus();
+    } else {
+      window.history.back();  // fallback if same tab
+    }
+  }}
+  variant="ghost"
+>
+  <X />
+</Button>
+
             <div>
               <h2>{book.title}</h2>
               <p className="text-sm text-gray-500">{book.author}</p>
@@ -537,7 +545,8 @@ const fetchProtectedPDF = async () => {
   onBuyClick={() => goToPurchase(book.id)}
   onDeleteHighlight={handleDeleteHighlight}
   onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
- watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}/>
+   watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}
+/>
 
 </Suspense>
 

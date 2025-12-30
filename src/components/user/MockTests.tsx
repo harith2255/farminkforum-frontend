@@ -104,7 +104,8 @@ export function MockTests() {
           subject: t.mock_tests?.subject || "",
           questions: t.mock_tests?.total_questions || 0,
           completed: t.completed_questions || 0,
-          duration: `${t.mock_tests?.duration_minutes || 0} mins`,
+          duration: `${t.mock_tests?.duration_minutes} mins`,
+          duration_minutes: t.mock_tests?.duration_minutes,
           difficulty: t.mock_tests?.difficulty || "",
         }))
       );
@@ -122,6 +123,8 @@ export function MockTests() {
           rank: typeof t.rank === "number" ? t.rank : null,
           percentile: typeof t.percentile === "number" ? t.percentile : null,
           participants: t.mock_tests?.participants || 1,
+          duration_minutes: t.mock_tests?.duration_minutes,
+    duration: `${t.mock_tests?.duration_minutes} mins`,
           maxScore: 100,
           date: t.completed_at,
         }))
@@ -380,11 +383,11 @@ export function MockTests() {
                           </div>
                         </div>
 
-                        <div className="text-xs text-gray-500">
+                        {/* <div className="text-xs text-gray-500">
                           <p className="text-[#1d4d6a]">
                             {test.participants} Participants
                           </p>
-                        </div>
+                        </div> */}
 
                         <Button
                           className={`w-full text-white text-sm sm:text-base py-2 flex items-center justify-center gap-2 ${

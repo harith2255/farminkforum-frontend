@@ -51,6 +51,7 @@ import {
 import { toast } from "sonner";
 import * as React from "react";
 const PDFJSViewer = React.lazy(() => import("../PDFJSViewer"));
+import axios from "axios";
 
 // --- TYPES ---
 interface Order {
@@ -414,10 +415,41 @@ const [openMaterial, setOpenMaterial] = useState<InterviewMaterial | null>(null)
   }, [handleApiError]);
 
   // Interview Preparation Functions
-const handleViewMaterial = useCallback((material: InterviewMaterial) => {
-  const readerUrl = `/reader/interview/${material.id}`;
-  window.open(readerUrl, "_blank", "noopener,noreferrer");
-}, []);
+const handleViewMaterial = async (material: InterviewMaterial) => {
+  try {
+    setViewingMaterial(material.id);
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(
+      `https://ebook-backend-lxce.onrender.com/api/writing/interview-materials/${material.id}/pdf`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) {
+      toast.error("Failed to open material");
+      setViewingMaterial(null);
+      return;
+    }
+
+    const { url, type } = await res.json();
+
+    if (!url) {
+      toast.error("Invalid file URL");
+      setViewingMaterial(null);
+      return;
+    }
+
+    // 🔥 IMPORTANT: open via reader so PDFJS works
+    const readerURL = `/reader/interview/${material.id}?src=${encodeURIComponent(url)}`;
+    window.open(readerURL, "_blank");
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Error opening PDF");
+  } finally {
+    setViewingMaterial(null);
+  }
+};
 const fetchInterviewMaterials = useCallback(async () => {
   try {
     setLoading(prev => ({ ...prev, services: true }));
@@ -432,12 +464,13 @@ const fetchInterviewMaterials = useCallback(async () => {
       params.append("search", searchQuery);
     }
 
-    const res = await fetch(
-      `${API_BASE_URL}?${params.toString()}`,
-      {
-        headers: getAuthHeaders(), // ✅ FIX
-      }
-    );
+  const url = `${API_BASE_URL}/interview-materials${
+  params.toString() ? `?${params.toString()}` : ""
+}`;
+
+const res = await fetch(url, {
+  headers: getAuthHeaders(),
+});
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -559,32 +592,25 @@ const categories = useMemo(() => {
     }
   }, [fetchActiveOrders, handleApiError]);
 
-  const handleDownloadDeliverable = useCallback(async (order: Order) => {
-    try {
-      if (order.final_text) {
-        const blob = new Blob([order.final_text], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${order.title.replace(/[^a-z0-9]/gi, "_")}_final.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast.success("Document downloaded");
-        return;
-      }
+const handleDownloadDeliverable = async (order) => {
+  const fileUrl = order.final_text || order.notes_url;
+  if (!fileUrl) return;
 
-      if (order.notes_url) {
-        window.open(order.notes_url, "_blank");
-        return;
-      }
+  const response = await axios.get(fileUrl, {
+    responseType: "blob"        // ✔ IMPORTANT
+  });
 
-      toast.error("No deliverable available for this order");
-    } catch (err) {
-      handleApiError(err, "Failed to download deliverable");
-    }
-  }, [handleApiError]);
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = `${order.title}.pdf`; 
+  link.click();
+
+  URL.revokeObjectURL(downloadUrl);
+};
+
 
   const handleRateOrder = useCallback(async (order: Order, rating: number) => {
     try {
@@ -1437,10 +1463,10 @@ const categories = useMemo(() => {
 
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
+                            {/* <span className="flex items-center gap-1">
                               <FileText className="w-4 h-4" />
                               {order.writer_name || "Assigned Writer"}
-                            </span>
+                            </span> */}
 
                             <span className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
@@ -1536,15 +1562,17 @@ const categories = useMemo(() => {
                             </div>
 
                             <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => exportOrderData(order)}
-                                className="h-8 w-8 p-0"
-                                title="Export Data"
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
+                                                            {(order.final_text || order.notes_url) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownloadDeliverable(order)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download
+                                </Button>
+                              )}
                               <Badge className="bg-green-100 text-green-700">Completed</Badge>
                             </div>
                           </div>
@@ -1576,17 +1604,7 @@ const categories = useMemo(() => {
                             </div> */}
 
                             <div className="flex items-center gap-4">
-                              {(order.final_text || order.notes_url) && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDownloadDeliverable(order)}
-                                  className="flex items-center gap-1"
-                                >
-                                  <Download className="w-4 h-4" />
-                                  Download
-                                </Button>
-                              )}
+
 
                               {!order.final_text && !order.notes_url && (
                                 <p className="text-xs text-gray-500">No delivered content yet</p>

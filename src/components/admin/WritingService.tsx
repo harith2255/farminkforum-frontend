@@ -135,14 +135,11 @@ return { ...o, unread_count: unread };
   =================================*/
   const acceptOrder = async (id: number) => {
     try {
-     await axios.put(
-  `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
-  {
-    notes_url,
-    final_text: finalText,
-  },
-  { headers }
-);
+      await axios.put(
+        `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${id}/accept`,
+        {},
+        { headers }
+      );
       toast.success("Order accepted");
       loadOrders();
     } catch (err) {
@@ -184,11 +181,15 @@ const uploadRes = await axios.post(
         notes_url = uploadRes.data.url;
       }
 
-      await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
-        { notes_url, content_text: finalText },
-        { headers }
-      );
+     await axios.put(
+  `https://ebook-backend-lxce.onrender.com/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+  {
+    notes_url,
+    final_text: finalText,
+  },
+  { headers }
+);
+
 
       toast.success("Order completed");
       setFinalText("");
@@ -647,99 +648,106 @@ useEffect(() => {
       </Dialog>
 
       {/* COMPLETE WORK DIALOG */}
-      <Dialog open={showWorkDialog} onOpenChange={setShowWorkDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Order</DialogTitle>
-            <p className="text-sm text-gray-500">
-              Deliver the final writing or upload a file.
-            </p>
-          </DialogHeader>
+      {/* COMPLETE WORK DIALOG */}
+<Dialog open={showWorkDialog} onOpenChange={setShowWorkDialog}>
+  <DialogContent className="max-h-[90vh] flex flex-col">
+    <DialogHeader>
+      <DialogTitle>Complete Order</DialogTitle>
+      <p className="text-sm text-gray-500">
+        Deliver the final writing or upload a file.
+      </p>
+    </DialogHeader>
 
-          {/* USER MESSAGES */}
-          <div className="bg-white p-3 rounded border mb-4 max-h-60 overflow-y-auto">
-            <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">
-              User Messages
-            </h3>
+    {/* Scrollable content area */}
+    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+      {/* USER MESSAGES */}
+      <div className="bg-white p-3 rounded border">
+        <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">
+          User Messages
+        </h3>
 
-            {loadingMessages && <p>Loading messages...</p>}
+        {loadingMessages && <p>Loading messages...</p>}
 
-            {messages.length === 0 && !loadingMessages && (
-              <p className="text-sm text-gray-500">No messages from user.</p>
-            )}
+        {messages.length === 0 && !loadingMessages && (
+          <p className="text-sm text-gray-500">No messages from user.</p>
+        )}
 
-            {messages.map((msg) => (
-              <div key={msg.id} className="border-b py-2">
-                <p className="text-sm text-gray-800">{msg.message}</p>
-                <p className="text-xs text-gray-500">
-                  — {msg.user_name || "User"} (
-                  {new Date(msg.created_at).toLocaleString()})
-                </p>
-              </div>
-            ))}
+        <div className="max-h-60 overflow-y-auto">
+          {messages.map((msg) => (
+            <div key={msg.id} className="border-b py-2">
+              <p className="text-sm text-gray-800">{msg.message}</p>
+              <p className="text-xs text-gray-500">
+                — {msg.user_name || "User"} (
+                {new Date(msg.created_at).toLocaleString()})
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* USER REQUEST */}
+      <div className="bg-gray-50 p-3 rounded border">
+        <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">
+          User Request
+        </h3>
+
+        <p>
+          <strong>Title:</strong> {selectedOrder?.title}
+        </p>
+        <p>
+          <strong>Type:</strong> {selectedOrder?.type}
+        </p>
+
+        <p className="mt-2">
+          <strong>Instructions:</strong>
+        </p>
+        <p className="text-gray-700">{selectedOrder?.instructions}</p>
+
+        {selectedOrder?.attachments_url && (
+          <div className="mt-2">
+            <strong>Attachment:</strong>{" "}
+            <a
+              href={selectedOrder.attachments_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 underline"
+            >
+              Download Attachment
+            </a>
           </div>
+        )}
+      </div>
 
-          {/* USER REQUEST */}
-          <div className="bg-gray-50 p-3 rounded border mb-4">
-            <h3 className="text-md font-semibold mb-2 text-[#1d4d6a]">
-              User Request
-            </h3>
+      {/* ADMIN WORK */}
+      <div className="space-y-4 py-2">
+        <Label>Write Final Text</Label>
+        <Textarea
+          rows={6}
+          placeholder="Write the completed content here..."
+          value={finalText}
+          onChange={(e) => setFinalText(e.target.value)}
+        />
 
-            <p>
-              <strong>Title:</strong> {selectedOrder?.title}
-            </p>
-            <p>
-              <strong>Type:</strong> {selectedOrder?.type}
-            </p>
+        <Label>Or Upload File</Label>
+        <Input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
+      </div>
+    </div>
 
-            <p className="mt-2">
-              <strong>Instructions:</strong>
-            </p>
-            <p className="text-gray-700">{selectedOrder?.instructions}</p>
-
-            {selectedOrder?.attachments_url && (
-              <div className="mt-2">
-                <strong>Attachment:</strong>{" "}
-                <a
-                  href={selectedOrder.attachments_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-600 underline"
-                >
-                  Download Attachment
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* ADMIN WORK */}
-          <div className="space-y-4 py-4">
-            <Label>Write Final Text</Label>
-            <Textarea
-              rows={6}
-              placeholder="Write the completed content here..."
-              value={finalText}
-              onChange={(e) => setFinalText(e.target.value)}
-            />
-
-            <Label>Or Upload File</Label>
-            <Input
-              type="file"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowWorkDialog(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-green-600 text-white" onClick={completeOrder}>
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Mark Completed
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+    {/* Fixed footer at the bottom */}
+    <DialogFooter className="mt-4 pt-4 border-t">
+      <Button variant="outline" onClick={() => setShowWorkDialog(false)}>
+        Cancel
+      </Button>
+      <Button className="bg-green-600 text-white" onClick={completeOrder}>
+        <CheckCircle className="w-4 h-4 mr-1" />
+        Mark Completed
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       {/* REJECT DIALOG */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

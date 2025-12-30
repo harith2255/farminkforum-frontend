@@ -134,7 +134,7 @@ export default function UserDashboard({
       "farmink": {
         title: "FarmInk Forum - Agricultural Social Sciences",
         description: "WhatsApp group for Agricultural & Social Sciences",
-        qrUrl:"public\\qrimage\\FarmInkForumQR1.png", // Replace with your actual image path
+        qrUrl:"/qrimage/FarmInkForumQR1.png", // Replace with your actual image path
         instruction: "Scan this QR code using the WhatsApp camera to join this group",
         color: "bg-green-50",
         textColor: "text-green-800",
@@ -145,7 +145,7 @@ export default function UserDashboard({
         title: "UGC NET JRF - Adult Education Preparation",
         subtitle: "Intensive Extension Knowledge Forum",
         description: "WhatsApp group for UGC NET/JRF Adult Education Preparation",
-        qrUrl: "public\\qrimage\\FarmInkForumQR2.png", // Replace with your actual image path
+        qrUrl: "/qrimage/FarmInkForumQR2.png", // Replace with your actual image path
         instruction: "Scan this QR code using the WhatsApp camera to join this group",
         color: "bg-blue-50",
         textColor: "text-blue-800",

@@ -72,7 +72,7 @@ axios.interceptors.response.use(
       msg === "session_expired";
 
     if (expired) {
-      localStorage.removeItem("app_token");
+      localStorage.removeItem("token");
       localStorage.removeItem("current_session_id");
       localStorage.removeItem("user");
       localStorage.removeItem("isLoggedIn");

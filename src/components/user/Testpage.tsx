@@ -32,60 +32,98 @@ export default function TestPage() {
   /* ==========================================================
      Load Test
   ===========================================================*/
-  const loadTest = useCallback(async () => {
-    if (!attemptId || !testId) return;
+ const loadTest = useCallback(async () => {
+  if (!attemptId || !testId) return;
 
-    try {
-     const res = await axios.get(`${API_ACTION}/questions/${testId}`, {
+  try {
+    /* 1️⃣ Fetch attempt metadata */
+    const attemptRes = await axios.get(
+      `${API_ACTION}/attempt/${attemptId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const attempt = attemptRes.data.attempt || attemptRes.data;
 
-      const test = res.data;
+    console.log("====== ATTEMPT DEBUG ======");
+    console.log("duration:", attempt.duration_minutes);
+    console.log("started_at:", attempt.started_at);
+    console.log("attemptId:", attemptId);
+    console.log("===========================");
 
-      if (!test || !test.mock_test_questions) {
-        alert("This test has no questions");
-        window.location.href = "/user-dashboard";
-        return;
-      }
-console.log("🔥 Loaded questions:", test.mock_test_questions);
-
-      const mcqs = test.mock_test_questions;
-
-  const formatted = mcqs.map((q: any) => ({
-  id: q.id,
-  question: q.question,
-  options: q.options || [],   // <-- correct
-  answer: q.correct_option,
-  explanation: q.explanation || ""
-}));
-
-
-
-
-      setQuestions(formatted);
-
-      // timeLeft
-      const duration = Number(test.duration_minutes);
-      const defaultTime = duration > 0 ? duration * 60 : 15 * 60;
-
-      setTimeLeft(defaultTime);
-
-      // load saved answers
-      const saved = localStorage.getItem(`attempt_${attemptId}_answers`);
-      if (saved) setAnswers(JSON.parse(saved));
-
-      // load saved page
-      const savedPage = localStorage.getItem(`attempt_${attemptId}_page`);
-      if (savedPage) setCurrentPage(Number(savedPage));
-
-      setInitialized(true);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load test");
+    if (!attempt || !attempt.duration_minutes || !attempt.started_at) {
+      alert("Invalid attempt state");
       window.location.href = "/user-dashboard";
+      return;
     }
-  }, [attemptId, testId, token]);
+
+    /* 2️⃣ Fetch questions (also contains duration + started_at now) */
+    const res = await axios.get(`${API_ACTION}/questions/${testId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-attempt-id": attemptId
+      }
+    });
+
+    const test = res.data;
+
+    if (!test || !test.mock_test_questions) {
+      alert("This test has no questions");
+      window.location.href = "/user-dashboard";
+      return;
+    }
+
+    /* 3️⃣ Prepare questions */
+    const formatted = test.mock_test_questions.map((q: any) => ({
+      id: q.id,
+      question: q.question,
+      options: q.options || [],
+      answer: q.correct_option,
+      explanation: q.explanation || "",
+    }));
+
+    setQuestions(formatted);
+
+    /* 🧩 IMPORTANT TIMER FIX:
+       Read duration & started_at from QUESTIONS RESPONSE first,
+       fallback to attempt if missing
+    */
+    const duration = Number(test.duration_minutes || attempt.duration_minutes);
+    const startedAt = new Date(test.started_at || attempt.started_at).getTime();
+
+    const expiresAt = startedAt + duration * 60 * 1000;
+    const now = Date.now();
+
+    const remainingSeconds = Math.max(
+      0,
+      Math.floor((expiresAt - now) / 1000)
+    );
+
+    console.log("==== TIMER DEBUG ====");
+    console.log({
+      duration,
+      startedAt: new Date(startedAt),
+      expiresAt: new Date(expiresAt),
+      now: new Date(now),
+      remainingSeconds
+    });
+    console.log("====================");
+
+    setTimeLeft(remainingSeconds);
+
+    /* 4️⃣ Restore local saved progress */
+    const savedAnswers = localStorage.getItem(`attempt_${attemptId}_answers`);
+    if (savedAnswers) setAnswers(JSON.parse(savedAnswers));
+
+    const savedPage = localStorage.getItem(`attempt_${attemptId}_page`);
+    if (savedPage) setCurrentPage(Number(savedPage));
+
+    setInitialized(true);
+  } catch (err) {
+    console.error("❌ Load test failed:", err);
+    alert("Failed to load test");
+    window.location.href = "/user-dashboard";
+  }
+}, [attemptId, testId, token]);
 
   useEffect(() => {
     loadTest();
