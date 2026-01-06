@@ -223,7 +223,7 @@ async function fetchProtectedPdf(fetchUrl: string) {
   try {
     // If full Supabase URL → use it as-is
     if (fetchUrl.startsWith("http")) {
-      const token = localStorage.getItem("app_token") || null;
+      const token = localStorage.getItem("token") || null;
 
       console.log("🟢 FINAL PDF URL (direct):", fetchUrl);
 
@@ -240,7 +240,7 @@ async function fetchProtectedPdf(fetchUrl: string) {
     const finalUrl = `https://ouzlhvbgfuhwfnafvfxe.supabase.co/storage/v1/object/public/${fetchUrl.replace(/^\/+/, "")}`;
     console.log("🟢 FINAL PDF URL (rebuilt):", finalUrl);
 
-    const token = localStorage.getItem("app_token") || null;
+    const token = localStorage.getItem("token") || null;
     const res = await fetch(finalUrl, {
       method: "GET",
       headers: token ? { Authorization: `Bearer ${token}` } : {},

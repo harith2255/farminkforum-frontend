@@ -243,7 +243,7 @@ const handleEditSave = async () => {
 
     const headers = {
       ...getAuthHeaders(),
-      "Content-Type": "application/json",
+      // "Content-Type": "application/json",
     };
 
     let payload: any = {};

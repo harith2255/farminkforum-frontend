@@ -41,7 +41,7 @@ const limit = 10;
 
 const loadLogs = async () => {
   const res = await axios.get(
-    `http://localhost:5000/api/admin/drm/access-logs?page=${page}&limit=${limit}`,
+    `https://ebook-backend-lxce.onrender.com/api/admin/drm/access-logs?page=${page}&limit=${limit}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   setAccessLogs(res.data.logs);

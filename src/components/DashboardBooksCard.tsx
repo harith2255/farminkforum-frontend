@@ -135,7 +135,7 @@ const handleAddToCart = async () => {
   try {
     // 1️⃣ Check if book already in cart
     const res = await axios.get(
-      "http://localhost:5000/api/cart",
+      "https://ebook-backend-lxce.onrender.com/api/cart",
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -152,7 +152,7 @@ const handleAddToCart = async () => {
 
     // 2️⃣ Add if not in cart
     await axios.post(
-      "http://localhost:5000/api/cart/add",
+      "https://ebook-backend-lxce.onrender.com/api/cart/add",
       { book_id: book.id, quantity: 1 },
       { headers: { Authorization: `Bearer ${token}` } }
     );
