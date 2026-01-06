@@ -52,8 +52,8 @@ export function BookReader({
   const [isLocked, setIsLocked] = useState(true);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [drmConfig, setDrmConfig] = useState<any>(null);
-const params = new URLSearchParams(window.location.search);
-const urlParam = params.get("src");
+  const params = new URLSearchParams(window.location.search);
+  const urlParam = params.get("src");
 
 
   const token =
@@ -82,36 +82,36 @@ const urlParam = params.get("src");
 
 
   useEffect(() => {
-  if (!drmConfig?.copy_protection) return;
+    if (!drmConfig?.copy_protection) return;
 
-  const disable = (e: Event) => e.preventDefault();
+    const disable = (e: Event) => e.preventDefault();
 
-  document.addEventListener("copy", disable);
-  document.addEventListener("cut", disable);
-  document.addEventListener("contextmenu", disable);
+    document.addEventListener("copy", disable);
+    document.addEventListener("cut", disable);
+    document.addEventListener("contextmenu", disable);
 
-  return () => {
-    document.removeEventListener("copy", disable);
-    document.removeEventListener("cut", disable);
-    document.removeEventListener("contextmenu", disable);
-  };
-}, [drmConfig?.copy_protection]);
+    return () => {
+      document.removeEventListener("copy", disable);
+      document.removeEventListener("cut", disable);
+      document.removeEventListener("contextmenu", disable);
+    };
+  }, [drmConfig?.copy_protection]);
 
 
-useEffect(() => {
-  if (!drmConfig?.screenshot_prevention) return;
+  useEffect(() => {
+    if (!drmConfig?.screenshot_prevention) return;
 
-  const onBlur = () => document.body.classList.add("blur-sm");
-  const onFocus = () => document.body.classList.remove("blur-sm");
+    const onBlur = () => document.body.classList.add("blur-sm");
+    const onFocus = () => document.body.classList.remove("blur-sm");
 
-  window.addEventListener("blur", onBlur);
-  window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
 
-  return () => {
-    window.removeEventListener("blur", onBlur);
-    window.removeEventListener("focus", onFocus);
-  };
-}, [drmConfig?.screenshot_prevention]);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [drmConfig?.screenshot_prevention]);
 
   /* --------------------------------------------------
     HELPER: SAFE FETCH
@@ -159,16 +159,16 @@ useEffect(() => {
 
 
   // ✅ REQUIRED: prepare purchase context before redirect
-const goToPurchase = (bookId: string | number) => {
-  localStorage.setItem("purchaseType", "book");
-  localStorage.setItem("purchaseId", String(bookId));
-  localStorage.setItem(
-    "purchaseItems",
-    JSON.stringify([{ id: String(bookId), type: "book" }])
-  );
+  const goToPurchase = (bookId: string | number) => {
+    localStorage.setItem("purchaseType", "book");
+    localStorage.setItem("purchaseId", String(bookId));
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ id: String(bookId), type: "book" }])
+    );
 
-  window.location.href = `/purchase/book/${bookId}`;
-};
+    window.location.href = `/purchase/book/${bookId}`;
+  };
 
   /* --------------------------------------------------
     Register Device (silent)
@@ -188,8 +188,8 @@ const goToPurchase = (bookId: string | number) => {
       console.warn("tryRegisterDevice:", (err as Error).message || err);
     }
   }
-  
-    // -------- INTERVIEW DETECTION --------
+
+  // -------- INTERVIEW DETECTION --------
   const pathname =
     typeof window !== "undefined" ? window.location.pathname : "";
 
@@ -211,87 +211,94 @@ const goToPurchase = (bookId: string | number) => {
   /* --------------------------------------------------
     Load Book Metadata + DRM
   -------------------------------------------------- */
-useEffect(() => {
-let mounted = true;
-async function load() {
-try {
-setLoading(true);
-setError(null);
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
 
-// -------- INTERVIEW MODE (FASTER + NO DOUBLE FETCH) --------
-if (isInterview && interviewId) {
-  // ✅ get URL passed from opener: /reader/interview/:id?src=....
-  const params = new URLSearchParams(window.location.search);
-  const directPdfUrl = params.get("src");
+        // -------- INTERVIEW MODE (FASTER + NO DOUBLE FETCH) --------
+        if (isInterview && interviewId) {
+          // ✅ get URL passed from opener: /reader/interview/:id?src=....
+          const params = new URLSearchParams(window.location.search);
+          const directPdfUrl = params.get("src");
 
-  if (!directPdfUrl) {
-    throw new Error(
-      "Interview PDF URL missing (src parameter). Open material using handleViewMaterial()."
-    );
+          if (!directPdfUrl) {
+            throw new Error(
+              "Interview PDF URL missing (src parameter). Open material using handleViewMaterial()."
+            );
+          }
+
+          // 🚀 Optionally: load metadata only (very small & fast)
+          const material = await fetchJson(
+            `${API_BASE}/api/writing/interview-materials/${interviewId}`,
+            token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+          );
+
+          if (!mounted) return;
+          if (!material) throw new Error("Interview material not found");
+
+          // 👇 no need to call /pdf again!
+          setBook({
+            id: material.id,
+            title: material.title,
+            category: material.category,
+            file_url: directPdfUrl, // 🟢 already resolved URL
+          });
+
+          // 📕 interview materials are not locked
+          setIsLocked(false);
+          setDrmConfig(null);
+          return;
+        }
+
+        if (!bookId) {
+          setError("Invalid book ID.");
+          setLoading(false);
+          return;
+        }
+
+
+        const data = await fetchJson(`${API_BASE}/api/books/${bookId}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+        if (!mounted) return;
+        setBook(data.book ?? null);
+        if (data.book?.last_page && currentPage === 1) setCurrentPage(data.book.last_page);
+        await tryRegisterDevice();
+
+
+        if (!token) {
+          const bookPrice = data?.book?.price ?? null;
+          const isFree = Number(bookPrice) === 0;
+          setIsLocked(!isFree);
+          return;
+        }
+
+
+const drmData = await fetchJson(
+  `${API_BASE}/api/drm/check-access?book_id=${bookId}&device_id=${deviceId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
   }
-
-  // 🚀 Optionally: load metadata only (very small & fast)
-const material = await fetchJson(
-  `${API_BASE}/api/writing/interview-materials/${interviewId}`,
-  token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 );
-
-  if (!mounted) return;
-  if (!material) throw new Error("Interview material not found");
-
-  // 👇 no need to call /pdf again!
-  setBook({
-    id: material.id,
-    title: material.title,
-    category: material.category,
-    file_url: directPdfUrl, // 🟢 already resolved URL
-  });
-
-  // 📕 interview materials are not locked
-  setIsLocked(false);
-  setDrmConfig(null);
-  return;
-}
-
-if (!bookId) {
-setError("Invalid book ID.");
-setLoading(false);
-return;
-}
-
-
-const data = await fetchJson(`${API_BASE}/api/books/${bookId}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
-if (!mounted) return;
-setBook(data.book ?? null);
-if (data.book?.last_page && currentPage === 1) setCurrentPage(data.book.last_page);
-await tryRegisterDevice();
-
-
-if (!token) {
-const bookPrice = data?.book?.price ?? null;
-const isFree = Number(bookPrice) === 0;
-setIsLocked(!isFree);
-return;
-}
-
-
-const drmData = await fetchJson(`${API_BASE}/api/drm/check-access?book_id=${bookId}`, { headers: { Authorization: `Bearer ${token}`, "x-device-id": deviceId ?? "" } });
-if (!drmData?.can_read) {
-setIsLocked(true);
-setDrmConfig(drmData);
-return;
-}
-setIsLocked(false);
-setDrmConfig(drmData);
-} catch (err: any) {
-setError(err?.message || "Failed to load content");
-} finally {
-if (mounted) setLoading(false);
-}
-}
-load();
-return () => (mounted = false);
-}, [bookId, interviewId, isInterview, token, deviceId]);
+        if (!drmData?.can_read) {
+          setIsLocked(true);
+          setDrmConfig(drmData);
+          return;
+        }
+        setIsLocked(false);
+        setDrmConfig(drmData);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load content");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => (mounted = false);
+  }, [bookId, interviewId, isInterview, token, deviceId]);
 
   /* --------------------------------------------------
     Load highlights
@@ -303,7 +310,7 @@ return () => (mounted = false);
     })
       .then((r) => r.json().catch(() => []))
       .then((d) => setHighlights(d))
-      .catch(() => {});
+      .catch(() => { });
   }, [book, token]);
 
   async function handleDeleteHighlight(id: any) {
@@ -314,117 +321,118 @@ return () => (mounted = false);
         headers: { Authorization: `Bearer ${token}` },
       });
       setHighlights((prev) => prev.filter((h) => h.id !== id));
-    } catch {}
+    } catch { }
   }
 
   /* --------------------------------------------------
     Page Change Handler
   -------------------------------------------------- */
   function handlePageChange(pg: number) {
-  if (!book) return;
+    if (!book) return;
 
-  // Prevent double events
-  if (pg === currentPage) return;
+    // Prevent double events
+    if (pg === currentPage) return;
 
-  if (pg < 1 || pg > totalPages) return;
+    if (pg < 1 || pg > totalPages) return;
 
-  if (isLocked && pg > effectivePreviewPages) {
-    setShowBuyModal(true);
-    return;
-  }
-
-  setCurrentPage(pg);
-
-  // Log reading activity (optional)
-  if (token) {
-    fetch(`${API_BASE}/api/books/read`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        book_id: book.id,
-        page: pg,
-        device_id: deviceId,
-      }),
-    }).catch(() => {});
-  }
-
-  // Dispatch progress event to App.tsx
-  window.dispatchEvent(
-    new CustomEvent("reader:progress", {
-      detail: { bookId: book.id, page: pg, totalPages },
-    })
-  );
-}
-
-async function handleAddHighlight(h: {
-  page: number;
-  xPct: number;
-  yPct: number;
-  wPct: number;
-  hPct: number;
-  color?: string;
-}) {
-  if (!token || !book) return;
-
-  // 🔥 1. OPTIMISTIC ADD
-  const tempHighlight = {
-    ...h,
-    id: `temp-${Date.now()}`,
-  };
-
-  setHighlights((prev) => [...prev, tempHighlight]);
-
-  try {
-    // 🔥 2. SAVE TO BACKEND
-    const res = await fetch(`${API_BASE}/api/library/highlights`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        book_id: book.id,
-        page: h.page,
-        xPct: h.xPct,
-        yPct: h.yPct,
-        wPct: h.wPct,
-        hPct: h.hPct,
-        color: h.color,
-      }),
-    });
-
-    const saved = await res.json();
-
-    // 🔥 3. REPLACE TEMP WITH REAL
-    setHighlights((prev) =>
-      prev.map((x) => (x.id === tempHighlight.id ? saved : x))
-    );
-  } catch (err) {
-    // 🔥 4. ROLLBACK ON ERROR
-    setHighlights((prev) =>
-      prev.filter((x) => x.id !== tempHighlight.id)
-    );
-  }
-}
-
-const fetchProtectedPDF = async () => {
-  const token = localStorage.getItem("token");
-
-  const res = await fetch(
-    `https://ebook-backend-lxce.onrender.com/api/interview-materials/${id}/stream`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    if (isLocked && pg > effectivePreviewPages) {
+      setShowBuyModal(true);
+      return;
     }
-  );
 
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-};
+    setCurrentPage(pg);
+    console.log("sending bookId:", book.id, typeof book.id);
+
+    // Log reading activity (optional)
+    if (token) {
+      fetch(`${API_BASE}/api/books/read`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          book_id: book.id,
+          page: pg,
+          device_id: deviceId,
+        }),
+      }).catch(() => { });
+    }
+
+    // Dispatch progress event to App.tsx
+    window.dispatchEvent(
+      new CustomEvent("reader:progress", {
+        detail: { bookId: book.id, page: pg, totalPages },
+      })
+    );
+  }
+
+  async function handleAddHighlight(h: {
+    page: number;
+    xPct: number;
+    yPct: number;
+    wPct: number;
+    hPct: number;
+    color?: string;
+  }) {
+    if (!token || !book) return;
+
+    // 🔥 1. OPTIMISTIC ADD
+    const tempHighlight = {
+      ...h,
+      id: `temp-${Date.now()}`,
+    };
+
+    setHighlights((prev) => [...prev, tempHighlight]);
+
+    try {
+      // 🔥 2. SAVE TO BACKEND
+      const res = await fetch(`${API_BASE}/api/library/highlights`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          book_id: book.id,
+          page: h.page,
+          xPct: h.xPct,
+          yPct: h.yPct,
+          wPct: h.wPct,
+          hPct: h.hPct,
+          color: h.color,
+        }),
+      });
+
+      const saved = await res.json();
+
+      // 🔥 3. REPLACE TEMP WITH REAL
+      setHighlights((prev) =>
+        prev.map((x) => (x.id === tempHighlight.id ? saved : x))
+      );
+    } catch (err) {
+      // 🔥 4. ROLLBACK ON ERROR
+      setHighlights((prev) =>
+        prev.filter((x) => x.id !== tempHighlight.id)
+      );
+    }
+  }
+
+  const fetchProtectedPDF = async () => {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `https://ebook-backend-lxce.onrender.com/api/interview-materials/${id}/stream`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  };
 
   /* --------------------------------------------------
     UI STATES
@@ -449,33 +457,31 @@ const fetchProtectedPDF = async () => {
   -------------------------------------------------- */
   return (
     <div
-      className={`fixed inset-0 z-50 ${
-        theme === "dark" ? "bg-black text-white" : "bg-white text-black"
-      }`}
+      className={`fixed inset-0 z-50 ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"
+        }`}
     >
       {/* HEADER */}
       <header
-        className={`sticky top-0 border-b ${
-          theme === "dark"
+        className={`sticky top-0 border-b ${theme === "dark"
             ? "border-gray-800 bg-black"
             : "border-gray-200 bg-white"
-        }`}
+          }`}
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-          <Button
-  onClick={() => {
-    if (window.opener) {
-      window.close();      // closes tab
-      window.opener.focus();
-    } else {
-      window.history.back();  // fallback if same tab
-    }
-  }}
-  variant="ghost"
->
-  <X />
-</Button>
+            <Button
+              onClick={() => {
+                if (window.opener) {
+                  window.close();      // closes tab
+                  window.opener.focus();
+                } else {
+                  window.history.back();  // fallback if same tab
+                }
+              }}
+              variant="ghost"
+            >
+              <X />
+            </Button>
 
             <div>
               <h2>{book.title}</h2>
@@ -522,43 +528,42 @@ const fetchProtectedPDF = async () => {
 
       {/* PDF VIEW */}
       <div className="flex justify-center h-[calc(108vh-220px)] overflow-auto">
-      <Suspense
-  fallback={
-    <div className="flex items-center justify-center h-full text-gray-500">
-      Loading pages…
-    </div>
-  }
->
- <PDFJSViewer
-  url={book.file_url}
-  page={currentPage}
-  scale={zoom}
-  onTotalPages={setTotalPages}
-  onPageChange={handlePageChange}
-  highlightMode={highlightMode}
-   
-  highlights={highlights}
-  isLocked={isLocked}
-  previewPages={effectivePreviewPages}
-  purchased={!isLocked}
-  bookId={book.id}
-  onBuyClick={() => goToPurchase(book.id)}
-  onDeleteHighlight={handleDeleteHighlight}
-  onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
-   watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}
-/>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center h-full text-gray-500">
+              Loading pages…
+            </div>
+          }
+        >
+          <PDFJSViewer
+            url={book.file_url}
+            page={currentPage}
+            scale={zoom}
+            onTotalPages={setTotalPages}
+            onPageChange={handlePageChange}
+            highlightMode={highlightMode}
 
-</Suspense>
+            highlights={highlights}
+            isLocked={isLocked}
+            previewPages={effectivePreviewPages}
+            purchased={!isLocked}
+            bookId={book.id}
+            onBuyClick={() => goToPurchase(book.id)}
+            onDeleteHighlight={handleDeleteHighlight}
+            onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
+            watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}
+          />
+
+        </Suspense>
 
       </div>
 
       {/* FOOTER */}
       <div
-        className={`fixed bottom-0 left-0 right-0 border-t ${
-          theme === "dark"
+        className={`fixed bottom-0 left-0 right-0 border-t ${theme === "dark"
             ? "border-gray-800 bg-black"
             : "border-gray-200 bg-white"
-        }`}
+          }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Button
@@ -608,12 +613,12 @@ const fetchProtectedPDF = async () => {
               You have reached the preview limit ({effectivePreviewPages}{" "}
               pages).
             </p>
-           <Button
-  className="w-full mb-3"
-  onClick={() => goToPurchase(book.id)}
->
-  Buy Now
-</Button>
+            <Button
+              className="w-full mb-3"
+              onClick={() => goToPurchase(book.id)}
+            >
+              Buy Now
+            </Button>
 
             <Button
               variant="outline"

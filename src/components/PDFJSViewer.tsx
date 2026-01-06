@@ -209,59 +209,44 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, []);
 
-  /* ---------------------------
+   /* ---------------------------
      Fetch protected PDF bytes with Authorization
      (prevent exposing direct URL).
      The URL must accept Authorization and return ArrayBuffer.
   --------------------------- */
+// ❌ REMOVE all path manipulation logic
+// 🟢 If the URL already contains `supabase.co`, just use it directly
+
 async function fetchProtectedPdf(fetchUrl: string) {
   if (!fetchUrl) return null;
 
   try {
-    // 🛠 Remove any http/https prefix and bucket duplication
-    const bucketPrefix = "/storage/v1/object/public/interview_materials/";
-    const baseHost = "ouzlhvbgfuhwfnafvfxe.supabase.co";
+    // If full Supabase URL → use it as-is
+    if (fetchUrl.startsWith("http")) {
+      const token = localStorage.getItem("app_token") || null;
 
-    let path = fetchUrl;
+      console.log("🟢 FINAL PDF URL (direct):", fetchUrl);
 
-    // 1️⃣ Remove protocol+domain if present
-    if (path.includes("://")) {
-      const urlObj = new URL(path);
-      path = urlObj.pathname;
+      const res = await fetch(fetchUrl, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch PDF");
+      return await res.arrayBuffer();
     }
 
-    // 2️⃣ Remove bucket prefix if duplicated
-    if (path.startsWith(bucketPrefix + "https://")) {
-      // special case of double full url
-      path = path.substring(bucketPrefix.length);
-      const innerUrl = new URL(path);
-      path = innerUrl.pathname;  // extract again
-    }
+    // otherwise build valid URL once
+    const finalUrl = `https://ouzlhvbgfuhwfnafvfxe.supabase.co/storage/v1/object/public/${fetchUrl.replace(/^\/+/, "")}`;
+    console.log("🟢 FINAL PDF URL (rebuilt):", finalUrl);
 
-    // 3️⃣ Ensure proper prefix once
-    if (!path.startsWith(bucketPrefix)) {
-      path = bucketPrefix + path.replace(/^\/+/, "");
-    }
-
-    // 🎯 Final fetch URL
-    const finalUrl = `https://${baseHost}${path}`;
-
-    console.log("🟢 FINAL PDF URL:", finalUrl);
-
-    const token = localStorage.getItem("token") || null;
-
+    const token = localStorage.getItem("app_token") || null;
     const res = await fetch(finalUrl, {
       method: "GET",
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
 
-    console.log("PDF status:", res.status);
-    console.log("PDF content-type:", res.headers.get("content-type"));
-
     if (!res.ok) throw new Error("Failed to fetch PDF");
-
     return await res.arrayBuffer();
 
   } catch (err) {
@@ -269,6 +254,7 @@ async function fetchProtectedPdf(fetchUrl: string) {
     return null;
   }
 }
+
 
 
 

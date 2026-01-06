@@ -129,23 +129,42 @@ useEffect(() => {
   /* ---------------------------------------------------
               ADD TO CART
   --------------------------------------------------- */
-  const handleAddToCart = async () => {
-    if (!isLoggedIn()) return onNavigate("login");
+const handleAddToCart = async () => {
+  if (!isLoggedIn()) return onNavigate("login");
 
-    try {
-      await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/cart/add",
-        { book_id: book.id, quantity: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  try {
+    // 1️⃣ Check if book already in cart
+    const res = await axios.get(
+      "http://localhost:5000/api/cart",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      toast.success("Added to cart ✓");
-      window.dispatchEvent(new CustomEvent("cart:changed"));
-    } catch (err) {
-      console.error("Add to cart error:", err);
-      toast.error("Failed to add to cart");
+    const alreadyInCart = res.data?.items?.some(
+      (item: any) => String(item.book_id) === String(book.id)
+    );
+
+    if (alreadyInCart) {
+      toast("Item already in cart 🛒", {
+        description: `You've already added "${book.title}".`,
+      });
+      return;
     }
-  };
+
+    // 2️⃣ Add if not in cart
+    await axios.post(
+      "http://localhost:5000/api/cart/add",
+      { book_id: book.id, quantity: 1 },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    toast.success("Added to cart ✓");
+    window.dispatchEvent(new CustomEvent("cart:changed"));
+
+  } catch (err) {
+    console.error("Add to cart error:", err);
+    toast.error("Failed to add to cart");
+  }
+};
 
   /* ---------------------------------------------------
                  BUY NOW
