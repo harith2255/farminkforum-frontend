@@ -523,7 +523,7 @@ const categories = useMemo(() => {
         const uploadData = await uploadRes.json();
         attachments_url = uploadData.url || null;
       }
-
+ const tempId = "temp_" + Date.now();
       // Prepare order payload
       const orderPayload = {
         ...formData,
@@ -534,7 +534,6 @@ const categories = useMemo(() => {
       };
 
       // Save temporary order in localStorage
-      const tempId = "temp_" + Date.now();
       localStorage.setItem("pendingWritingOrder", JSON.stringify(orderPayload));
       localStorage.setItem("purchaseType", "writing");
       localStorage.setItem("purchaseId", tempId);
@@ -1423,7 +1422,7 @@ const handleDownloadDeliverable = async (order) => {
                                 className="h-8 w-8 p-0"
                                 title="View Details"
                               >
-                                <Eye className="w-4 h-4" />
+                                {/* <Eye className="w-4 h-4" /> */}
                               </Button>
                               <Button
                                 variant="ghost"
@@ -1432,7 +1431,7 @@ const handleDownloadDeliverable = async (order) => {
                                 className="h-8 w-8 p-0"
                                 title="Duplicate Order"
                               >
-                                <Copy className="w-4 h-4" />
+                                {/* <Copy className="w-4 h-4" /> */}
                               </Button>
                             </div>
                           </div>
@@ -1490,7 +1489,6 @@ const handleDownloadDeliverable = async (order) => {
                             </Button>
 
                             {order.status === "Pending" && (
-                              <>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1501,17 +1499,16 @@ const handleDownloadDeliverable = async (order) => {
                                   <Edit className="w-4 h-4" />
                                   Edit
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleCancelOrder(order)}
-                                  disabled={loading.cancelling}
-                                  className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Cancel
-                                </Button>
-                              </>
+                                // <Button
+                                //   variant="outline"
+                                //   size="sm"
+                                //   onClick={() => handleCancelOrder(order)}
+                                //   disabled={loading.cancelling}
+                                //   className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
+                                // >
+                                //   <Trash2 className="w-4 h-4" />
+                                //   Cancel
+                                // </Button>
                             )}
                           </div>
                         </div>

@@ -4,7 +4,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
- import axios from "axios";
+import axios from "axios";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export default function PaymentModal({ open, item, onClose, onSuccess }) {
   const [loading, setLoading] = React.useState(false);
 
@@ -34,6 +41,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
 
   const confirmPayment = async () => {
     setLoading(true);
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -44,171 +52,128 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
 
       const itemType = item?.type || product?.type;
 
-      /* =================================================
-         ✍️ WRITING FLOW (UNCHANGED)
-      ================================================= */
-      if (itemType === "writing") {
-        const pendingRaw = localStorage.getItem("pendingWritingOrder");
-        if (!pendingRaw) {
-          toast.error("No pending writing order found.");
-          setLoading(false);
-          return;
-        }
+      /* ===================== ✍️ WRITING ===================== */
+    let purchaseItems = [];
 
-        const payload = JSON.parse(pendingRaw);
+if (itemType === "writing") {
+  const pending = JSON.parse(
+    localStorage.getItem("pendingWritingOrder") || "{}"
+  );
 
-        const verifyRes = await fetch(
-          `${apiBase}/writing/payments/verify`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-  order_temp_id: String(payload.id),     // MUST be non-null
-  amount: Number(payload.total_price),   // MUST be number
-  method: "test-payment"
-})
-
-
-          }
-        );
-
-        if (!verifyRes.ok) {
-          toast.error("Payment verification failed");
-          setLoading(false);
-          return;
-        }
-
-        const createRes = await fetch(`${apiBase}/writing/order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            ...payload,
-            payment_success: true,
-            order_temp_id: payload.id || null,
-          }),
-        });
-
-        if (!createRes.ok) {
-          toast.error("Order creation failed");
-          setLoading(false);
-          return;
-        }
-
-        localStorage.removeItem("pendingWritingOrder");
-        localStorage.removeItem("purchaseType");
-        localStorage.removeItem("purchaseId");
-
-        onSuccess?.({ source: "writing" });
-        setLoading(false);
-        onClose();
-        return;
-      }
-
-      /* =================================================
-         👑 SUBSCRIPTION FLOW (🔥 FIXED)
-      ================================================= */
-      if (itemType === "subscription") {
-        const planId = product?.id || item?.id;
-
-        if (!planId) {
-          toast.error("Invalid subscription plan.");
-          setLoading(false);
-          return;
-        }
-
-       
-
-const res = await axios.post(
-  `${apiBase}/subscriptions/upgrade`,
-  { planId },
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    validateStatus: (status) => status < 500, // ⛔ prevent auto logout
+  if (!pending || !pending.total_price || !pending.title) {
+    toast.error("Invalid writing order");
+    setLoading(false);
+    return;
   }
-);
 
-const data = res.data;
-
-if (res.status !== 200) {
-  toast.error(data?.error || "Subscription upgrade failed");
-  setLoading(false);
-  return;
-}
-
-
-        localStorage.removeItem("purchaseType");
-        localStorage.removeItem("purchaseId");
-        localStorage.removeItem("purchaseItems");
-
-        onSuccess?.({
-          source: "subscription",
-          subscription: data.subscription || data,
-        });
-
-        setLoading(false);
-        onClose();
-        return;
-      }
-
-      /* =================================================
-         📦 BOOK / NOTE / CART FLOW (UNCHANGED)
-      ================================================= */
-      let purchaseItems = [];
-
-      if (item?.type === "cart") {
-        purchaseItems = (item.items || [])
-          .map((i) => ({
-            id: i.id ?? i.book_id ?? i.note_id,
-            type: i.type ?? (i.book ? "book" : i.note ? "note" : null),
-          }))
-          .filter(Boolean);
-      }  else if (product?.id) {
   purchaseItems = [
     {
-      id: product.id,
-      type: item.type || product.type || "book",
+      type: "writing",
+      payload: pending, // backend will create writing order
     },
   ];
 }
-
-
-      if (!purchaseItems.length) {
-        toast.error("Nothing to purchase.");
-        setLoading(false);
-        return;
-      }
-
-const purchaseRes = await axios.post(
-  `${apiBase}/purchases/unified`,
-  { items: purchaseItems },
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    validateStatus: (s) => s < 500, // ⛔ never auto-logout
-  }
-);
-
-if (purchaseRes.status !== 200 && purchaseRes.status !== 207) {
-  toast.error(purchaseRes.data?.error || "Purchase failed");
-  setLoading(false);
-  return;
+else if (item?.type === "cart") {
+  purchaseItems = (item.items || [])
+    .map((i) => ({
+      id: i.id ?? i.book_id ?? i.note_id,
+      type: i.type ?? (i.book ? "book" : i.note ? "note" : null),
+    }))
+    .filter(Boolean);
+}
+else if (product?.id) {
+  purchaseItems = [{ id: product.id, type: item.type }];
 }
 
-      onSuccess?.({ source: "purchase" });
-      setLoading(false);
-      onClose();
+      /* ===================== 📦 BOOK / NOTE / CART ===================== */
+      
+
+      // if (item?.type === "cart") {
+      //   purchaseItems = (item.items || [])
+      //     .map((i) => ({
+      //       id: i.id ?? i.book_id ?? i.note_id,
+      //       type: i.type ?? (i.book ? "book" : i.note ? "note" : null),
+      //     }))
+      //     .filter(Boolean);
+      // } else if (product?.id) {
+      //   purchaseItems = [{ id: product.id, type: item.type || "book" }];
+      // }
+
+      // if (!purchaseItems.length) {
+      //   toast.error("Nothing to purchase.");
+      //   setLoading(false);
+      //   return;
+      // }
+
+      /* ===================== 💳 RAZORPAY ===================== */
+      const orderRes = await axios.post(
+        `${apiBase}/payments/razorpay/create-order`,
+        { amount },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const order = orderRes.data;
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: "INR",
+        name: "Your App Name",
+        description: title,
+        order_id: order.id,
+
+        prefill: {
+          name: product?.author_name || "Customer",
+          email: product?.author_email || "",
+          contact: product?.author_phone || "",
+        },
+
+          method: {
+    upi: true,
+    card: true,
+    netbanking: false,
+    wallet: false,
+  },
+
+        handler: async (response) => {
+          const verifyRes = await axios.post(
+            `${apiBase}/payments/razorpay/verify`,
+            { ...response, items: purchaseItems },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+         if (verifyRes.status === 200 || verifyRes.status === 207) {
+
+            onSuccess?.({ source: "purchase" });
+            onClose();
+          } else {
+            toast.error("Payment verification failed");
+          }
+        },
+
+        modal: {
+          ondismiss: () => {
+            toast.info("Payment cancelled");
+            setLoading(false);
+          },
+        },
+
+        theme: { color: "#bf2026" },
+      };
+console.group("🧪 Razorpay Init Debug");
+console.log("Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
+console.log("Order object:", order);
+console.log("Order ID:", order?.id);
+console.log("Amount (paise):", order?.amount);
+console.log("Currency:", order?.currency);
+console.log("Title:", title);
+console.log("Items:", purchaseItems);
+console.groupEnd();
+
+      new window.Razorpay(options).open();
     } catch (err) {
       console.error(err);
-      toast.error("Unexpected error.");
+      toast.error("Payment failed");
       setLoading(false);
     }
   };
@@ -234,9 +199,7 @@ if (purchaseRes.status !== 200 && purchaseRes.status !== 207) {
             onClick={confirmPayment}
             disabled={loading}
           >
-            {loading && (
-              <Loader2 className="animate-spin w-4 h-4 mr-2" />
-            )}
+            {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
             Pay Now ₹{amount}
           </Button>
 

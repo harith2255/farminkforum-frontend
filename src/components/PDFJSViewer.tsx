@@ -456,23 +456,36 @@ useEffect(() => {
      Draw watermark text into canvas context
      - repeated tiled, rotated, semi-transparent
   ---------------------------*/
-  function drawWatermarkOnCanvas(ctx: CanvasRenderingContext2D, width: number, height: number, text?: string | null) {
-    if (!text) text = "Protected";
-    const tileSize = 260;
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = "#000";
-    ctx.font = `${Math.round(tileSize / 10)}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.translate(0, 0);
-    // tile
-    for (let y = 0; y < height; y += tileSize) {
-      for (let x = 0; x < width; x += tileSize) {
-        ctx.save();
-        ctx.translate(x + tileSize / 2, y + tileSize / 2);
-        ctx.rotate((-20 * Math.PI) / 180);
-        ctx.fillText(text!, 0, 0);
-        ctx.restore();
+function drawWatermarkOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  text?: string | null
+) {
+  if (!text) return;
+
+  const dpr = window.devicePixelRatio || 1;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  ctx.globalAlpha = 0.05; // 🔥 subtle
+  ctx.fillStyle = "#000";
+  ctx.font = "14px system-ui, -apple-system, BlinkMacSystemFont";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const angle = (-30 * Math.PI) / 180;
+  const gapX = 420; // horizontal spacing
+  const gapY = 280; // vertical spacing
+
+  for (let y = gapY / 2; y < height; y += gapY) {
+    for (let x = gapX / 2; x < width; x += gapX) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
       }
     }
     ctx.restore();

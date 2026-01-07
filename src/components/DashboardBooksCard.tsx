@@ -32,6 +32,7 @@ const [userRating, setUserRating] = useState<number | null>(
 );
 const [avgRating, setAvgRating] = useState(book.rating ?? 4.5);
 const ratingRef = useRef<HTMLDivElement | null>(null);
+const [reviewsCount, setReviewsCount] = useState(book.reviews ?? 0);
 
 
   const isLoggedIn = () => !!localStorage.getItem("token");
@@ -239,6 +240,7 @@ const submitRating = async (rating: number) => {
 
    setUserRating(rating);
 setAvgRating(res.data.rating);   // actual avg from DB
+setReviewsCount(res.data.reviews); // updated reviews count
 setShowRatingPopup(false);
     toast.success("Rating submitted ✓");
   } catch (err) {
@@ -345,8 +347,12 @@ useEffect(() => {
     />
   ))}
 
-  <span className="text-sm ml-1">{avgRating.toFixed(1)}</span>
-
+ <span className="text-sm ml-1">
+  {avgRating.toFixed(1)}
+  <span className="text-gray-400 ml-1">
+    ({reviewsCount})
+  </span>
+</span>
   {showRatingPopup && isPurchased && (
     <div
       ref={ratingRef}

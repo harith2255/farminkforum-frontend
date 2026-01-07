@@ -26,7 +26,7 @@ import {
 import axios from "axios";
 import { toast } from "sonner";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com/api";
+const API_BASE = import.meta.env.VITE_API_URL ;
 
 export function PaymentsSubscriptions({ onNavigate }: any) {
   // UI / modal state
@@ -243,74 +243,74 @@ export function PaymentsSubscriptions({ onNavigate }: any) {
   }, [loadData]);
 
   // Actions
-const handleUpgrade = async (planId: any) => {
-  try {
-    setLoading(true);
+// const handleUpgrade = async (planId: any) => {
+//   try {
+//     setLoading(true);
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("Session expired. Please login again.");
-      return;
-    }
+//     const token = localStorage.getItem("token");
+//     if (!token) {
+//       toast.error("Session expired. Please login again.");
+//       return;
+//     }
 
-    const headers = { Authorization: `Bearer ${token}` };
+//     const headers = { Authorization: `Bearer ${token}` };
 
-    // 1️⃣ Upgrade subscription
-    const res = await axios.post(
-      `${API_BASE}/api/subscriptions/upgrade`,
-      { planId },
-      {
-        headers,
-        validateStatus: (status) => status < 500, // ⛔ prevent interceptor logout
-      }
-    );
+//     // 1️⃣ Upgrade subscription
+//     const res = await axios.post(
+//       `${API_BASE}/subscriptions/upgrade`,
+//       { planId },
+//       {
+//         headers,
+//         validateStatus: (status) => status < 500, // ⛔ prevent interceptor logout
+//       }
+//     );
 
-    if (!res.data) {
-      toast.error("Subscription upgrade failed");
-      return;
-    }
+//     if (!res.data) {
+//       toast.error("Subscription upgrade failed");
+//       return;
+//     }
 
-    toast.success("Subscription activated!");
+//     toast.success("Subscription activated!");
 
-    // 2️⃣ Wait for backend to settle (VERY IMPORTANT)
-    await new Promise((r) => setTimeout(r, 500));
+//     // 2️⃣ Wait for backend to settle (VERY IMPORTANT)
+//     await new Promise((r) => setTimeout(r, 500));
 
-    // 3️⃣ Safely refresh active plan (NO LOGOUT)
-    try {
-      const activeRes = await axios.get(
-        `${API_BASE}/api/subscriptions/active`,
-        {
-          headers,
-          validateStatus: (status) => status < 500,
-        }
-      );
-      setActivePlan(activeRes.data || null);
-    } catch {
-      console.warn("Active subscription refresh skipped");
-    }
+//     // 3️⃣ Safely refresh active plan (NO LOGOUT)
+//     try {
+//       const activeRes = await axios.get(
+//         `${API_BASE}/subscriptions/active`,
+//         {
+//           headers,
+//           validateStatus: (status) => status < 500,
+//         }
+//       );
+//       setActivePlan(activeRes.data || null);
+//     } catch {
+//       console.warn("Active subscription refresh skipped");
+//     }
 
-    // 4️⃣ Reload local data (guarded)
-    await loadData();
+//     // 4️⃣ Reload local data (guarded)
+//     await loadData();
 
-    // 5️⃣ Close modal + return to dashboard
-    setShowManagePlan(false);
+//     // 5️⃣ Close modal + return to dashboard
+//     setShowManagePlan(false);
 
-    // 6️⃣ Navigate SAFELY
-    onNavigate("user-dashboard");
-    window.history.pushState({}, "", "/user-dashboard");
+//     // 6️⃣ Navigate SAFELY
+//     onNavigate("user-dashboard");
+//     window.history.pushState({}, "", "/user-dashboard");
 
-    // 7️⃣ Notify dashboard to refresh UI only
-    window.dispatchEvent(new CustomEvent("subscription:updated"));
+//     // 7️⃣ Notify dashboard to refresh UI only
+//     window.dispatchEvent(new CustomEvent("subscription:updated"));
 
-  } catch (err: any) {
-    console.error("Upgrade failed:", err);
-    toast.error(
-      err?.response?.data?.error || "Subscription upgrade failed"
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+//   } catch (err: any) {
+//     console.error("Upgrade failed:", err);
+//     toast.error(
+//       err?.response?.data?.error || "Subscription upgrade failed"
+//     );
+//   } finally {
+//     setLoading(false);
+//   }
+// };
 
   const handleCancel = async () => {
     if (!confirm("Are you sure you want to cancel your subscription?")) return;
@@ -830,25 +830,21 @@ const handleUpgrade = async (planId: any) => {
                         </ul>
 
                         <Button
-                          className={`w-full flex items-center justify-center gap-2 ${
-                            activePlan?.id === plan.id
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-[#bf2026] hover:bg-[#a01c22]"
-                          } text-white`}
-                          disabled={activePlan?.id === plan.id || loading.upgrading}
-                          onClick={() => handleUpgrade(plan.id)}
-                        >
-                          {loading.upgrading ? (
-                            <>
-                              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              Processing...
-                            </>
-                          ) : activePlan?.id === plan.id ? (
-                            "Current Plan"
-                          ) : (
-                            "Switch to Plan"
-                          )}
-                        </Button>
+             className="w-full bg-[#bf2026] text-white"
+  disabled={activePlan?.id === plan.id}
+  onClick={() => {
+    localStorage.setItem("purchaseType", "subscription");
+    localStorage.setItem("purchaseId", plan.id);
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ id: plan.id, type: "subscription" }])
+    );
+
+    onNavigate("purchase"); // ➜ Razorpay opens here
+  }}
+>
+  Upgrade Now
+</Button>
                       </CardContent>
                     </Card>
                   ))}

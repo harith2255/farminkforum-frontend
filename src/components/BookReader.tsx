@@ -550,7 +550,7 @@ const drmData = await fetchJson(
             bookId={book.id}
             onBuyClick={() => goToPurchase(book.id)}
             onDeleteHighlight={handleDeleteHighlight}
-            onAddHighlight={handleAddHighlight}   // 🔥 THIS WAS MISSING
+            onAddHighlight={handleAddHighlight}
             watermarkText={drmConfig?.watermarking ? drmConfig?.watermark_text : null}
           />
 
