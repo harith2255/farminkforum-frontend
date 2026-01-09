@@ -1666,9 +1666,9 @@ const handleDownloadDeliverable = async (order) => {
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">
                     No materials found
                   </h3>
-                  <p className="text-gray-500">
+                  {/* <p className="text-gray-500">
                     Try adjusting your search or filter criteria
-                  </p>
+                  </p> */}
                 </CardContent>
               </Card>
             ) : (

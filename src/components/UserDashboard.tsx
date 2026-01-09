@@ -670,43 +670,43 @@ export default function UserDashboard({
           </div>
 
           {/* Scrollable navigation */}
-          <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-            <nav className="p-4">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveSection(item.id as UserSection);
-                    setDropdownOpen(false);
-                    setAvatarOpen(false);
-                    setWhatsAppOpen(false);
-                    setSidebarOpen(false);
+<div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+  <nav className="p-4">
+    {menuItems.map((item) => (
+      <button
+        key={item.id}
+        onClick={() => {
+          setActiveSection(item.id as UserSection);
+          setDropdownOpen(false);
+          setAvatarOpen(false);
+          setWhatsAppOpen(false);
+          setSidebarOpen(false);
+          window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+        }}
+        className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start px-4'} py-3 rounded-lg mb-1 transition-all ${
+          activeSection === item.id
+            ? "bg-[#bf2026] text-white shadow-md"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <item.icon className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
+        {!sidebarCollapsed && (
+          <span className="text-sm ml-3">{item.label}</span>
+        )}
+      </button>
+    ))}
+  </nav>
+</div>
 
-                    window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all ${activeSection === item.id
-                    ? "bg-[#bf2026] text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {!sidebarCollapsed && (
-                    <span className="text-sm">{item.label}</span>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="p-4 border-t border-gray-200 bg-white">
-            <button
-              onClick={handleLogoutClick}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              {!sidebarCollapsed && <span className="text-sm">Logout</span>}
-            </button>
-          </div>
+<div className="p-4 border-t border-gray-200 bg-white">
+  <button
+    onClick={handleLogoutClick}
+    className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start px-4'} py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-[#bf2026] transition-all`}
+  >
+    <LogOut className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
+    {!sidebarCollapsed && <span className="text-sm ml-3">Logout</span>}
+  </button>
+</div>
         </aside>
 
         {/* Main Content */}
@@ -1048,10 +1048,8 @@ export default function UserDashboard({
               {activeSection === "notes" && (
                 <NotesRepository onNavigate={onNavigate} />
               )}
-              {activeSection === "exams" && (
-                subStatus === "loading" ? (
-                  <p className="text-gray-500">Loading exam access…</p>
-                ) : subStatus === "active" ? (
+           {activeSection === "exams" && (
+                subStatus === "loading" ? null : subStatus === "active" ? (
                   <Exams />
                 ) : (
                   <UpgradeRequired onNavigate={setActiveSection} />

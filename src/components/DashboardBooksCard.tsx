@@ -170,8 +170,42 @@ const handleAddToCart = async () => {
   /* ---------------------------------------------------
                  BUY NOW
   --------------------------------------------------- */
-const handleBuyNow = () => {
+const handleBuyNow = async () => {
   if (!isLoggedIn()) return onNavigate("login");
+
+    // 🟢 FREE BOOK FLOW
+  if (Number(book.price) === 0) {
+    try {
+      await axios.post(
+        "https://ebook-backend-lxce.onrender.com/api/purchases/unified",
+        {
+          items: [{ id: book.id, type: "book" }]
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      toast.success("Book added to your library 📚");
+
+      setIsPurchased(true);
+
+      // notify other screens
+      window.dispatchEvent(
+        new CustomEvent("library:updated", {
+          detail: { bookId: book.id }
+        })
+      );
+
+      return;
+    } catch (err) {
+      console.error("Free book purchase failed:", err);
+      toast.error("Failed to add free book");
+      return;
+    }
+  }
+
+  // 🔴 PAID BOOK FLOW (unchanged)
 
   localStorage.setItem("purchaseType", "book");
   localStorage.setItem("purchaseId", String(book.id));
@@ -179,7 +213,6 @@ const handleBuyNow = () => {
   localStorage.setItem("previousSection", "explore");
 
   onNavigate("purchase", book.id);
-
 };
 
   /* ---------------------------------------------------

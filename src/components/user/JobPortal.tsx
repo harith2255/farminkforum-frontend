@@ -401,9 +401,9 @@ export function JobPortal() {
                     ? "No jobs found matching your criteria." 
                     : "No job listings available at the moment."}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
+                {/* <p className="text-sm text-gray-500 mt-2">
                   Try adjusting your filters or search terms.
-                </p>
+                </p> */}
                 {(searchQuery || locationFilter || salaryFilter !== "any" || postedFilter !== "any") && (
                   <Button
                     variant="outline"

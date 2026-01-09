@@ -85,11 +85,26 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   ----------------------------------------------------------*/
   const buyNow = (noteId: number) => {
     const note = notes.find((n) => n.id === noteId);
+
     if (!note) {
       toast.error("Note not found");
       return;
     }
 
+    // ✅ FREE NOTE → OPEN NOTE VIEWER
+    if (!note.price || Number(note.price) === 0) {
+      toast.success("Free note opened 📘");
+
+      // store for viewer page
+      localStorage.setItem("viewType", "note");
+      localStorage.setItem("viewId", String(noteId));
+      localStorage.setItem("viewItem", JSON.stringify(note));
+
+      onNavigate("note-view", String(noteId));
+      return;
+    }
+
+    // 🔒 PAID NOTE → PURCHASE FLOW
     localStorage.setItem("purchaseType", "note");
     localStorage.setItem("purchaseId", String(noteId));
     localStorage.setItem(
@@ -100,6 +115,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
 
     onNavigate("purchase", String(noteId));
   };
+
 
   /* ---------------------------------------------------------
       FETCH NOTES + PURCHASED + DOWNLOADED
@@ -140,10 +156,10 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       console.error("Failed to load notes:", err);
       toast.error("Failed to load notes");
     } finally {
-      setLoading(prev => ({ 
-        ...prev, 
+      setLoading(prev => ({
+        ...prev,
         notes: false,
-        initial: false 
+        initial: false
       }));
     }
   };
@@ -157,15 +173,15 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   ----------------------------------------------------------*/
   useEffect(() => {
     if (searchTimeout) clearTimeout(searchTimeout);
-    
+
     setLoading(prev => ({ ...prev, notes: true }));
-    
+
     const timeout = setTimeout(() => {
       loadNotes();
     }, 500);
-    
+
     setSearchTimeout(timeout);
-    
+
     return () => clearTimeout(timeout);
   }, [searchText]);
 
@@ -212,19 +228,22 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       PREVIEW NOTE
   ----------------------------------------------------------*/
   const handlePreview = async (note: any) => {
-  try {
-    setShowPreview(true);
-    setSelectedNote({
-      ...note,
-      previewUrl: `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`,
-      purchased: purchased.includes(note.id),
-    });
-    setCurrentPage(1);
-  } catch (err) {
-    console.error("Preview error:", err);
-    toast.error("Failed to load preview");
-  }
-};
+    try {
+      setShowPreview(true);
+      setSelectedNote({
+        ...note,
+        previewUrl: `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`,
+        purchased:
+          purchased.includes(note.id) ||
+          note.price === 0 ||
+          note.price === "Free",
+      });
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Preview error:", err);
+      toast.error("Failed to load preview");
+    }
+  };
 
   /* ---------------------------------------------------------
       PAGE CHANGE (ENFORCE LOCK)
@@ -295,8 +314,8 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
             onClick={() => setActiveCategory(category)}
             disabled={loading.notes}
             className={
-              activeCategory === category 
-                ? "bg-[#bf2026] text-white hover:bg-[#a01c22]" 
+              activeCategory === category
+                ? "bg-[#bf2026] text-white hover:bg-[#a01c22]"
                 : "hover:bg-gray-100"
             }
           >
@@ -310,8 +329,8 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
         renderSpinner("Loading notes...")
       ) : notes.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          {searchText 
-            ? `No notes found for "${searchText}"` 
+          {searchText
+            ? `No notes found for "${searchText}"`
             : "No notes available yet."}
         </div>
       ) : loading.notes ? (
@@ -368,36 +387,17 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
                       ) : note.price === "Free" || note.price === 0 ? (
                         <Button
                           size="sm"
-                          className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex items-center gap-1"
-                          onClick={() => downloadNote(note.id)}
-                          disabled={loading.download}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => readNote(note.id)}
                         >
-                          {loading.download ? (
-                            <>
-                              <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                              Downloading...
-                            </>
-                          ) : (
-                            "Download Free"
-                          )}
+                          <BookOpen className="w-3 h-3 mr-1" />
+                          Read Free
                         </Button>
+
                       ) : (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addToCart(note.id)}
-                            disabled={loading.cart}
-                            className="flex items-center gap-1"
-                          >
-                            {loading.cart ? (
-                              <>
-                                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
-                                Adding...
-                              </>
-                            ) : (
-                              "Add to Cart"
-                            )}
+                          <Button size="sm" variant="outline" onClick={() => addToCart(note.id)}>
+                            Add to Cart
                           </Button>
 
                           <Button

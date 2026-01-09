@@ -8,6 +8,25 @@ import { Slider } from "./ui/slider";
 import PDFJSViewer from "./PDFJSViewer";
 import * as React from "react";
 
+function getDeviceId() {
+  let deviceId = localStorage.getItem("device_id");
+
+  if (!deviceId) {
+    deviceId =
+      (window.crypto?.randomUUID?.() ??
+        `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    localStorage.setItem("device_id", deviceId);
+  }
+
+  return deviceId;
+}
+function authHeaders(token: string | null) {
+  return {
+    Authorization: `Bearer ${token}`,
+    "x-device-id": getDeviceId(),
+  };
+}
+
 export default function NotesReader({ note, drm, onClose }: any) {
   if (!note) {
     return (
@@ -26,6 +45,47 @@ export default function NotesReader({ note, drm, onClose }: any) {
 
   const token = localStorage.getItem("token");
   const userEmail = localStorage.getItem("email") || "User";
+
+  const [drmAllowed, setDrmAllowed] = useState<boolean | null>(null);
+
+useEffect(() => {
+  if (!note || !token) return;
+
+  let cancelled = false;
+
+  const checkAccess = async () => {
+    try {
+      const res = await fetch(
+        `https://ebook-backend-lxce.onrender.com/api/drm/check-access?note_id=${note.id}`,
+        {
+          headers: authHeaders(token), // ✅ FIX
+        }
+      );
+
+      if (!res.ok) throw new Error("DRM check failed");
+
+      const data = await res.json();
+
+      if (!data?.can_read) {
+        alert("Access denied. Purchase or subscription required.");
+        onClose();
+        return;
+      }
+
+      if (!cancelled) setDrmAllowed(true);
+    } catch (err) {
+      console.error("DRM check error", err);
+      alert("DRM check failed");
+      onClose();
+    }
+  };
+
+  checkAccess();
+
+  return () => {
+    cancelled = true;
+  };
+}, [note?.id, token]);
 
   /* ============================
      DRM: BLOCK COPY / SELECT
@@ -86,59 +146,81 @@ export default function NotesReader({ note, drm, onClose }: any) {
      LOAD HIGHLIGHTS / LAST PAGE
   ============================ */
   useEffect(() => {
-    if (!note || !token) return;
+  if (!note || !token) return;
 
-    (async () => {
-      try {
-        const hres = await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${note.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (hres.ok) setHighlights(await hres.json());
+  let cancelled = false;
 
-        const pres = await fetch(
-          `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+  (async () => {
+    try {
+      const hres = await fetch(
+        `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${note.id}`,
+        { headers: authHeaders(token) }
+      );
 
-        if (pres.ok) {
-          const data = await pres.json();
-          if (data?.last_page) setCurrentPage(Number(data.last_page));
+      if (!cancelled && hres.ok) {
+        setHighlights(await hres.json());
+      }
+
+      const pres = await fetch(
+        `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
+        { headers: authHeaders(token) }
+      );
+
+      if (!cancelled && pres.ok) {
+        const data = await pres.json();
+        if (data?.last_page) {
+          setCurrentPage(Number(data.last_page));
         }
-      } catch {}
-    })();
-  }, [note]);
+      }
+    } catch (err) {
+      console.error("Failed to load note metadata", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [note?.id, token]);
 
   /* ============================
      SAVE LAST PAGE
   ============================ */
-  useEffect(() => {
-    if (!note || !token) return;
+useEffect(() => {
+  if (!note || !token) return;
 
-    const t = setTimeout(async () => {
-      await fetch(`https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ last_page: currentPage }),
-      });
-    }, 500);
+  const t = setTimeout(async () => {
+    try {
+      await fetch(
+        `https://ebook-backend-lxce.onrender.com/api/notes/lastpage/${note.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token), // ✅ FIX
+          },
+          body: JSON.stringify({ last_page: currentPage }),
+        }
+      );
+    } catch (err) {
+      console.error("Failed to save last page", err);
+    }
+  }, 500);
 
-    return () => clearTimeout(t);
-  }, [currentPage, note]);
+  return () => clearTimeout(t);
+}, [currentPage, note?.id, token]); // ✅ FIX
 
   /* ============================
      ADD HIGHLIGHT
   ============================ */
-  const handleAddHighlight = async (h: any) => {
-    try {
-      const res = await fetch("https://ebook-backend-lxce.onrender.com/api/notes/highlights", {
+ const handleAddHighlight = async (h: any) => {
+  try {
+    const res = await fetch(
+      "https://ebook-backend-lxce.onrender.com/api/notes/highlights",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...authHeaders(token), // ✅ FIX
         },
         body: JSON.stringify({
           note_id: note.id,
@@ -149,12 +231,17 @@ export default function NotesReader({ note, drm, onClose }: any) {
           h_pct: h.hPct,
           color: h.color || "rgba(255,255,0,0.35)",
         }),
-      });
+      }
+    );
 
-      const saved = await res.json();
-      setHighlights((prev) => [...prev, saved]);
-    } catch {}
-  };
+    if (!res.ok) throw new Error("Highlight save failed");
+
+    const saved = await res.json();
+    setHighlights((prev) => [...prev, saved]);
+  } catch (err) {
+    console.error("Add highlight failed", err);
+  }
+};
 
   /* ============================
      DELETE HIGHLIGHT
@@ -165,8 +252,7 @@ export default function NotesReader({ note, drm, onClose }: any) {
         `https://ebook-backend-lxce.onrender.com/api/notes/highlights/${id}`,
         {
           method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+headers: authHeaders(token),        }
       );
 
       setHighlights((prev) => prev.filter((h) => h.id !== id));
@@ -237,18 +323,20 @@ export default function NotesReader({ note, drm, onClose }: any) {
 
       {/* PDF VIEW */}
       <div className="flex justify-center h-[calc(100vh-200px)] overflow-auto">
-        <PDFJSViewer
-  url={note.file_url}
-  page={currentPage}
-  scale={zoom}
-  onTotalPages={setTotalPages}
-  onPageChange={setCurrentPage}
-  highlightMode={highlightMode}
-  highlights={highlights}
-  onAddHighlight={handleAddHighlight}
-  onDeleteHighlight={handleDeleteHighlight}
-  watermarkText={drm?.watermarking ? userEmail : undefined}
-/>
+       {drmAllowed && (
+  <PDFJSViewer
+    url={note.file_url}
+    page={currentPage}
+    scale={zoom}
+    onTotalPages={setTotalPages}
+    onPageChange={setCurrentPage}
+    highlightMode={highlightMode}
+    highlights={highlights}
+    onAddHighlight={handleAddHighlight}
+    onDeleteHighlight={handleDeleteHighlight}
+    watermarkText={drm?.watermarking ? userEmail : undefined}
+  />
+)}
 
       </div>
 

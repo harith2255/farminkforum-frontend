@@ -9,29 +9,9 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
   const [drm, setDrm] = useState<any>(null);
 
   const token = localStorage.getItem("token");
+  const deviceId = localStorage.getItem("device_id") || "unknown-device";
 
-  /* ---------------------------------------------------
-     🟦 Step 1: Register device for DRM
-  --------------------------------------------------- */
-  const registerDevice = async () => {
-    const deviceId =
-  localStorage.getItem("device_id") ||
-  (crypto?.randomUUID
-    ? crypto.randomUUID()
-    : `d-${Math.random().toString(36).slice(2)}`);
-    localStorage.setItem("device_id", deviceId);
 
-    await fetch("https://ebook-backend-lxce.onrender.com/api/drm/register-device", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ device_id: deviceId }),
-    });
-
-    return deviceId;
-  };
 
   /* ---------------------------------------------------
      🟦 Step 2: Load Note Details + DRM Check
@@ -60,8 +40,8 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
           return;
         }
 
-        // 🔐 DRM PROCESS
-        const deviceId = await registerDevice();
+       
+      
 
         const drmRes = await fetch(
           `https://ebook-backend-lxce.onrender.com/api/drm/check-access?note_id=${noteId}`,

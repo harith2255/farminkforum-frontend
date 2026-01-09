@@ -279,7 +279,7 @@ const fetchSubjects = async () => {
                                 <Folder className="h-8 w-8 text-gray-400" />
                             </div>
                             <h3 className="text-lg font-medium text-gray-600 mb-2">No subjects found</h3>
-                            <p className="text-gray-500">Try a different search or select "All Subjects"</p>
+                            {/* <p className="text-gray-500">Try a different search or select "All Subjects"</p> */}
                         </div>
                     )}
                 </div>
