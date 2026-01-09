@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import {
   BookOpen,
-  Home,
   Clock,
   FileText,
   ClipboardCheck,
@@ -10,18 +9,19 @@ import {
   User,
   LogOut,
   Bell,
-  Search,
   TrendingUp,
   Trophy,
   ChevronRight,
   Menu,
   Settings,
-  Navigation,
   ShoppingCart,
-  Grid,
-  Calendar,
   MessageCircle,
   X,
+  LayoutDashboard,
+  Award,
+  CalendarDays,
+  Compass,
+  PenTool,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -410,19 +410,19 @@ export default function UserDashboard({
   }, []);
 
   const menuItems = [
-    { id: "dashboard", icon: Home, label: "Dashboard" },
-    { id: "explore", icon: Navigation, label: "Explore" },
-    { id: "library", icon: BookOpen, label: "My Library" },
-    { id: "exams", icon: Trophy, label: "Exams" },
-    { id: "pyqs", icon: Clock, label: "PYQs" },
-    { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
-    { id: "notes", icon: FileText, label: "Notes" },
-    { id: "writing", icon: Grid, label: "Services" },
-    { id: "jobs", icon: Briefcase, label: "Job Portal" },
-    { id: "currentaffairs", icon: Calendar, label: "Current Affairs" },
-    { id: "payments", icon: CreditCard, label: "Payments" },
-    { id: "profile", icon: User, label: "Profile" },
-  ];
+  { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { id: "explore", icon: Compass, label: "Explore" }, // Changed
+  { id: "library", icon: BookOpen, label: "My Library" },
+  { id: "notes", icon: FileText, label: "Notes" },
+  { id: "pyqs", icon: Clock, label: "PYQs" },
+  { id: "tests", icon: ClipboardCheck, label: "Mock Tests" },
+  { id: "exams", icon: Award, label: "Exams" }, // Changed
+  { id: "writing", icon: PenTool, label: "Services" }, // Changed
+  { id: "jobs", icon: Briefcase, label: "Job Portal" },
+  { id: "currentaffairs", icon: CalendarDays, label: "Current Affairs" }, // Changed
+  { id: "payments", icon: CreditCard, label: "Payments" },
+  { id: "profile", icon: User, label: "Profile" },
+];
 
   // Close dropdowns on outside click
   useEffect(() => {
