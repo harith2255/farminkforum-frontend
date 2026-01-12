@@ -570,7 +570,8 @@ setMessage("Profile updated");
                   <Input
                     value={profile?.email ?? ""}
                     onChange={(e) => updateProfileField("email", e.target.value)}
-                    disabled={loading.personalInfo}
+                    disabled={true}
+                    className="cursor-not-allowed"
                   />
                 </div>
 
