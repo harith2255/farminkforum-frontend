@@ -49,6 +49,7 @@ import ReadNotePage from "./ReadNotePage";
 import PYQSection from "./user/PYQs";
 
 interface UserDashboardProps {
+  activeTab?: string;
   onNavigate: (page: string) => void;
   onOpenBook: (book: any) => void;
   onLogout: () => void;
@@ -257,8 +258,11 @@ export default function UserDashboard({
     };
 
     window.addEventListener("dashboard:update", fetchDashboard);
-    return () => window.removeEventListener("dashboard:update", fetchDashboard);
-  }, []);
+  window.addEventListener("library:updated", fetchDashboard); // 🔥 Listen for library updates too
+  return () => {
+    window.removeEventListener("dashboard:update", fetchDashboard);
+    window.removeEventListener("library:updated", fetchDashboard);
+  };  }, []);
 
   // ✅ FIX: Load Profile CLEANLY here
   useEffect(() => {
@@ -1091,8 +1095,13 @@ export default function UserDashboard({
               {activeSection === "purchase" && (
                 <UniversalPurchasePage
                   onNavigate={(page) => {
+                    if (page === "user-dashboard") {
+                    setActiveSection("dashboard");
+                    window.history.pushState({}, "", "/user-dashboard/dashboard");
+                  } else {
                     setActiveSection(page as UserSection);
                     window.history.pushState({}, "", `/${page}`);
+                  }
                   }}
                 />
               )}

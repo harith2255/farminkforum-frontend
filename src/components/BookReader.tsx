@@ -283,6 +283,21 @@ const drmData = await fetchJson(
     }
   }
 );
+
+console.log("🔐 DRM Check Response:", drmData);
+console.log("📖 Book Price:", data?.book?.price);
+
+// Check if book is free - should always allow access
+const bookPrice = data?.book?.price ?? null;
+const isBookFree = Number(bookPrice) === 0;
+
+if (isBookFree) {
+  console.log("✅ Free book detected - unlocking");
+  setIsLocked(false);
+  setDrmConfig(drmData);
+  return;
+}
+
         if (!drmData?.can_read) {
           setIsLocked(true);
           setDrmConfig(drmData);

@@ -21,7 +21,9 @@ export default function DashboardBooksGrid({
 
 setLocalBooks((prev) =>
   prev.map((b) =>
-    b.id === purchasedId ? { ...b, purchased: true } : b
+    String(b.id) === String(purchasedId)
+      ? { ...b, purchased: true }
+      : b
   )
 );
 
