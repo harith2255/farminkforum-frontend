@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import * as React from "react";
 
 export default function NotificationsAdmin() {
-  const API = "https://ebook-backend-lxce.onrender.com/api/admin/notifications";
+  const API = "e-book-backend-production.up.railway.app/api/admin/notifications";
 
   const [recipientType, setRecipientType] = useState("");
   const [notificationType, setNotificationType] = useState("");

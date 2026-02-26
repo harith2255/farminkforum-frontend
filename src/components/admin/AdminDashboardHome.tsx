@@ -82,7 +82,7 @@ export default function AdminDashboardHome() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        "https://ebook-backend-lxce.onrender.com/api/admin/dashboard",
+        "e-book-backend-production.up.railway.app/api/admin/dashboard",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setKpis(res.data.kpis);
@@ -99,7 +99,7 @@ export default function AdminDashboardHome() {
       setLoadingActivity(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `https://ebook-backend-lxce.onrender.com/api/admin/dashboard?page=${activityPage}&limit=10`,
+        `e-book-backend-production.up.railway.app/api/admin/dashboard?page=${activityPage}&limit=10`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRecentActivity(res.data.recentActivity || []);

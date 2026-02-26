@@ -37,7 +37,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
       ? `${item.items?.length || 0} Items`
       : product?.title || product?.name || "Purchase";
 
-  const apiBase = import.meta.env.VITE_API_URL || "https://ebook-backend-lxce.onrender.com";
+  const apiBase = import.meta.env.VITE_API_URL || "e-book-backend-production.up.railway.app";
 
   const confirmPayment = async () => {
     setLoading(true);

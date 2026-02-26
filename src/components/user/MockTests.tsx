@@ -39,7 +39,7 @@ export function MockTests() {
   const [stats, setStats] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  const API_URL = "https://ebook-backend-lxce.onrender.com/api/mock-tests";
+  const API_URL = "e-book-backend-production.up.railway.app/api/mock-tests";
   const token = localStorage.getItem("token");
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 

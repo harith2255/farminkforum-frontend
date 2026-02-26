@@ -28,7 +28,7 @@ interface BookReaderProps {
   onClose: () => void;
   previewPages?: number;
 }
-const API_BASE = "https://ebook-backend-lxce.onrender.com";
+const API_BASE = "e-book-backend-production.up.railway.app";
 
 export function BookReader({
   bookId,
@@ -437,7 +437,7 @@ if (isBookFree) {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      `https://ebook-backend-lxce.onrender.com/api/interview-materials/${id}/stream`,
+      `e-book-backend-production.up.railway.app/api/interview-materials/${id}/stream`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

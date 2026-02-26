@@ -25,7 +25,7 @@ export default function NotificationsPage() {
         const token = localStorage.getItem("token");
         if (!token) return;
         setLoading(true);
-        const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/notifications", {
+        const res = await axios.get("e-book-backend-production.up.railway.app/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -62,7 +62,7 @@ const raw = res.data.notifications || [];
     try {
       const token = localStorage.getItem("token");
       await axios.patch(
-        "https://ebook-backend-lxce.onrender.com/api/notifications/read-all",
+        "e-book-backend-production.up.railway.app/api/notifications/read-all",
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -78,7 +78,7 @@ const raw = res.data.notifications || [];
     try {
       const token = localStorage.getItem("token");
       await axios.patch(
-        `https://ebook-backend-lxce.onrender.com/api/notifications/read/${id}`,
+        `e-book-backend-production.up.railway.app/api/notifications/read/${id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

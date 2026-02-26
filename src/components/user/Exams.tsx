@@ -46,7 +46,7 @@ export default function UserStudyResources() {
 
     try {
       setLoading(prev => ({ ...prev, folders: true }));
-      const res = await axios.get("https://ebook-backend-lxce.onrender.com/api/exams/folders", {
+      const res = await axios.get("e-book-backend-production.up.railway.app/api/exams/folders", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -73,7 +73,7 @@ export default function UserStudyResources() {
     try {
       setLoading(prev => ({ ...prev, submissions: true }));
       const res = await axios.get(
-        "https://ebook-backend-lxce.onrender.com/api/exams/submissions/me",
+        "e-book-backend-production.up.railway.app/api/exams/submissions/me",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -162,7 +162,7 @@ export default function UserStudyResources() {
       if (answerText.trim()) form.append("answer_text", answerText);
 
       await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/exams/${attendExamId}/attend`,
+        `e-book-backend-production.up.railway.app/api/exams/${attendExamId}/attend`,
         form,
         {
           headers: {

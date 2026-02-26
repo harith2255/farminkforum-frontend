@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Search, Calendar, Clock, Filter, ChevronDown, Eye, X, ExternalLink } from "lucide-react";
 
-const BASE_URL = "https://ebook-backend-lxce.onrender.com/api/current-affairs";
+const BASE_URL = "e-book-backend-production.up.railway.app/api/current-affairs";
 
 function CurrentAffairs() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,7 +25,7 @@ const fetchCategories = async () => {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      "https://ebook-backend-lxce.onrender.com/api/current-affairs/categories",
+      "e-book-backend-production.up.railway.app/api/current-affairs/categories",
       {
         headers: {
           Authorization: `Bearer ${token}`,

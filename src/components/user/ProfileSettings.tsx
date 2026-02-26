@@ -17,7 +17,7 @@ import axios, { AxiosResponse } from "axios";
 import * as React from "react";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 
-const API = "https://ebook-backend-lxce.onrender.com/api/profile";
+const API = "e-book-backend-production.up.railway.app/api/profile";
 
 type Profile = {
   id?: string;

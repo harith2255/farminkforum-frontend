@@ -34,7 +34,7 @@ export function IntegrationModal({ open, onClose, integration, refresh }: Integr
 
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://ebook-backend-lxce.onrender.com/api/admin/settings/integrations/${integration.id}`,
+        `e-book-backend-production.up.railway.app/api/admin/settings/integrations/${integration.id}`,
         form,
         { headers: { Authorization: `Bearer ${token}` } }
       );

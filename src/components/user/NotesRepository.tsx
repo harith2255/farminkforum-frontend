@@ -65,7 +65,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
     try {
       setLoading(prev => ({ ...prev, cart: true }));
       await axios.post(
-        "https://ebook-backend-lxce.onrender.com/api/cart/add",
+        "e-book-backend-production.up.railway.app/api/cart/add",
         { note_id: noteId, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -123,7 +123,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   const loadNotes = async () => {
     try {
       setLoading(prev => ({ ...prev, notes: true }));
-      const notesRes = await axios.get("https://ebook-backend-lxce.onrender.com/api/notes", {
+      const notesRes = await axios.get("e-book-backend-production.up.railway.app/api/notes", {
         params: {
           category: activeCategory !== "All" ? activeCategory : undefined,
           search: searchText || undefined,
@@ -137,7 +137,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       if (token) {
         try {
           const purchasedRes = await axios.get(
-            "https://ebook-backend-lxce.onrender.com/api/purchases/purchased/note-ids",
+            "e-book-backend-production.up.railway.app/api/purchases/purchased/note-ids",
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -205,7 +205,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
     try {
       setLoading(prev => ({ ...prev, download: true }));
       const res = await axios.post(
-        `https://ebook-backend-lxce.onrender.com/api/notes/${noteId}/download`,
+        `e-book-backend-production.up.railway.app/api/notes/${noteId}/download`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -232,7 +232,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       setShowPreview(true);
       setSelectedNote({
         ...note,
-        previewUrl: `https://ebook-backend-lxce.onrender.com/api/notes/${note.id}/preview-pdf`,
+        previewUrl: `e-book-backend-production.up.railway.app/api/notes/${note.id}/preview-pdf`,
         purchased:
           purchased.includes(note.id) ||
           note.price === 0 ||
