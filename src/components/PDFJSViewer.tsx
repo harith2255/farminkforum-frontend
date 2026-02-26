@@ -214,31 +214,19 @@ useEffect(() => {
      (prevent exposing direct URL).
      The URL must accept Authorization and return ArrayBuffer.
   --------------------------- */
-// ❌ REMOVE all path manipulation logic
-// 🟢 If the URL already contains `supabase.co`, just use it directly
-
 async function fetchProtectedPdf(fetchUrl: string) {
   if (!fetchUrl) return null;
 
   try {
-    // If full Supabase URL → use it as-is
-    if (fetchUrl.startsWith("http")) {
-      const token = localStorage.getItem("token") || null;
-
-      console.log("🟢 FINAL PDF URL (direct):", fetchUrl);
-
-      const res = await fetch(fetchUrl, {
-        method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch PDF");
-      return await res.arrayBuffer();
+    // If full URL → use it as-is
+    let finalUrl = fetchUrl;
+    if (!fetchUrl.startsWith("http")) {
+      // Relative path → resolve via backend API base
+      const apiBase = import.meta.env.VITE_API_BASE || "";
+      finalUrl = `${apiBase}/${fetchUrl.replace(/^\/+/, "")}`;
     }
 
-    // otherwise build valid URL once
-    const finalUrl = `https://ouzlhvbgfuhwfnafvfxe.supabase.co/storage/v1/object/public/${fetchUrl.replace(/^\/+/, "")}`;
-    console.log("🟢 FINAL PDF URL (rebuilt):", finalUrl);
+    console.log("🟢 FINAL PDF URL:", finalUrl);
 
     const token = localStorage.getItem("token") || null;
     const res = await fetch(finalUrl, {

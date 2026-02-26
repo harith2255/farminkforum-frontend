@@ -24,12 +24,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
-// Supabase client for realtime (placeholders — replace with your values)
-import { createClient } from "@supabase/supabase-js";
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-const realtimeClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Polling replaces Supabase realtime — no direct DB connection needed
 
 export default function AdminWritingDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -42,12 +37,11 @@ export default function AdminWritingDashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  // messages popup + realtime
+  // messages popup + polling
   const [messages, setMessages] = useState<any[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showMessagesPopup, setShowMessagesPopup] = useState(false);
   const [adminReply, setAdminReply] = useState("");
-  const [listening, setListening] = useState(false);
 const [activeSection, setActiveSection] = useState<"writing" | "interview">("writing");
 
 // Interview states
@@ -62,7 +56,7 @@ const [materialFile, setMaterialFile] = useState<File | null>(null);
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
-  const realtimeChannelRef = useRef<any>(null);
+
 
   /* ================================
      LOAD ALL ORDERS (and compute unread_count)
@@ -265,69 +259,18 @@ const uploadRes = await axios.post(
   };
 
   /* ================================
-     Realtime: subscribe to writing_feedback inserts
+     Polling: refresh messages every 10s when popup is open
   =================================*/
   useEffect(() => {
-    // don't double subscribe
-    if (listening) return;
+    if (!selectedOrder) return;
+    if (!showMessagesPopup && !showWorkDialog && !showRejectDialog) return;
 
-    try {
-      const channel = realtimeClient
-        .channel("writing_feedback_changes")
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "writing_feedback",
-          },
-          (payload) => {
-            const newMsg = payload.new;
+    const interval = setInterval(() => {
+      loadMessages(Number(selectedOrder.id));
+    }, 10000);
 
-            // ensure order_id is number for comparison
-            const newOrderId = Number(newMsg.order_id);
-
-            // If admin currently viewing that order's popup, append message
-            setSelectedOrder((cur) => {
-              if (cur && Number(cur.id) === newOrderId) {
-                setMessages((prev) => [...prev, newMsg]);
-                return cur;
-              }
-              return cur;
-            });
-
-            // Update unread counter in orders list
-            setOrders((prev) =>
-              prev.map((o) =>
-                Number(o.id) === newOrderId
-                  ? { ...o, unread_count: (o.unread_count || 0) + 1 }
-                  : o
-              )
-            );
-          }
-        )
-        .subscribe();
-
-      realtimeChannelRef.current = channel;
-      setListening(true);
-    } catch (err) {
-      console.error("Realtime subscribe error:", err);
-    }
-
-    // cleanup
-    return () => {
-      try {
-        if (realtimeChannelRef.current) {
-          realtimeClient.removeChannel(realtimeChannelRef.current);
-          realtimeChannelRef.current = null;
-          setListening(false);
-        }
-      } catch (err) {
-        console.error("Realtime cleanup error:", err);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => clearInterval(interval);
+  }, [selectedOrder, showMessagesPopup, showWorkDialog, showRejectDialog]);
 
 
 
