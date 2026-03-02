@@ -221,8 +221,16 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           console.log("Items:", purchaseItems);
           console.groupEnd();
 
-          new window.Razorpay(options).open();
-          setLoading(false);
+          onClose(); // close modal
+
+document.body.style.overflow = "auto";
+
+setTimeout(() => {
+  const rzp = new window.Razorpay(options);
+  rzp.open();
+}, 150);
+
+setLoading(false);
         } catch (err) {
           console.error(err);
           toast.error("Payment failed");
