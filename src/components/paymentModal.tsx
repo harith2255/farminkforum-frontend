@@ -12,6 +12,27 @@ declare global {
   }
 }
 
+/** Dynamically load Razorpay checkout script only when needed */
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+    const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    document.body.appendChild(script);
+  });
+}
+
 export default function PaymentModal({ open, item, onClose, onSuccess }) {
   const [loading, setLoading] = React.useState(false);
 
@@ -134,6 +155,10 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           // }
 
           /* ===================== 💳 RAZORPAY ===================== */
+
+          // Load Razorpay SDK dynamically (only when payment is needed)
+          await loadRazorpayScript();
+
           const orderRes = await axios.post(
             `${apiBase}/payments/razorpay/create-order`,
             { amount },

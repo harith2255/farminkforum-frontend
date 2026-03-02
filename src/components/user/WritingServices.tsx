@@ -1231,7 +1231,7 @@ const handleDownloadDeliverable = async (order) => {
                           <div className="flex flex-col items-center justify-center">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a] mb-2"></div>
                             <p className="text-sm text-gray-600">
-                              Uploading... {uploadProgress.toFixed(0)}%
+                              Uploading... {Number(uploadProgress || 0).toFixed(0)}%
                             </p>
                             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                               <div

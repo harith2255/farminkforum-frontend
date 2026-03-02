@@ -89,7 +89,7 @@ export default function CartPage({ onNavigate }) {
     return acc + Number(product?.price || 0);
   }, 0);
 
-  const total = subtotal.toFixed(2);
+  const total = Number(subtotal || 0).toFixed(2);
 
   if (loading)
     return <p className="p-6 text-center">Loading your cart...</p>;
@@ -170,7 +170,7 @@ export default function CartPage({ onNavigate }) {
 
             <div className="flex justify-between text-gray-700 mb-2">
               <span>Subtotal</span>
-              <span>₹{subtotal.toFixed(2)}</span>
+              <span>₹{Number(subtotal || 0).toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between text-lg font-bold border-t pt-3">
