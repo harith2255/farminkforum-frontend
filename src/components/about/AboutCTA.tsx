@@ -6,7 +6,7 @@ const AboutCTA = () => (
     <div className="max-w-4xl mx-auto px-6">
       <h2 className="text-4xl mb-6">Join Our Global Community </h2>
       <p className="text-xl mb-8 text-gray-200">
-        Be part of the academic revolution. Start your learning journey today.
+        Be part of the academic revolutions. Start your learning journey today.
       </p>
       <Button className="bg-[#bf2026] hover:bg-[#a01c22] text-white px-10 py-6 text-lg">
         Get Started Free
