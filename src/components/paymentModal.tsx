@@ -160,7 +160,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           await loadRazorpayScript();
 
           const orderRes = await axios.post(
-            `${apiBase}/payments/razorpay/create-order`,
+            `${apiBase}/api/payments/razorpay/create-order`,
             { amount },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -215,7 +215,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
 
             handler: async (response) => {
               const verifyRes = await axios.post(
-                `${apiBase}/payments/razorpay/verify`,
+                `${apiBase}/api/payments/razorpay/verify`,
                 { ...response, items: purchaseItems },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
