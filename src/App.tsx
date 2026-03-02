@@ -177,7 +177,7 @@ export default function App() {
       debounceTimer = setTimeout(async () => {
         try {
           await axios.put(
-            `e-book-backend-production.up.railway.app/api/library/progress/${bookId}`,
+            `https://e-book-backend-production.up.railway.app/api/library/progress/${bookId}`,
             { progress: percent, last_page: page },
             {
               headers: {

@@ -32,7 +32,7 @@ export default function ReportsAnalytics() {
   const fetchAnalytics = async () => {
     try {
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/reports/analytics",
+        "https://e-book-backend-production.up.railway.app/api/admin/reports/analytics",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAnalytics(res.data.analytics || []);
@@ -47,7 +47,7 @@ export default function ReportsAnalytics() {
   const fetchReports = async () => {
     try {
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/reports",
+        "https://e-book-backend-production.up.railway.app/api/admin/reports",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setReports(res.data.reports || []);
@@ -62,7 +62,7 @@ export default function ReportsAnalytics() {
   const generateNewReport = async () => {
     try {
       await axios.post(
-        "e-book-backend-production.up.railway.app/api/admin/reports/generate",
+        "https://e-book-backend-production.up.railway.app/api/admin/reports/generate",
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -79,7 +79,7 @@ export default function ReportsAnalytics() {
   const downloadReport = async (id: string) => {
     try {
       const res = await axios.get(
-        `e-book-backend-production.up.railway.app/api/admin/reports/${id}/download`,
+        `https://e-book-backend-production.up.railway.app/api/admin/reports/${id}/download`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: "blob",

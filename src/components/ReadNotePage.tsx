@@ -21,7 +21,7 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
 
     const load = async () => {
       try {
-        const res = await fetch(`e-book-backend-production.up.railway.app/api/notes/${noteId}`, {
+        const res = await fetch(`https://e-book-backend-production.up.railway.app/api/notes/${noteId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -44,7 +44,7 @@ export default function ReadNotePage({ noteId, onNavigate, onClose }: any) {
       
 
         const drmRes = await fetch(
-          `e-book-backend-production.up.railway.app/api/drm/check-access?note_id=${noteId}`,
+          `https://e-book-backend-production.up.railway.app/api/drm/check-access?note_id=${noteId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

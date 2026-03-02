@@ -120,7 +120,7 @@ const handleLogin = async () => {
   setLoading(true);
 
   try {
-    const res = await axios.post("e-book-backend-production.up.railway.app/api/auth/login", {
+    const res = await axios.post("https://e-book-backend-production.up.railway.app/api/auth/login", {
       email: formData.email,
       password: formData.password,
     });
@@ -277,7 +277,7 @@ const handleRegister = async () => {
   try {
     setLoading(true);
 
-    const res = await axios.post("e-book-backend-production.up.railway.app/api/auth/register", {
+    const res = await axios.post("https://e-book-backend-production.up.railway.app/api/auth/register", {
       first_name: formData.firstName,
       last_name: formData.lastName,
       email: formData.email,

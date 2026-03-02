@@ -21,11 +21,11 @@ export default function SystemSettings() {
   const loadData = async () => {
     try {
       const token = localStorage.getItem("token");
-      const settingsRes = await axios.get("e-book-backend-production.up.railway.app/api/admin/settings", {
+      const settingsRes = await axios.get("https://e-book-backend-production.up.railway.app/api/admin/settings", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const integrationsRes = await axios.get("e-book-backend-production.up.railway.app/api/admin/settings/integrations", {
+      const integrationsRes = await axios.get("https://e-book-backend-production.up.railway.app/api/admin/settings/integrations", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -50,7 +50,7 @@ export default function SystemSettings() {
   const saveSettings = async () => {
     const token = localStorage.getItem("token");
     await axios.put(
-      "e-book-backend-production.up.railway.app/api/admin/settings",
+      "https://e-book-backend-production.up.railway.app/api/admin/settings",
       settings,
       { headers: { Authorization: `Bearer ${token}` } }
     );

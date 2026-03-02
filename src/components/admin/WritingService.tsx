@@ -64,7 +64,7 @@ const [materialFile, setMaterialFile] = useState<File | null>(null);
   const loadOrders = async () => {
     try {
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/writing-service/orders",
+        "https://e-book-backend-production.up.railway.app/api/admin/writing-service/orders",
         { headers }
       );
 
@@ -75,7 +75,7 @@ const [materialFile, setMaterialFile] = useState<File | null>(null);
         ordersData.map(async (o: any) => {
           try {
             const c = await axios.get(
-              `e-book-backend-production.up.railway.app/api/writing/feedback/${Number(o.id)}`,
+              `https://e-book-backend-production.up.railway.app/api/writing/feedback/${Number(o.id)}`,
               { headers }
             );
            const messages = c.data || [];
@@ -107,7 +107,7 @@ return { ...o, unread_count: unread };
       setLoadingMessages(true);
 
       const res = await axios.get(
-        `e-book-backend-production.up.railway.app/api/writing/feedback/${Number(orderId)}`,
+        `https://e-book-backend-production.up.railway.app/api/writing/feedback/${Number(orderId)}`,
         { headers }
       );
 
@@ -130,7 +130,7 @@ return { ...o, unread_count: unread };
   const acceptOrder = async (id: number) => {
     try {
       await axios.put(
-        `e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${id}/accept`,
+        `https://e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${id}/accept`,
         {},
         { headers }
       );
@@ -161,7 +161,7 @@ return { ...o, unread_count: unread };
 formData.append("file", file);
 
 const uploadRes = await axios.post(
-  "e-book-backend-production.up.railway.app/api/admin/writing-service/upload",
+  "https://e-book-backend-production.up.railway.app/api/admin/writing-service/upload",
   formData,
   {
     headers: {
@@ -176,7 +176,7 @@ const uploadRes = await axios.post(
       }
 
      await axios.put(
-  `e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+  `https://e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
   {
     notes_url,
     final_text: finalText,
@@ -204,7 +204,7 @@ const uploadRes = await axios.post(
 
     try {
       await axios.put(
-        `e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${selectedOrder.id}/reject`,
+        `https://e-book-backend-production.up.railway.app/api/admin/writing-service/orders/${selectedOrder.id}/reject`,
         { reason: rejectReason },
         { headers }
       );
@@ -231,7 +231,7 @@ const uploadRes = await axios.post(
 
     try {
       await axios.post(
-        "e-book-backend-production.up.railway.app/api/admin/writing-service/orders/reply",
+        "https://e-book-backend-production.up.railway.app/api/admin/writing-service/orders/reply",
         {
           order_id: Number(selectedOrder.id),
           message: adminReply,
@@ -280,7 +280,7 @@ const uploadRes = await axios.post(
 const loadInterviewMaterials = async () => {
   try {
     const res = await axios.get(
-      "e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials",
+      "https://e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials",
       { headers }
     );
     setMaterials(res.data || []);
@@ -307,7 +307,7 @@ const uploadInterviewMaterial = async () => {
     formData.append("file", materialFile);
 
     await axios.post(
-      "e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials",
+      "https://e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials",
       formData,
       {
         headers: {
@@ -339,7 +339,7 @@ const deleteInterviewMaterial = async (id: number) => {
 
   try {
     await axios.delete(
-      `e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials/${id}`,
+      `https://e-book-backend-production.up.railway.app/api/admin/writing-service/interview-materials/${id}`,
       { headers }
     );
 

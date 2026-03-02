@@ -18,7 +18,7 @@ export default function PublicBooksGrid({ books, onNavigate }) {
     const token = localStorage.getItem("token");
     try {
       await axios.post(
-        "e-book-backend-production.up.railway.app/api/cart/add",
+        "https://e-book-backend-production.up.railway.app/api/cart/add",
         { book_id: bookId, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );

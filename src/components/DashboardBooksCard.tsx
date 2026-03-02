@@ -58,7 +58,7 @@ useEffect(() => {
 
       try {
         const res = await axios.get(
-          "e-book-backend-production.up.railway.app/api/library/collections",
+          "https://e-book-backend-production.up.railway.app/api/library/collections",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -86,7 +86,7 @@ useEffect(() => {
 
       try {
         const res = await axios.get(
-          "e-book-backend-production.up.railway.app/api/library/collections",
+          "https://e-book-backend-production.up.railway.app/api/library/collections",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -110,7 +110,7 @@ useEffect(() => {
   const addToCollection = async (collectionId: string) => {
     try {
       await axios.post(
-        `e-book-backend-production.up.railway.app/api/library/collections/${collectionId}/add`,
+        `https://e-book-backend-production.up.railway.app/api/library/collections/${collectionId}/add`,
         { book_id: book.id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -141,7 +141,7 @@ useEffect(() => {
     try {
       // 1️⃣ Check if book already in cart
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/cart",
+        "https://e-book-backend-production.up.railway.app/api/cart",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -158,7 +158,7 @@ useEffect(() => {
 
       // 2️⃣ Add if not in cart
       await axios.post(
-        "e-book-backend-production.up.railway.app/api/cart/add",
+        "https://e-book-backend-production.up.railway.app/api/cart/add",
         { book_id: book.id, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -182,7 +182,7 @@ useEffect(() => {
     if (Number(book.price) === 0) {
       try {
         await axios.post(
-          "e-book-backend-production.up.railway.app/api/purchases/unified",
+          "https://e-book-backend-production.up.railway.app/api/purchases/unified",
           {
             items: [{ id: book.id, type: "book" }]
           },
@@ -271,7 +271,7 @@ useEffect(() => {
 
 
       const res = await axios.post(
-        `e-book-backend-production.up.railway.app/api/books/${book.id}/rate`,
+        `https://e-book-backend-production.up.railway.app/api/books/${book.id}/rate`,
         { rating },
         { headers: { Authorization: `Bearer ${token}` } }
       );

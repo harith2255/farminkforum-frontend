@@ -208,7 +208,7 @@ const uploadMultipleNotes = async () => {
     form.append("subject_id", selectedSubject.id);
 
     await axios.post(
-      "e-book-backend-production.up.railway.app/api/admin/exams/notes/upload-multiple",
+      "https://e-book-backend-production.up.railway.app/api/admin/exams/notes/upload-multiple",
       form,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -232,7 +232,7 @@ const uploadMultipleExams = async () => {
     form.append("subject_id", selectedSubject.id);
 
     await axios.post(
-      "e-book-backend-production.up.railway.app/api/admin/exams/exams/upload-multiple",
+      "https://e-book-backend-production.up.railway.app/api/admin/exams/exams/upload-multiple",
       form,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -251,7 +251,7 @@ const deleteNote = async (noteId: number) => {
   try {
     const token = tokenRef.current;
     await axios.delete(
-      `e-book-backend-production.up.railway.app/api/admin/exams/notes/${noteId}`,
+      `https://e-book-backend-production.up.railway.app/api/admin/exams/notes/${noteId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -277,7 +277,7 @@ const deleteExam = async (examId: number) => {
   try {
     const token = tokenRef.current;
     await axios.delete(
-      `e-book-backend-production.up.railway.app/api/admin/exams/exams/${examId}`,
+      `https://e-book-backend-production.up.railway.app/api/admin/exams/exams/${examId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -347,7 +347,7 @@ const sortedExams = useMemo(
 
     try {
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/exams/subjects",
+        "https://e-book-backend-production.up.railway.app/api/admin/exams/subjects",
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
@@ -370,7 +370,7 @@ const sortedExams = useMemo(
     try {
       setLoading(true);
       const res = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/exams/folders",
+        "https://e-book-backend-production.up.railway.app/api/admin/exams/folders",
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 15000,
@@ -422,7 +422,7 @@ const sortedExams = useMemo(
     try {
       setLoading(true);
       const res = await axios.get(
-        `e-book-backend-production.up.railway.app/api/admin/exams/${examId}/submissions`,
+        `https://e-book-backend-production.up.railway.app/api/admin/exams/${examId}/submissions`,
         { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
       );
 
@@ -469,7 +469,7 @@ const sortedExams = useMemo(
       };
 
       await axios.post(
-        `e-book-backend-production.up.railway.app/api/admin/exams/submissions/${submissionId}/grade`,
+        `https://e-book-backend-production.up.railway.app/api/admin/exams/submissions/${submissionId}/grade`,
         payload,
         { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
       );
@@ -504,7 +504,7 @@ const sortedExams = useMemo(
 
     // 1️⃣ Delete from backend
     await axios.delete(
-      `e-book-backend-production.up.railway.app/api/admin/exams/subject/${selectedSubject.id}`,
+      `https://e-book-backend-production.up.railway.app/api/admin/exams/subject/${selectedSubject.id}`,
       {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 15000,
@@ -554,7 +554,7 @@ const handleUpload = async () => {
     // STEP 1️⃣ CREATE SUBJECT
     // ===============================
     const subjectRes = await axios.post(
-      "e-book-backend-production.up.railway.app/api/admin/exams/subject",
+      "https://e-book-backend-production.up.railway.app/api/admin/exams/subject",
       { label, value },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -571,7 +571,7 @@ const handleUpload = async () => {
       form.append("subject_id", String(subjectId));
 
       await axios.post(
-        "e-book-backend-production.up.railway.app/api/admin/exams/notes/upload",
+        "https://e-book-backend-production.up.railway.app/api/admin/exams/notes/upload",
         form,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -582,7 +582,7 @@ const handleUpload = async () => {
     // ===============================
     if (examPDF) {
       const examRes = await axios.post(
-        "e-book-backend-production.up.railway.app/api/admin/exams",
+        "https://e-book-backend-production.up.railway.app/api/admin/exams",
         {
           subject_id: subjectId,
           title: examPDF.name,
@@ -600,7 +600,7 @@ const handleUpload = async () => {
       formExam.append("file", examPDF);
 
       await axios.post(
-        `e-book-backend-production.up.railway.app/api/admin/exams/${examId}/upload-file`,
+        `https://e-book-backend-production.up.railway.app/api/admin/exams/${examId}/upload-file`,
         formExam,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -636,7 +636,7 @@ const handleUpload = async () => {
       }
 
       await axios.put(
-        `e-book-backend-production.up.railway.app/api/admin/exams/${editExam.id}`,
+        `https://e-book-backend-production.up.railway.app/api/admin/exams/${editExam.id}`,
         {
           title: editExam.title,
           description: editExam.description,

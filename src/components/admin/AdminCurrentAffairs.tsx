@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye, Folder, FolderOpen } from "lucide-react";
 
-const BASE_URL = "e-book-backend-production.up.railway.app/api/admin/current-affairs";
+const BASE_URL = "https://e-book-backend-production.up.railway.app/api/admin/current-affairs";
 
 function CurrentAffairsAdmin() {
   const [viewMode, setViewMode] = useState("folders");

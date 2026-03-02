@@ -32,7 +32,7 @@ export default function PaymentsAdmin() {
 
       /* ----------------- Stats ----------------- */
       const statsRes = await axios.get(
-        "e-book-backend-production.up.railway.app/api/admin/payments/stats",
+        "https://e-book-backend-production.up.railway.app/api/admin/payments/stats",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -40,7 +40,7 @@ export default function PaymentsAdmin() {
 
       /* ----------------- Transactions ----------------- */
       const txRes = await axios.get(
-        `e-book-backend-production.up.railway.app/api/admin/payments/transactions?page=${page}&limit=10`,
+        `https://e-book-backend-production.up.railway.app/api/admin/payments/transactions?page=${page}&limit=10`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

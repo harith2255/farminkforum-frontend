@@ -33,7 +33,7 @@ export default function DRMControls() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'logs' | 'licenses'>('logs');
 
-  const API_BASE = "e-book-backend-production.up.railway.app/api";
+  const API_BASE = "https://e-book-backend-production.up.railway.app/api";
   const token = localStorage.getItem("token");
 
   const [page, setPage] = useState(1);
@@ -41,7 +41,7 @@ const limit = 10;
 
 const loadLogs = async () => {
   const res = await axios.get(
-    `e-book-backend-production.up.railway.app/api/admin/drm/access-logs?page=${page}&limit=${limit}`,
+    `https://e-book-backend-production.up.railway.app/api/admin/drm/access-logs?page=${page}&limit=${limit}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   setAccessLogs(res.data.logs);
@@ -56,13 +56,13 @@ useEffect(() => {
     (async () => {
     try {
       const [s, logs, lic] = await Promise.all([
-        axios.get("e-book-backend-production.up.railway.app/api/admin/drm/settings", {
+        axios.get("https://e-book-backend-production.up.railway.app/api/admin/drm/settings", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get("e-book-backend-production.up.railway.app/api/admin/drm/access-logs", {
+        axios.get("https://e-book-backend-production.up.railway.app/api/admin/drm/access-logs", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get("e-book-backend-production.up.railway.app/api/admin/drm/licenses", {
+        axios.get("https://e-book-backend-production.up.railway.app/api/admin/drm/licenses", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);

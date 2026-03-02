@@ -56,7 +56,7 @@ export function JobPortal() {
     const fetchJobs = async () => {
       try {
         setLoading(prev => ({ ...prev, initial: true, jobs: true }));
-        const res = await axios.get("e-book-backend-production.up.railway.app/api/jobs");
+        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/jobs");
         console.log("BACKEND JOBS:", res.data);
 
         setJobs(res.data);

@@ -110,7 +110,7 @@ interface WritingServicesProps {
 }
 
 // --- CONSTANTS ---
-const API_BASE_URL = "e-book-backend-production.up.railway.app/api/writing";
+const API_BASE_URL = "https://e-book-backend-production.up.railway.app/api/writing";
 
 const ACADEMIC_LEVELS = [
   { value: "high-school", label: "High School" },
@@ -421,7 +421,7 @@ const handleViewMaterial = async (material: InterviewMaterial) => {
 
     const token = localStorage.getItem("token");
     const res = await fetch(
-      `e-book-backend-production.up.railway.app/api/writing/interview-materials/${material.id}/pdf`,
+      `https://e-book-backend-production.up.railway.app/api/writing/interview-materials/${material.id}/pdf`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
