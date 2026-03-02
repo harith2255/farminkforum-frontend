@@ -167,77 +167,50 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
 
           const order = orderRes.data;
 
-          const options = {
-            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: "INR",
-            name: "Your App Name",
-            description: title,
-            order_id: order.id,
+         const options = {
+  key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+  amount: order.amount,
+  currency: "INR",
+  name: "FarmInk Forum",
+  description: title,
+  order_id: order.id,
 
-            prefill: {
-              name: product?.author_name || "Customer",
-              email: product?.author_email || "",
-              contact: product?.author_phone || "",
-            },
- method: {
-          upi: true,
-          card: true,
-          netbanking: true,
-          wallet: true,
-        },
+  prefill: {
+    name: product?.author_name || "Customer",
+    email: product?.author_email || "",
+    contact: product?.author_phone || "",
+  },
 
-        config: {
-          display: {
-            blocks: {
-              banks: {
-                name: "All payment methods",
-                instruments: [
-                  {
-                    method: "card",
-                    types: ["credit", "debit"],
-                    issuers: ["HDFC", "ICICI", "SBI", "AXIS", "YES", "KOTAK"], // Domestic banks only
-                  },
-                  {
-                    method: "upi",
-                  },
-                  {
-                    method: "netbanking",
-                  },
-                ],
-              },
-            },
-            preferences: {
-              show_default_blocks: true,
-            },
-          },
-        },
+  handler: async (response) => {
+    try {
+      const verifyRes = await axios.post(
+        `${apiBase}/api/payments/razorpay/verify`,
+        { ...response, items: purchaseItems },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-            handler: async (response) => {
-              const verifyRes = await axios.post(
-                `${apiBase}/api/payments/razorpay/verify`,
-                { ...response, items: purchaseItems },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
+      if (verifyRes.status === 200 || verifyRes.status === 207) {
+        toast.success("Payment successful!");
+        onSuccess?.({ source: "purchase" });
+        onClose();
+      } else {
+        toast.error("Payment verification failed");
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      toast.error("Payment verification failed");
+    }
+  },
 
-              if (verifyRes.status === 200 || verifyRes.status === 207) {
+  modal: {
+    ondismiss: () => {
+      toast.info("Payment cancelled");
+      setLoading(false);
+    },
+  },
 
-                onSuccess?.({ source: "purchase" });
-                onClose();
-              } else {
-                toast.error("Payment verification failed");
-              }
-            },
-
-            modal: {
-              ondismiss: () => {
-                toast.info("Payment cancelled");
-                setLoading(false);
-              },
-            },
-
-            theme: { color: "#bf2026" },
-          };
+  theme: { color: "#bf2026" },
+};
           console.group("🧪 Razorpay Init Debug");
           console.log("Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
           console.log("Order object:", order);
@@ -249,6 +222,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           console.groupEnd();
 
           new window.Razorpay(options).open();
+          setLoading(false);
         } catch (err) {
           console.error(err);
           toast.error("Payment failed");
