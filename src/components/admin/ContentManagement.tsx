@@ -22,7 +22,7 @@ type Book = any;
 type Note = any;
 type Test = any;
 
-const API = import.meta.env.VITE_API_BASE || "https://e-book-backend-production.up.railway.app/api";
+const API = import.meta.env.VITE_API_URL || "https://e-book-backend-production.up.railway.app/api";
 
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
