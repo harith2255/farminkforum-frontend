@@ -1146,8 +1146,13 @@ export function DashboardHome({
     );
 
   const stats = dashboardData?.stats || {};
-    const totalHours = Number(stats.studyHours || 0).toFixed(1);
-const weeklyHours = Number(stats.weeklyHours || 0).toFixed(1);
+const formatNumber = (value: any, decimals = 1) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num.toFixed(decimals) : "0.0";
+};
+
+const totalHours = formatNumber(stats?.studyHours);
+const weeklyHours = formatNumber(stats?.weeklyHours);
   const recentBooks = dashboardData?.recentBooks || [];
 
   return (
@@ -1176,7 +1181,9 @@ const weeklyHours = Number(stats.weeklyHours || 0).toFixed(1);
             <div className="flex items-center gap-1 text-xs text-green-600">
               <Trophy className="w-3 h-3" />
               <span>
-                {stats.avgScore ? `${stats.avgScore}% avg` : "No tests yet"}
+                {Number(stats.avgScore) > 0
+  ? `${Number(stats.avgScore).toFixed(1)}% avg`
+  : "No tests yet"}
               </span>
             </div>
           </div>
