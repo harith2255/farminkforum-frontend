@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 const stats = [
   { suffix: "", label: "Agriculture exam preparation", isGeneric: true },
   { suffix: "", label: "Mission to help aspirants qualify", isGeneric: true },
-  { suffix: "", label: "First in South India", isGeneric: true },
   { suffix: "", label: "Growing Academy Platform", isGeneric: true },
 ];
 
