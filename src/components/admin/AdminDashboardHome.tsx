@@ -66,7 +66,7 @@ export default function AdminDashboardHome() {
         color: "text-purple-500",
       },
       {
-        label: "Revenue (MTD)",
+        label: "Total Revenue",
         value: `₹${kpis.revenueMTD}`,
         change: kpis.revenueGrowthPercent,
         icon: IndianRupee,
