@@ -6,6 +6,24 @@ interface FooterProps {
 }
 
 export function Footer({ onNavigate }: FooterProps) {
+  const handleFeaturesClick = () => {
+    if (window.location.pathname === "/") {
+      const element = document.getElementById("features");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    } else {
+      onNavigate("home");
+      // Give it a moment to render the home page before scrolling
+      setTimeout(() => {
+        const element = document.getElementById("features");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
+    }
+  };
+
   return (
     <footer className="relative bg-[#1d4d6a] text-white py-10">
       {/* Decorative gradient overlay */}
@@ -40,16 +58,19 @@ export function Footer({ onNavigate }: FooterProps) {
                   Study Materials
                 </button>
               </li>
-              <li>
+              {/* <li>
                 <button
                   onClick={() => onNavigate("pricing")}
                   className="hover:text-white transition-colors"
                 >
                   Pricing
                 </button>
-              </li>
+              </li> */}
               <li>
-                <button className="hover:text-white transition-colors">
+                <button
+                  onClick={handleFeaturesClick}
+                  className="hover:text-white transition-colors"
+                >
                   Features
                 </button>
               </li>
@@ -76,11 +97,11 @@ export function Footer({ onNavigate }: FooterProps) {
                   Contact
                 </button>
               </li>
-              <li>
+              {/* <li>
                 <button className="hover:text-white transition-colors">
                   Careers
                 </button>
-              </li>
+              </li> */}
             </ul>
           </div>
 
