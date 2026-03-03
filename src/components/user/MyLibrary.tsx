@@ -50,7 +50,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   const [editingCollection, setEditingCollection] = useState<any>(null);
   const [editCollectionName, setEditCollectionName] = useState("");
   const [openCollectionView, setOpenCollectionView] = useState<any>(null);
-  const [collectionBooks, setCollectionBooks] = useState([]);
+  const [collectionBooks, setCollectionBooks] = useState<any[]>([]);
   const [booksInCollections, setBooksInCollections] = useState<Set<string>>(new Set());
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,25 +74,27 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
           headers,
         });
 
-        const formatted = res.data.map((entry) => {
-          const e = entry.ebooks ?? {};
-          return {
-            id: e.id,
-            book_id: entry.book_id,
-            title: e.title,
-            author: e.author,
-            category: e.category,
-            cover_url:
-              e.cover_url ||
-              e.cover ||
-              e.image ||
-              "https://placehold.co/300x400",
-            pages: e.pages,
-            progress: Number(entry.progress ?? 0),
-          last_page: Number(entry.last_page ?? 1),
-          purchased: entry.added_at,
-          };
-        });
+        const formatted = res.data
+          .map((entry: any) => {
+            const e = entry.ebooks ?? {};
+            return {
+              id: e.id,
+              book_id: entry.book_id,
+              title: e.title,
+              author: e.author,
+              category: e.category,
+              cover_url:
+                e.cover_url ||
+                e.cover ||
+                e.image ||
+                "https://placehold.co/300x400",
+              pages: e.pages,
+              progress: Number(entry.progress ?? 0),
+              last_page: Number(entry.last_page ?? 1),
+              purchased: entry.added_at,
+            };
+          })
+          .filter((b: any) => b.id); // 🛡️ exclude ghost entries with no valid ebook id
 
         setBooks(formatted);
       } catch {
@@ -106,7 +108,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   }, []);
 
   // LOAD BOOKS INSIDE A COLLECTION
-  const loadCollectionBooks = async (collection) => {
+  const loadCollectionBooks = async (collection: any) => {
     try {
       setLoading(prev => ({ ...prev, collectionBooks: true }));
       const headers = getAuthHeaders();
@@ -203,14 +205,14 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
 
       setIsAddToCollectionOpen(false);
       setBookToAdd(null);
-    } catch(err) {
+    } catch(err: any) {
       toast.error("Failed to add book");
       console.error("ADD BOOK ERROR:", err?.response?.data || err);
     }
   };
 
   // REMOVE BOOK FROM COLLECTION
-  const handleRemoveFromCollection = async (collectionId, bookId) => {
+  const handleRemoveFromCollection = async (collectionId: any, bookId: any) => {
     try {
       const headers = getAuthHeaders();
       await axios.delete(
@@ -239,23 +241,25 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       // fetch library items
       const libRes = await axios.get("https://e-book-backend-production.up.railway.app/api/library", { headers });
 
-      const formatted = (libRes.data || []).map((entry: any) => {
-        const e = entry.ebooks ?? {};
-        return {
-          id: e.id,
-          book_id: entry.book_id,
-          title: e.title,
-          author: e.author,
-          category: e.category,
-          cover_url:
-            e.cover_url ||
-            "https://placehold.co/300x400",
-          pages: e.pages,
-          progress: Number(entry.progress ?? 0),
-          last_page: Number(entry.last_page ?? 1),
-          purchased: entry.added_at,
-        };
-      });
+      const formatted = (libRes.data || [])
+        .map((entry: any) => {
+          const e = entry.ebooks ?? {};
+          return {
+            id: e.id,
+            book_id: entry.book_id,
+            title: e.title,
+            author: e.author,
+            category: e.category,
+            cover_url:
+              e.cover_url ||
+              "https://placehold.co/300x400",
+            pages: e.pages,
+            progress: Number(entry.progress ?? 0),
+            last_page: Number(entry.last_page ?? 1),
+            purchased: entry.added_at,
+          };
+        })
+        .filter((b: any) => b.id); // 🛡️ exclude ghost entries
 
       setBooks(formatted);
       await loadCollections();
@@ -347,7 +351,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
               { headers }
             );
           }
-        } catch (err) {
+        } catch (err: any) {
           console.warn("Progress save failed:", err?.response?.data);
         }
       })();
@@ -428,7 +432,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     handleSearch(e.target.value);
   };
 
-  async function handleRemoveFromAllCollections(book) {
+  async function handleRemoveFromAllCollections(book: any) {
     try {
       const headers = getAuthHeaders();
       await axios.delete(
