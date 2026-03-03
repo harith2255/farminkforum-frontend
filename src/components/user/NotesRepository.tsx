@@ -84,6 +84,9 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       BUY NOW
   ----------------------------------------------------------*/
   const buyNow = (noteId: number) => {
+    const token = getToken();
+    if (!token) return onNavigate("login");
+
     const note = notes.find((n) => n.id === noteId);
 
     if (!note) {
@@ -91,16 +94,16 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       return;
     }
 
-    // ✅ FREE NOTE → OPEN NOTE VIEWER
-    if (!note.price || Number(note.price) === 0) {
+    // ✅ FREE NOTE (price is 0, "0", or "Free") → open directly in reader
+    const isFree =
+      !note.price ||
+      note.price === "Free" ||
+      note.price === "free" ||
+      Number(note.price) === 0;
+
+    if (isFree) {
       toast.success("Free note opened 📘");
-
-      // store for viewer page
-      localStorage.setItem("viewType", "note");
-      localStorage.setItem("viewId", String(noteId));
-      localStorage.setItem("viewItem", JSON.stringify(note));
-
-      onNavigate("note-view", String(noteId));
+      onNavigate("reader-note", String(noteId));
       return;
     }
 
@@ -384,7 +387,9 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
                           <BookOpen className="w-3 h-3" />
                           Read
                         </Button>
-                      ) : note.price === "Free" || note.price === 0 ? (
+                      ) : note.price === "Free" ||
+                        note.price === "free" ||
+                        Number(note.price) === 0 ? (
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700 text-white"
