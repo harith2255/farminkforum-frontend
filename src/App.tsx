@@ -531,7 +531,7 @@ export default function App() {
       )}
 
       {/* PUBLIC PAGES */}
-      {["explore", "pricing", "about", "contact"].includes(currentPage) && (
+      {["explore", "pricing", "about", "contact", "privacy", "terms", "drm"].includes(currentPage) && (
         <PublicPages
           page={currentPage as any}
           onNavigate={handleNavigate}

@@ -61,6 +61,9 @@ export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
       {page === "privacy" && <PrivacyPolicy />}
       {page === "terms" && <TermsOfService />}
       {page === "drm" && <DRMPolicy />}
+      {page === "privacy" && <PrivacyPolicy />}
+      {page === "terms" && <TermsOfService />}
+      {page === "drm" && <DRMPolicy />}
 
       {/* Footer */}
       <Footer onNavigate={onNavigate} />
