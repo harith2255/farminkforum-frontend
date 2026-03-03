@@ -1,81 +1,73 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import {ImageWithFallback} from "../figma/ImageWithFallback";
 
-const ContactFormSection = () => (
-  <div className="max-w-2xl mx-auto mb-16">
-    {/* Contact Form */}
-    <Card className="border-none shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-[#1d4d6a]">Send us a Message</CardTitle>
-        <CardDescription>
-          Fill out the form and we'll get back to you within 24 hours
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>First Name</Label>
-            <Input placeholder="John" />
-          </div>
-          <div>
-            <Label>Last Name</Label>
-            <Input placeholder="Doe" />
-          </div>
-        </div>
-        <div>
-          <Label>Email Address</Label>
-          <Input type="email" placeholder="your@email.com" />
-        </div>
-        <div>
-          <Label>Subject</Label>
-          <Input placeholder="How can we help?" />
-        </div>
-        <div>
-          <Label>Message</Label>
-          <Textarea placeholder="Tell us more about your inquiry..." className="min-h-[150px]" />
-        </div>
-        <Button className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white">
-          Send Message
-        </Button>
-      </CardContent>
-    </Card>
+const ContactFormSection = () => {
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
 
-    {/* Map + Office Hours */}
-    {/* <div className="space-y-6">
-      <div className="relative h-64 rounded-2xl overflow-hidden shadow-lg">
-        <ImageWithFallback
-          src="https://images.unsplash.com/photo-1661877854265-48a976379af4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50JTIwc3R1ZHlpbmclMjBsYXB0b3B8ZW58MXx8fHwxNzYxNzg1MjcxfDA&ixlib=rb-4.1.0&q=80&w=1080"
-          alt="Office"
-          className="w-full h-full object-cover"
-        />
-      </div>
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-      <Card className="border-none shadow-md">
+  const handleSubmit = () => {
+    const subject = encodeURIComponent(form.subject || "Contact from FarmInk Forum");
+    const body = encodeURIComponent(
+      `Name: ${form.firstName} ${form.lastName}\nEmail: ${form.email}\n\n${form.message}`
+    );
+    window.location.href = `mailto:farminkforum@gmail.com?subject=${subject}&body=${body}`;
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto mb-16">
+      <Card className="border-none shadow-xl">
         <CardHeader>
-          <CardTitle className="text-[#1d4d6a]">Office Hours</CardTitle>
+          <CardTitle className="text-[#1d4d6a]">Send us a Message</CardTitle>
+          <CardDescription>
+            Fill out the form and we'll get back to you within 24 hours
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-gray-600">Monday - Friday</span>
-            <span className="text-[#1d4d6a]">8:00 AM - 6:00 PM</span>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>First Name</Label>
+              <Input name="firstName" placeholder="John" value={form.firstName} onChange={handleChange} />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input name="lastName" placeholder="Doe" value={form.lastName} onChange={handleChange} />
+            </div>
           </div>
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-gray-600">Saturday</span>
-            <span className="text-[#1d4d6a]">10:00 AM - 4:00 PM</span>
+          <div>
+            <Label>Email Address</Label>
+            <Input name="email" type="email" placeholder="your@email.com" value={form.email} onChange={handleChange} />
           </div>
-          <div className="flex items-center justify-between py-2">
-            <span className="text-gray-600">Sunday</span>
-            <span className="text-gray-500">Closed</span>
+          <div>
+            <Label>Subject</Label>
+            <Input name="subject" placeholder="How can we help?" value={form.subject} onChange={handleChange} />
           </div>
+          <div>
+            <Label>Message</Label>
+            <Textarea name="message" placeholder="Tell us more about your inquiry..." className="min-h-[150px]" value={form.message} onChange={handleChange} />
+          </div>
+          <Button
+            className="w-full bg-[#bf2026] hover:bg-[#a01c22] text-white"
+            onClick={handleSubmit}
+          >
+            Send Message
+          </Button>
         </CardContent>
       </Card>
-    </div> */}
-  </div>
-);
+    </div>
+  );
+};
 
 export default ContactFormSection;
