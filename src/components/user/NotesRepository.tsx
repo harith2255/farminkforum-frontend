@@ -451,7 +451,6 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
                   purchased={selectedNote.purchased}
                   isLocked={!selectedNote.purchased}
                   previewPages={2}
-                  isLocked={true}
                   bookId={selectedNote.id}
                   onBuyClick={() => buyNow(selectedNote.id)}
                   onTotalPages={setTotalPages}
