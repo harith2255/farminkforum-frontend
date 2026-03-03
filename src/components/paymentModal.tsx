@@ -118,11 +118,10 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
-
           if (claimRes.status === 200) {
-            toast.success("Added to your library!");
+            // ✅ Only call onSuccess — it handles navigation to the reader.
+            // Do NOT call onClose here — it would navigate to user-dashboard and override the reader-note route.
             onSuccess?.({ source: "free_claim" });
-            onClose();
           } else {
             toast.error("Failed to add to library");
           }
