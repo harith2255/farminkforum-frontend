@@ -74,7 +74,7 @@ const AnimatedStat = ({
         {count.toLocaleString()}
         {suffix}
       </div>
-      <p className="text-gray-600">{label}</p>
+      <p className="text-lg text-gray-600">{label}</p>
     </div>
   );
 };

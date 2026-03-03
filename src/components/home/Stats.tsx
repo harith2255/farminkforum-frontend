@@ -71,7 +71,7 @@ function StatItem({ Icon, value = 0, label, suffix = "", isGeneric = false }: an
           {value >= 1000 && suffix === "" ? "+" : ""}
         </p>
       </div>
-      <p className="text-sm text-gray-600">{label}</p>
+      <p className="text-lg text-gray-600">{label}</p>
     </div>
   );
 }
