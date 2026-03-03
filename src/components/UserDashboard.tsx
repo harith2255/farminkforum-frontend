@@ -1023,11 +1023,14 @@ export default function UserDashboard({
           {/* Main Content with Scroll */}
           <main className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-80px)] scscroll-smooth [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
             <Suspense fallback={
-              <div className="flex justify-center items-center h-64">
-                <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
-                  <p className="text-gray-600 mt-3">Loading...</p>
+              <div className="space-y-6 p-4">
+                <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-28 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+                  ))}
                 </div>
+                <div className="h-48 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
               </div>
             }>
               {activeSection === "dashboard" && (
@@ -1129,11 +1132,18 @@ export function DashboardHome({
 }) {
   if (loading)
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d4d6a]"></div>
-          <p className="text-gray-600 mt-3">Loading dashboard...</p>
+      <div className="space-y-6 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-28 bg-white rounded-xl shadow-sm border border-gray-100 p-5 animate-pulse">
+              <div className="w-10 h-10 bg-gray-200 rounded-full mb-3" />
+              <div className="w-20 h-4 bg-gray-200 rounded mb-2" />
+              <div className="w-12 h-6 bg-gray-200 rounded" />
+            </div>
+          ))}
         </div>
+        <div className="h-48 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+        <div className="h-32 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
       </div>
     );
 

@@ -320,26 +320,30 @@ export default function App() {
      4) SYNC ROUTER — Single clean listener
   ============================================================ */
   useEffect(() => {
-    const sync = () => {
+    const syncRoute = () => {
       const r = resolveRoute();
       if (!r) return;
-
-      // Use startTransition to allow lazy loading during navigation
       startTransition(() => {
         setCurrentPage(r.page);
         setPageParam(r.param);
       });
-      setRouterReady(true); // ✅ key
     };
 
-    window.addEventListener("popstate", sync);
-    window.addEventListener("pushstate", sync);
+    // Initial load: set everything synchronously (no startTransition)
+    // so the skeleton hides only AFTER currentPage is correct
+    const r = resolveRoute();
+    if (r) {
+      setCurrentPage(r.page);
+      setPageParam(r.param);
+    }
+    setRouterReady(true);
 
-    sync(); // initial
+    window.addEventListener("popstate", syncRoute);
+    window.addEventListener("pushstate", syncRoute);
 
     return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("pushstate", sync);
+      window.removeEventListener("popstate", syncRoute);
+      window.removeEventListener("pushstate", syncRoute);
     };
   }, []);
 
@@ -498,7 +502,26 @@ export default function App() {
       {/* USER DASHBOARD */}
       {currentPage === "user-dashboard" && (
         <ErrorBoundary fallback={<div className="p-6">Error loading dashboard</div>}>
-          <Suspense fallback={<div className="p-6">Loading dashboard...</div>}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#f5f6f8]">
+              <div className="flex">
+                <div className="hidden md:block w-64 bg-white border-r border-gray-200 min-h-screen p-4 space-y-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+                <div className="flex-1 p-6 space-y-6">
+                  <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-28 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+                    ))}
+                  </div>
+                  <div className="h-64 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          }>
             <UserDashboard
               key={`${currentPage}-${pageParam}`}
               activeTab={pageParam || "dashboard"}
@@ -513,7 +536,26 @@ export default function App() {
       {/* ADMIN DASHBOARD */}
       {currentPage === "admin-dashboard" && (
         <ErrorBoundary fallback={<div className="p-6">Error loading admin dashboard</div>}>
-          <Suspense fallback={<div className="p-6">Loading admin dashboard...</div>}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#f5f6f8]">
+              <div className="flex">
+                <div className="hidden md:block w-64 bg-white border-r border-gray-200 min-h-screen p-4 space-y-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+                <div className="flex-1 p-6 space-y-6">
+                  <div className="h-8 w-56 bg-gray-200 rounded-md animate-pulse" />
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-24 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+                    ))}
+                  </div>
+                  <div className="h-72 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          }>
             <AdminDashboard
               onNavigate={handleNavigate}
               onLogout={handleLogout}
@@ -525,7 +567,14 @@ export default function App() {
       {/* READER */}
       {currentPage === "reader" && pageParam && (
         <ErrorBoundary fallback={<div className="p-6">Error opening book</div>}>
-          <Suspense fallback={<div className="p-6">Opening book…</div>}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <div className="w-48 h-64 bg-gray-800 rounded-lg animate-pulse mx-auto" />
+                <div className="w-32 h-4 bg-gray-700 rounded animate-pulse mx-auto" />
+              </div>
+            </div>
+          }>
             <BookReader
               bookId={pageParam.id}
               startPage={pageParam.last_page || 1}
@@ -543,7 +592,14 @@ export default function App() {
       {/* NOTE READER */}
       {currentPage === "reader-note" && pageParam && (
         <ErrorBoundary fallback={<div className="p-6">Error loading notes</div>}>
-          <Suspense fallback={<div className="p-6">Loading notes…</div>}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#f5f6f8] p-6">
+              <div className="max-w-4xl mx-auto space-y-4">
+                <div className="h-8 w-40 bg-gray-200 rounded-md animate-pulse" />
+                <div className="h-96 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+              </div>
+            </div>
+          }>
             <ReadNotePage
               noteId={pageParam}
               onNavigate={handleNavigate}
@@ -585,7 +641,23 @@ export default function App() {
 
       {currentPage === "test" && pageParam && (
         <ErrorBoundary fallback={<div className="p-6">Error loading test</div>}>
-          <Suspense fallback={<div className="p-6">Loading test…</div>}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center p-6">
+              <div className="w-40 h-10 bg-gray-200 rounded-full animate-pulse mb-6" />
+              <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-4xl space-y-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-3 border-b pb-4">
+                    <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                    <div className="space-y-2">
+                      {Array.from({ length: 4 }).map((_, j) => (
+                        <div key={j} className="h-4 w-1/2 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          }>
             <TestPage
               testId={pageParam}
               onNavigate={handleNavigate}

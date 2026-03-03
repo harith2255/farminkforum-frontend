@@ -3,11 +3,13 @@ import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import CategoryFilter from "../explore/CategorySection";
 import DashboardBooksGrid from "../DashboardBooksGrid";
+import { Search, X } from "lucide-react";
 import * as React from "react";
 
 function Explore({ onOpenBook, onNavigate }) {
   const [books, setBooks] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   const isLoggedIn = () => {
@@ -116,7 +118,7 @@ function Explore({ onOpenBook, onNavigate }) {
   }, [fetchBooks]);
 
   /* ---------------------------------------------------
-        FILTERING
+        FILTERING (Category + Search)
   --------------------------------------------------- */
   const categories = [
     "All",
@@ -125,10 +127,28 @@ function Explore({ onOpenBook, onNavigate }) {
     ),
   ];
 
-  const filteredBooks =
-    selectedCategory === "All"
-      ? books
-      : books.filter((b) => b.category === selectedCategory);
+  const query = searchQuery.trim().toLowerCase();
+
+  const filteredBooks = books.filter((b) => {
+    // Category filter
+    if (selectedCategory !== "All" && b.category !== selectedCategory) {
+      return false;
+    }
+
+    // Search filter
+    if (query) {
+      const title = (b.title || "").toLowerCase();
+      const author = (b.author || "").toLowerCase();
+      const description = (b.description || "").toLowerCase();
+      return (
+        title.includes(query) ||
+        author.includes(query) ||
+        description.includes(query)
+      );
+    }
+
+    return true;
+  });
 
   /* ----------
         RENDER
@@ -145,14 +165,37 @@ function Explore({ onOpenBook, onNavigate }) {
         </p>
       </div>
 
-      {/* Category Filter */}
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        showHeading={false}
-        layout="user"
-      />
+      {/* Category Filter + Search Bar */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 overflow-x-auto">
+          <CategoryFilter
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            showHeading={false}
+            layout="user"
+          />
+        </div>
+
+        <div className="relative shrink-0 w-100 sm:w-100">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1d4d6a]/30 focus:border-[#1d4d6a] transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Loading State */}
       {loading ? (
@@ -164,9 +207,20 @@ function Explore({ onOpenBook, onNavigate }) {
         </div>
       ) : filteredBooks.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">
-            No books....
+          <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">
+            {searchQuery
+              ? `No books found for "${searchQuery}"`
+              : "No books available in this category"}
           </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-2 text-sm text-[#bf2026] hover:underline"
+            >
+              Clear search
+            </button>
+          )}
         </div>
       ) : (
         <DashboardBooksGrid
