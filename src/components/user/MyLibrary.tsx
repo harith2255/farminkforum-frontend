@@ -94,7 +94,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
               purchased: entry.added_at,
             };
           })
-          .filter((b: any) => b.id); // 🛡️ exclude ghost entries with no valid ebook id
+          .filter((b: any) => b.id && b.title && b.title.trim() !== ""); // 🛡️ exclude ghost entries with no valid ebook id or title
 
         setBooks(formatted);
       } catch {
