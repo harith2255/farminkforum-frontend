@@ -448,7 +448,43 @@ export default function App() {
      LOADING SCREEN
   ============================================================ */
   if (!authReady || !routerReady) {
-    return <div className="min-h-screen bg-[#f5f6f8]" />;
+    return (
+      <div className="min-h-screen bg-[#f5f6f8] w-full">
+        {/* Skeleton Top Navbar */}
+        <div className="h-16 w-full bg-white border-b border-gray-200 flex items-center justify-between px-6">
+          <div className="w-32 h-8 bg-gray-200 rounded-md animate-pulse" />
+          <div className="flex gap-4">
+            <div className="w-16 h-8 bg-gray-200 rounded-md animate-pulse hidden sm:block" />
+            <div className="w-24 h-8 bg-gray-200 rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        {/* Skeleton Main Content Layout */}
+        <div className="max-w-7xl mx-auto p-6 mt-8">
+          <div className="w-48 h-10 bg-gray-200 rounded-md animate-pulse mb-8" />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="h-32 bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse">
+              <div className="w-12 h-12 bg-gray-200 rounded-full mb-4" />
+              <div className="w-24 h-4 bg-gray-200 rounded mb-2" />
+              <div className="w-16 h-6 bg-gray-200 rounded" />
+            </div>
+            <div className="h-32 bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse hidden md:block">
+              <div className="w-12 h-12 bg-gray-200 rounded-full mb-4" />
+              <div className="w-24 h-4 bg-gray-200 rounded mb-2" />
+              <div className="w-16 h-6 bg-gray-200 rounded" />
+            </div>
+            <div className="h-32 bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse hidden md:block">
+              <div className="w-12 h-12 bg-gray-200 rounded-full mb-4" />
+              <div className="w-24 h-4 bg-gray-200 rounded mb-2" />
+              <div className="w-16 h-6 bg-gray-200 rounded" />
+            </div>
+          </div>
+
+          <div className="h-64 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+        </div>
+      </div>
+    );
   }
 
   /* ============================================================
@@ -534,7 +570,7 @@ export default function App() {
       {["explore", "pricing", "about", "contact", "privacy", "terms", "drm"].includes(currentPage) && (
         <PublicPages
           page={currentPage as any}
-          onNavigate={handleNavigate}
+          onNavigate={handleNavigate as any}
           onLogin={handleLogin}
         />
       )}
@@ -542,7 +578,7 @@ export default function App() {
       {["login", "register"].includes(currentPage) && (
         <PublicPages
           page={currentPage as any}
-          onNavigate={handleNavigate}
+          onNavigate={handleNavigate as any}
           onLogin={handleLogin}
         />
       )}

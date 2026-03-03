@@ -11,7 +11,15 @@ interface Question {
     explanation?: string; // <-- NEW
 }
 
-export default function TestPage() {
+export default function TestPage({
+  testId,
+  onNavigate,
+  onLogout,
+}: {
+  testId?: any;
+  onNavigate?: (page: any, param?: any) => void;
+  onLogout?: () => void;
+}) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -22,7 +30,8 @@ export default function TestPage() {
 
   const questionsPerPage = 5;
 
-  const testId = window.location.pathname.split("/").pop();
+  const urlTestId = window.location.pathname.split("/").pop();
+  const activeTestId = testId || urlTestId;
   const attemptId = localStorage.getItem("active_attempt_id");
   const token = localStorage.getItem("token");
 
@@ -33,7 +42,7 @@ export default function TestPage() {
      Load Test
   ===========================================================*/
  const loadTest = useCallback(async () => {
-  if (!attemptId || !testId) return;
+  if (!attemptId || !activeTestId) return;
 
   try {
     /* 1️⃣ Fetch attempt metadata */
@@ -57,7 +66,7 @@ export default function TestPage() {
     }
 
     /* 2️⃣ Fetch questions (also contains duration + started_at now) */
-    const res = await axios.get(`${API_ACTION}/questions/${testId}`, {
+    const res = await axios.get(`${API_ACTION}/questions/${activeTestId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "x-attempt-id": attemptId
