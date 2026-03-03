@@ -9,7 +9,7 @@ const stats = [
 
 const AboutStats = () => (
   <section className="py-16 bg-white border-b border-gray-200">
-    <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+    <div className="max-w-4xl mx-auto px-6 grid grid-cols-3 place-items-center gap-8 text-center">
       {stats.map((s, i) => (
         <AnimatedStat
           key={i}
