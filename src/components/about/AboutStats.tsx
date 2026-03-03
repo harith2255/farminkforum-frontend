@@ -9,7 +9,7 @@ const stats = [
 
 const AboutStats = () => (
   <section className="py-16 bg-white border-b border-gray-200">
-    <div className="max-w-4xl mx-auto px-6 grid grid-cols-3 place-items-center gap-8 text-center">
+    <div className="max-w-4xl mx-auto px-6 grid grid-cols-3 gap-6">
       {stats.map((s, i) => (
         <AnimatedStat
           key={i}
@@ -39,7 +39,7 @@ const AnimatedStat = ({
   useEffect(() => {
     if (isGeneric) return;
     let start = 0;
-    const duration = 1500; // 1.5s animation
+    const duration = 1500;
     const startTime = performance.now();
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -61,8 +61,8 @@ const AnimatedStat = ({
 
   if (isGeneric) {
     return (
-      <div>
-        <p className="text-gray-600 text-lg font-semibold">{label}</p>
+      <div className="text-center">
+        <p className="text-[#1d4d6a] text-lg font-bold">{label}</p>
       </div>
     );
   }
