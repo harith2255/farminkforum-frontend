@@ -103,7 +103,10 @@ type Page =
   | "reader"
   | "purchase"
   | "test"
-  | "reader-note";
+  | "reader-note"
+  | "privacy"
+  | "terms"
+  | "drm";
 
 // Simple Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -293,7 +296,17 @@ export default function App() {
     }
 
     // fallback static pages
-    const staticPages = ["explore", "pricing", "about", "contact", "login", "register"];
+    const staticPages = [
+      "explore",
+      "pricing",
+      "about",
+      "contact",
+      "login",
+      "register",
+      "privacy",
+      "terms",
+      "drm",
+    ];
     const page = path.replace("/", "");
     if (staticPages.includes(page)) {
       return { page: page as Page, param: null };

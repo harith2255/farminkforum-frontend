@@ -1052,12 +1052,18 @@ export default function UserDashboard({
               {activeSection === "notes" && (
                 <NotesRepository onNavigate={onNavigate} />
               )}
-           {activeSection === "exams" && (
+            {activeSection === "exams" && (
+                /* Commented out subscription check:
                 subStatus === "loading" ? null : subStatus === "active" ? (
                   <Exams />
                 ) : (
                   <UpgradeRequired onNavigate={setActiveSection} />
                 )
+                */
+                <Exams onNavigate={(section) => {
+                  setActiveSection(section as any);
+                  window.history.pushState({}, "", `/user-dashboard/${section}`);
+                }} />
               )}
 
               {activeSection === "pyqs" && <PYQSection />}

@@ -5,7 +5,7 @@ export function FeaturesSection() {
     {
       icon: BookOpen,
       title: "Digital Library",
-      desc: "Agriculture-focused study materials designed for competitive exam preparation."
+      desc: "Curated agriculture-focused study materials designed for exam preparation."
     },
     {
       icon: Award,

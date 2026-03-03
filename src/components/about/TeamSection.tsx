@@ -2,7 +2,7 @@ import React from "react";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 
 const author = {
-  name: "Your Name",
+  name: "FarmInk Editorial Team",
   role: "Founder & Author",
   image: "", // replace with your photo
   intro:

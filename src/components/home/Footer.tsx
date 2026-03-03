@@ -89,17 +89,26 @@ export function Footer({ onNavigate }: FooterProps) {
             <h4 className="mb-4 font-semibold text-lg">Legal</h4>
             <ul className="space-y-3 text-sm text-gray-300">
               <li>
-                <button className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("privacy")}
+                  className="hover:text-white transition-colors"
+                >
                   Privacy Policy
                 </button>
               </li>
               <li>
-                <button className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("terms")}
+                  className="hover:text-white transition-colors"
+                >
                   Terms of Service
                 </button>
               </li>
               <li>
-                <button className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("drm")}
+                  className="hover:text-white transition-colors"
+                >
                   DRM Policy
                 </button>
               </li>

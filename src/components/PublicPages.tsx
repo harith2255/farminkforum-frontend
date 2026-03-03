@@ -20,6 +20,9 @@ import ContactPage from "./contact/ContactPage";
 import ReadNotePage from "./NotesReader";
 import * as React from "react";
 import { toast } from "sonner";
+import { PrivacyPolicy } from "./legal/PrivacyPolicy";
+import { TermsOfService } from "./legal/TermsOfService";
+import { DRMPolicy } from "./legal/DRMPolicy";
 
 interface PublicPagesProps {
   page:
@@ -30,7 +33,10 @@ interface PublicPagesProps {
     | "login"
     | "register"
     | "purchase"
-    | "read_note";
+    | "read_note"
+    | "privacy"
+    | "terms"
+    | "drm";
 
   onNavigate: (page: string) => void;
   onLogin?: (role: "user" | "admin") => void;
@@ -52,6 +58,9 @@ export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
       )}
       {page === "register" && <RegisterPage onNavigate={onNavigate} />}
       {page === "read_note" && <ReadNotePage onNavigate={onNavigate} />}
+      {page === "privacy" && <PrivacyPolicy />}
+      {page === "terms" && <TermsOfService />}
+      {page === "drm" && <DRMPolicy />}
 
       {/* Footer */}
       <Footer onNavigate={onNavigate} />

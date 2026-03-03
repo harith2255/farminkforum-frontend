@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 
 const stats = [
-  { value: 0, suffix: "", label: "Exam-Oriented Resources", isGeneric: true },
-  { value: 0, suffix: "", label: "Built for Aspirants", isGeneric: true },
-  { value: 0, suffix: "", label: "First in South India", isGeneric: true },
-  { value: 0, suffix: "", label: "Growing Academy Platform", isGeneric: true },
+  { suffix: "", label: "Agriculture exam preparation", isGeneric: true },
+  { suffix: "", label: "Mission to help aspirants qualify", isGeneric: true },
+  { suffix: "", label: "First in South India", isGeneric: true },
+  { suffix: "", label: "Growing Academy Platform", isGeneric: true },
 ];
 
 
@@ -12,7 +12,13 @@ const AboutStats = () => (
   <section className="py-16 bg-white border-b border-gray-200">
     <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
       {stats.map((s, i) => (
-        <AnimatedStat key={i} value={s.value} suffix={s.suffix} label={s.label} />
+        <AnimatedStat
+          key={i}
+          value={0}
+          suffix={s.suffix}
+          label={s.label}
+          isGeneric={s.isGeneric}
+        />
       ))}
     </div>
   </section>

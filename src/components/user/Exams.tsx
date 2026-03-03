@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Folder, ArrowLeft, Clock, FileText, Download, Loader2 } from "lucide-react";
+import { Folder, ArrowLeft, Clock, FileText, Download, Loader2, Play, Lock } from "lucide-react";
 
 /* -------------------------------------------------------
    TOKEN HANDLING
@@ -9,7 +9,7 @@ const getToken = () => {
   return localStorage.getItem("token") || null;
 };
 
-export default function UserStudyResources() {
+export default function UserStudyResources({ onNavigate }: { onNavigate: (section: string, id?: any) => void }) {
   const token = getToken();
 
   /* -------------------------------------------------------
@@ -26,6 +26,7 @@ export default function UserStudyResources() {
   const [viewFileURL, setViewFileURL] = useState<string | null>(null);
 
   const [attendExamId, setAttendExamId] = useState<number | null>(null);
+  const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
   const [answerText, setAnswerText] = useState("");
 
@@ -448,25 +449,27 @@ export default function UserStudyResources() {
                               "View PDF"
                             )}
                           </button>
-
-                          {ex.unlocked ? (
-                            <button
-                              className="bg-[#1d4d6a] text-white px-3 py-1.5 rounded text-xs sm:text-sm flex-1 hover:bg-[#163d55] transition"
-                              onClick={() => setAttendExamId(ex.id)}
-                            >
-                              Attend Now
-                            </button>
-                          ) : countdown ? (
-                            <div className="flex-1">
-                              <p className="text-yellow-600 text-xs sm:text-sm text-center p-2 bg-yellow-50 rounded">
-                                ⏳ Unlocks in <b>{countdown}</b>
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-gray-400 text-xs sm:text-sm text-center p-2">
-                              Not available yet
-                            </p>
-                          )}
+                          <button
+                            onClick={() => setAttendExamId(ex.id)}
+                            disabled={!ex.unlocked}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                              ex.unlocked
+                                ? "bg-[#bf2026] text-white hover:bg-[#a51c22] shadow-lg hover:shadow-xl active:scale-95"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {ex.unlocked ? (
+                              <>
+                                <Play className="w-5 h-5 fill-current" />
+                                Attend Now
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-5 h-5" />
+                                Locked
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     );

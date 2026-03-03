@@ -103,7 +103,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           .filter(Boolean);
       }
       else if (product?.id) {
-        purchaseItems = [{ id: product.id, type: item.type }];
+        purchaseItems = [{ id: product.id, type: item.type || product.type }];
       }
 
       /* ===================== 🆓 FREE PRODUCT (₹0) ===================== */

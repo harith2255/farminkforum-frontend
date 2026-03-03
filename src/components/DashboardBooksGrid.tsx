@@ -37,7 +37,7 @@ setLocalBooks((prev) =>
   return (
     <div className="w-full">
       <h2 className="text-xl font-semibold text-[#1d4d6a] mb-6">
-        Your Available Books
+        Your Available Study Materials
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 auto-rows-fr">

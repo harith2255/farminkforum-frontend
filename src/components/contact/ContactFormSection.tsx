@@ -7,7 +7,7 @@ import { Textarea } from "../ui/textarea";
 import {ImageWithFallback} from "../figma/ImageWithFallback";
 
 const ContactFormSection = () => (
-  <div className="grid md:grid-cols-2 gap-12 mb-16">
+  <div className="max-w-2xl mx-auto mb-16">
     {/* Contact Form */}
     <Card className="border-none shadow-xl">
       <CardHeader>
@@ -46,7 +46,7 @@ const ContactFormSection = () => (
     </Card>
 
     {/* Map + Office Hours */}
-    <div className="space-y-6">
+    {/* <div className="space-y-6">
       <div className="relative h-64 rounded-2xl overflow-hidden shadow-lg">
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1661877854265-48a976379af4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50JTIwc3R1ZHlpbmclMjBsYXB0b3B8ZW58MXx8fHwxNzYxNzg1MjcxfDA&ixlib=rb-4.1.0&q=80&w=1080"
@@ -74,7 +74,7 @@ const ContactFormSection = () => (
           </div>
         </CardContent>
       </Card>
-    </div>
+    </div> */}
   </div>
 );
 

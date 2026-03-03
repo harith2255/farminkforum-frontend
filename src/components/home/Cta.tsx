@@ -30,7 +30,7 @@ export function CTASection({ onNavigate }: CTASectionProps) {
                shadow-lg hover:shadow-2xl transition-all hover:scale-105
                w-80 sm:w-auto"
           >
-            Start Your Free Trial
+           Explore Resources
           </Button>
 
           <Button

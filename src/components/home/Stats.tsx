@@ -3,18 +3,18 @@ import { BookOpen, Users, Award, TrendingUp } from "lucide-react";
 
 export function StatsSection() {
   const stats = [
-    { icon: BookOpen, value: 0, label: "Exam-Oriented Study Materials", isGeneric: true, suffix: "" },
-    { icon: Users, value: 0, label: "Built for Agriculture Aspirants", isGeneric: true, suffix: "" },
-    { icon: Award, value: 0, label: "Focused on Exam Success", isGeneric: true, suffix: "" },
-    { icon: TrendingUp, value: 0, label: "Growing Academic Platform", isGeneric: true, suffix: "" },
+    { icon: BookOpen,  label: "Exam-Oriented Study Materials", isGeneric: true, suffix: "" },
+    { icon: Users,  label: "Built for Agriculture Aspirants", isGeneric: true, suffix: "" },
+    { icon: Award,  label: "Focused on Exam Success", isGeneric: true, suffix: "" },
+    { icon: TrendingUp,  label: "Growing Academic Platform in India", isGeneric: true, suffix: "" },
   ];
 
   return (
     <section className="py-10 bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map(({ icon: Icon, value, label, suffix }) => (
-            <StatItem key={label} Icon={Icon} value={value} label={label} suffix={suffix} />
+          {stats.map(({ icon: Icon,  label, suffix, isGeneric }) => (
+            <StatItem key={label} Icon={Icon} value={0} label={label} suffix={suffix} isGeneric={isGeneric} />
           ))}
         </div>
       </div>
@@ -23,10 +23,11 @@ export function StatsSection() {
 }
 
 // ✅ Reusable animated stat component
-function StatItem({ Icon, value, label, suffix = "", isGeneric = false }: any) {
+function StatItem({ Icon, value = 0, label, suffix = "", isGeneric = false }: any) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (isGeneric) return;
     let start = 0;
     const duration = 1500; // animation duration (1.5s)
     const startTime = performance.now();

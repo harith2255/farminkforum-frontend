@@ -27,6 +27,7 @@ type PurchaseType =
   | "subscription"
   | "writing"
   | "cart"
+  | "exam"
   | null;
 
 export default function UniversalPurchasePage({ id, item: passedItem, onNavigate }: any) {
@@ -70,6 +71,8 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         return <Crown className="w-12 h-12 text-purple-600" />;
       case "writing":
         return <PenTool className="w-12 h-12 text-green-600" />;
+      case "exam":
+        return <BadgeCheck className="w-12 h-12 text-red-600" />;
       default:
         return <ShoppingBag className="w-12 h-12 text-gray-600" />;
     }
@@ -182,7 +185,7 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         if (purchaseItems.length === 1) {
           const single = purchaseItems[0];
 
-          if (single.book || single.note) {
+          if (single.book || single.note || single.exam || single.product) {
             if (!cancelled) setItem({ ...getProductFromEntry(single), type: purchaseType });
             return;
           }
@@ -399,6 +402,9 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
                               )}
                               {itemType === "writing" && (
                                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Writing Service</span>
+                              )}
+                              {itemType === "exam" && (
+                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Exam</span>
                               )}
                             </div>
                             {p.description && (
