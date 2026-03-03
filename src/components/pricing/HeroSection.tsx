@@ -15,7 +15,7 @@ const HeroSection: React.FC = () => {
       <div className="relative mt-15 max-w-4xl mx-auto px-6 text-center">
         <h1 className="text-5xl mb-6">Honest & Affordable Resources</h1>
         <p className="text-xl text-gray-200 mb-8">
-          One-time purchases for lifelong success. No hidden subscriptions.
+          One-time purchases for lifelong success.No hidden subscriptions.
         </p>
       </div>
     </section>
