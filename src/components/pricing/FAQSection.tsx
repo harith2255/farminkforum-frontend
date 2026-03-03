@@ -3,24 +3,24 @@ import {Card, CardContent} from "../ui/card";
 
 const faqs = [
   {
-    question: "Can I switch plans anytime?",
+    question: "How do I access the notes after purchase?",
     answer:
-      "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.",
+      "Once purchased, your study materials will be available in your personal library for lifetime access.",
   },
   {
     question: "What payment methods do you accept?",
     answer:
-      "We accept all major credit cards, PayPal, and institutional purchase orders.",
+      "We accept all major UPI apps, credit/debit cards, and Net Banking through our secure payment gateway.",
   },
   {
-    question: "Is there a free trial?",
+    question: "Are the mock tests based on real exams?",
     answer:
-      "Yes! All plans come with a 14-day free trial. No credit card required to start.",
+      "Yes, our mock tests are curated by experts to match the pattern and difficulty of agriculture competitive exams.",
   },
   {
-    question: "What's your refund policy?",
+    question: "How do I request academic services?",
     answer:
-      "30-day money-back guarantee. If you're not satisfied, we'll refund you in full.",
+      "You can contact us directly via email or WhatsApp for custom academic requirements and professional assistance.",
   },
 ];
 

@@ -7,19 +7,17 @@ import { Check, Sparkles } from 'lucide-react';
 interface Plan {
   name: string;
   description: string;
-  monthlyPrice: number;
-  annualPrice: number;
+  price: string;
   popular?: boolean;
   features: { text: string; included: boolean }[];
 }
 
 interface PlanCardProps {
   plan: Plan;
-  billingCycle: 'monthly' | 'annual';
   onNavigate: (page: string) => void;
 }
 
-const PlanCard: React.FC<PlanCardProps> = ({ plan, billingCycle, onNavigate }) => (
+const PlanCard: React.FC<PlanCardProps> = ({ plan, onNavigate }) => (
   <Card
     className={`border-none shadow-lg hover:shadow-2xl transition-all relative ${
       plan.popular ? 'ring-2 ring-[#bf2026] scale-105' : ''
@@ -39,19 +37,10 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, billingCycle, onNavigate }) =
       <CardDescription className="text-sm">{plan.description}</CardDescription>
 
       <div className="mt-6">
-        <span className="text-5xl text-[#1d4d6a]">
-          ₹{billingCycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice}
-        </span>
-        <span className="text-gray-500 ml-2">
-          /{billingCycle === 'monthly' ? 'month' : 'year'}
+        <span className="text-4xl font-bold text-[#1d4d6a]">
+          {plan.price}
         </span>
       </div>
-
-      {billingCycle === 'annual' && (
-        <p className="text-sm text-gray-500 mt-2">
-          ${(plan.annualPrice / 12).toFixed(2)} per month, billed annually
-        </p>
-      )}
     </CardHeader>
 
     <CardContent className="space-y-6">
@@ -71,14 +60,14 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, billingCycle, onNavigate }) =
       </ul>
 
       <Button
-        onClick={() => onNavigate('register')}
+        onClick={() => onNavigate('login')}
         className={`w-full ${
           plan.popular
             ? 'bg-[#bf2026] hover:bg-[#a01c22] text-white'
             : 'bg-[#1d4d6a] hover:bg-[#153a4f] text-white'
         }`}
       >
-        Get Started
+        Explore Now
       </Button>
     </CardContent>
   </Card>

@@ -46,7 +46,7 @@ export default function PublicBooksGrid({ books, onNavigate }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-xl font-semibold text-[#1d4d6a] mb-6">Available Books</h2>
+      <h2 className="text-xl font-semibold text-[#1d4d6a] mb-6">Available Study Materials</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 auto-rows-fr">
         {books.map((book) => {
@@ -64,7 +64,7 @@ export default function PublicBooksGrid({ books, onNavigate }) {
                 <ImageWithFallback
                   src={cover}
                   alt={book.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className="w-full h-full object-contain bg-gray-50 group-hover:scale-105 transition-transform duration-500"
                 />
 
                 {book.bestseller && (
@@ -107,8 +107,8 @@ export default function PublicBooksGrid({ books, onNavigate }) {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span>{book.rating || "4.5"}</span>
-                    <span className="text-xs text-gray-500">({book.reviews || 100})</span>
+                    <span>{book.rating || "0.0"}</span>
+                    <span className="text-xs text-gray-500">({book.reviews || 0})</span>
                   </div>
 
                   <span className="text-[#bf2026] font-semibold">₹{book.price}</span>

@@ -7,28 +7,21 @@ const contactMethods = [
   {
     icon: Mail,
     title: "Email Us",
-    description: "Our team responds within 24 hours",
-    contact: " farminkforum@gmail.com",
+    description: "We aim to respond within 24–48 hours",
+    contact: "farminkforum@gmail.com",
     action: "Send Email",
   },
   {
     icon: Phone,
-    title: "Call Us",
-    description: "Mon-Fri from 8am to 6pm IST",
-    contact: "+91 9876543210",
+    title: "Call / WhatsApp",
+    description: "Available for urgent queries",
+    contact: "+91 9901371208",
     action: "Call Now",
-  },
-  {
-    icon: MapPin,
-    title: "Visit Us",
-    description: "Come say hello at our office",
-    contact: "123 Agriculture St, Farm City, Country",
-    action: "Get Directions",
   },
 ];
 
 const ContactMethods = () => (
-  <div className="grid md:grid-cols-3 gap-8 mb-16">
+  <div className="grid md:grid-cols-2 gap-8 mb-16 max-w-4xl mx-auto">
     {contactMethods.map((method, index) => (
       <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-all">
         <CardContent className="p-8 text-center">

@@ -24,7 +24,7 @@ export function Footer({ onNavigate }: FooterProps) {
               />
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
-              Your trusted platform for academic excellence and continuous learning.
+              Empowering agriculture aspirants with curated study materials and professional guidance for exam success.
             </p>
           </div>
 
@@ -37,7 +37,7 @@ export function Footer({ onNavigate }: FooterProps) {
                   onClick={() => onNavigate("explore")}
                   className="hover:text-white transition-colors"
                 >
-                  Explore Books
+                  Study Materials
                 </button>
               </li>
               <li>

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 
 const stats = [
-  { value: 12000, suffix: "+", label: "Registered Learners" },
-  { value: 350, suffix: "+", label: "Agricultural E-Books & Resources" },
-  { value: 95, suffix: "%", label: "Positive Learner Feedback" },
-  { value: 9, suffix: "+", label: "States Covered in India" },
+  { value: 0, suffix: "", label: "Exam-Oriented Resources", isGeneric: true },
+  { value: 0, suffix: "", label: "Built for Aspirants", isGeneric: true },
+  { value: 0, suffix: "", label: "First in South India", isGeneric: true },
+  { value: 0, suffix: "", label: "Growing Academy Platform", isGeneric: true },
 ];
 
 
@@ -22,14 +22,17 @@ const AnimatedStat = ({
   value,
   suffix,
   label,
+  isGeneric = false,
 }: {
   value: number;
   suffix: string;
   label: string;
+  isGeneric?: boolean;
 }) => {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (isGeneric) return;
     let start = 0;
     const duration = 1500; // 1.5s animation
     const startTime = performance.now();
@@ -49,7 +52,17 @@ const AnimatedStat = ({
     };
 
     requestAnimationFrame(animate);
-  }, [value]);
+  }, [value, isGeneric]);
+
+  if (isGeneric) {
+    return (
+      <div>
+        <div className="text-4xl text-[#bf2026] mb-2 font-semibold">
+          {label}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

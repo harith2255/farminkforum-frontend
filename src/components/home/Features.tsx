@@ -5,7 +5,7 @@ export function FeaturesSection() {
     {
       icon: BookOpen,
       title: "Digital Library",
-      desc: "Access thousands of academic e-books with DRM protection, highlighting tools, and dual reading themes."
+      desc: "Agriculture-focused study materials designed for competitive exam preparation."
     },
     {
       icon: Award,
@@ -29,8 +29,8 @@ export function FeaturesSection() {
     },
     {
       icon: Clock,
-      title: "24/7 Support",
-      desc: "Round-the-clock academic support with expert guidance and personalized assistance."
+      title: "Exam-Oriented",
+      desc: "Built specifically for agriculture aspirants with a focus on qualifying competitive exams."
     },
   ];
 

@@ -9,9 +9,9 @@ const MissionSection = () => (
         <p className="text-gray-700 mb-6">
 Every year, only a small percentage of aspirants qualify for agricultural entrance exams, scholarships, or government jobs.
 At FarmInk Forum, we aim to help you become one among them.
-By providing focused study materials, smart mock tests, and expert guidance, we help every learner move closer to success.  </p>
+By providing focused study materials, smart mock tests, and expert guidance, we help every learner move closer to their goals.</p>
         <p className="text-gray-700">
-          We believe everyone deserves access to world-class educational materials, regardless of their location or economic background.
+          We believe every aspirant deserves access to high-quality educational materials, regardless of their location or background.
         </p>
       </div>
       <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">

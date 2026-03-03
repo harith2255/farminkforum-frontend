@@ -23,11 +23,10 @@ const HeroSection: React.FC<HeroProps> = ({ searchQuery, setSearchQuery }) => {
   {/* Your existing content (unchanged) */}
   <div className="mt-15 max-w-7xl mx-auto px-6 relative z-10">
     <div className="max-w-3xl">
-      <h1 className="text-5xl mb-6">Explore Our Vast Digital Library</h1>
+      <h1 className="text-5xl mb-6">Curated Study Materials</h1>
 
       <p className="text-xl text-gray-200 mb-8">
-        Discover over 10,000 academic e-books across all disciplines. Your
-        next breakthrough starts here.
+        Access high-quality agriculture-focused study materials designed for competitive exam preparation.
       </p>
 
       <div className="relative max-w-2xl">

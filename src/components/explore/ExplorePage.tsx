@@ -44,7 +44,6 @@ function ExplorePage() {
   );
 
   const forceLogin = () => {
-    window.location.href = "/login";
     window.location.href = "/login"; // 🔥 public page → always login
   };
 

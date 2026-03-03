@@ -3,10 +3,10 @@ import { BookOpen, Users, Award, TrendingUp } from "lucide-react";
 
 export function StatsSection() {
   const stats = [
-    { icon: Users, value: 10000, label: "Registered learners" },
-    { icon: BookOpen, value: 350, label: "Agricultural E-Books and Resources", suffix: "+" },
-    { icon: TrendingUp, value: 95, label: "Positive Reviews", suffix: "%" },
-    { icon: Award, value: 9, label: "State Covered in India", suffix: "+" },
+    { icon: BookOpen, value: 0, label: "Exam-Oriented Study Materials", isGeneric: true, suffix: "" },
+    { icon: Users, value: 0, label: "Built for Agriculture Aspirants", isGeneric: true, suffix: "" },
+    { icon: Award, value: 0, label: "Focused on Exam Success", isGeneric: true, suffix: "" },
+    { icon: TrendingUp, value: 0, label: "Growing Academic Platform", isGeneric: true, suffix: "" },
   ];
 
   return (
@@ -23,7 +23,7 @@ export function StatsSection() {
 }
 
 // ✅ Reusable animated stat component
-function StatItem({ Icon, value, label, suffix = "" }: any) {
+function StatItem({ Icon, value, label, suffix = "", isGeneric = false }: any) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -48,6 +48,17 @@ function StatItem({ Icon, value, label, suffix = "" }: any) {
 
   // Smooth easing function
   const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+  if (isGeneric) {
+    return (
+      <div className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Icon className="w-6 h-6 text-[#bf2026]" />
+        </div>
+        <p className="text-[#1d4d6a] text-sm font-semibold">{label}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="text-center">

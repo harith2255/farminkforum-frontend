@@ -14,7 +14,7 @@ const ValuesSection = () => (
     <div className="max-w-7xl mx-auto px-6 text-center">
       <h2 className="text-4xl text-[#1d4d6a] mb-4">Our Core Values</h2>
       <p className="text-gray-600 max-w-2xl mx-auto mb-16">
-        These principles guide everything we do at AcademicHub
+        These principles guide everything we do at FarmInk Forum
       </p>
       <div className="grid md:grid-cols-4 gap-8">
         {values.map((val, i) => (

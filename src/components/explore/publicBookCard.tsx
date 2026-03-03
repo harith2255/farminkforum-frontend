@@ -67,11 +67,11 @@ export default function PublicBookCard({ book, onNavigate }) {
   return (
     <Card className="border-none shadow-md hover:shadow-xl transition-all group overflow-hidden">
       {/* IMAGE SECTION */}
-      <div className="relative h-64 overflow-hidden">
+      <div className="relative h-64 overflow-hidden bg-gray-50">
         <ImageWithFallback
           src={cover}
           alt={book.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
         />
 
         {book.bestseller && (
@@ -109,12 +109,12 @@ export default function PublicBookCard({ book, onNavigate }) {
           {book.title}
         </h3>
 
-        <p className="text-sm text-gray-500 mb-3">{book.author}</p>
+        <p className="text-sm text-gray-500 mb-3">{book.author || "FarmInk Editorial Team"}</p>
 
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm">{book.rating ?? "4.5"}</span>
+            <span className="text-sm">{book.rating ?? "0.0"}</span>
             <span className="text-xs text-gray-500">
               ({book.reviews ?? 0})
             </span>

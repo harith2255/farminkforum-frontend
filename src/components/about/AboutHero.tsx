@@ -12,10 +12,12 @@ const AboutHero = () => (
       />
     </div>
     <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-      <h1 className="text-6xl mb-6">Empowering Agricultural Learning Across India</h1>
+      <h1 className="text-6xl mb-6">Expert-Led Agricultural Learning</h1>
       <p className="text-xl text-gray-200">
-Since 2020, FarmInk Forum has been helping students and researchers access trusted academic materials, mock tests, and learning tools for success in agriculture education.
-Our goal is to bridge the gap between classroom learning and competitive exam success through focused, practical resources.</p>    </div>
+        FarmInk Forum is dedicated to helping agricultural aspirants and researchers access curated study materials, high-quality mock tests, and professional guidance.
+        Our mission is to simplify exam preparation and empower successful careers in India's agricultural sector.
+      </p>
+    </div>
   </section>
 );
 
