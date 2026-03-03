@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 
 const stats = [
-  { suffix: "Agriculture exam preparation", label: "", isGeneric: true },
-  { suffix: "Mission to help aspirants qualify", label: "", isGeneric: true },
-  { suffix: "First in South India", label: "", isGeneric: true },
-  { suffix: "Growing Academy Platform", label: "", isGeneric: true },
+  { suffix: "", label: "Agriculture exam preparation", isGeneric: true },
+  { suffix: "", label: "Mission to help aspirants qualify", isGeneric: true },
+  { suffix: "", label: "First in South India", isGeneric: true },
+  { suffix: "", label: "Growing Academy Platform", isGeneric: true },
 ];
 
 
@@ -63,9 +63,7 @@ const AnimatedStat = ({
   if (isGeneric) {
     return (
       <div>
-        <div className="text-4xl text-[#bf2026] mb-2 font-semibold">
-          {label}
-        </div>
+        <p className="text-gray-600 font-medium">{label}</p>
       </div>
     );
   }
