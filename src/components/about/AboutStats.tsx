@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 
 const stats = [
-  { suffix: "", label: "Agriculture exam preparation", isGeneric: true },
-  { suffix: "", label: "Mission to help aspirants qualify", isGeneric: true },
-  { suffix: "", label: "First in South India", isGeneric: true },
-  { suffix: "", label: "Growing Academy Platform", isGeneric: true },
+  { suffix: "Agriculture exam preparation", label: "", isGeneric: true },
+  { suffix: "Mission to help aspirants qualify", label: "", isGeneric: true },
+  { suffix: "First in South India", label: "", isGeneric: true },
+  { suffix: "Growing Academy Platform", label: "", isGeneric: true },
 ];
 
 
