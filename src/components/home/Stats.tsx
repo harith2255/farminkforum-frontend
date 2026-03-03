@@ -54,9 +54,9 @@ function StatItem({ Icon, value = 0, label, suffix = "", isGeneric = false }: an
     return (
       <div className="text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <Icon className="w-6 h-6 text-[#bf2026]" />
+          <Icon className="w-8 h-8 text-[#bf2026]" />
         </div>
-        <p className="text-[#1d4d6a] text-sm font-semibold">{label}</p>
+        <p className="text-[#1d4d6a] text-lg font-semibold">{label}</p>
       </div>
     );
   }
@@ -64,7 +64,7 @@ function StatItem({ Icon, value = 0, label, suffix = "", isGeneric = false }: an
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-2">
-        <Icon className="w-6 h-6 text-[#bf2026]" />
+        <Icon className="w-8 h-8 text-[#bf2026]" />
         <p className="text-[#1d4d6a] text-lg font-semibold">
           {count.toLocaleString()}
           {suffix}

@@ -63,7 +63,7 @@ const AnimatedStat = ({
   if (isGeneric) {
     return (
       <div>
-        <p className="text-gray-600 font-medium">{label}</p>
+        <p className="text-gray-600 text-lg font-semibold">{label}</p>
       </div>
     );
   }
