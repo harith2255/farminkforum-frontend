@@ -9,7 +9,7 @@ function PricingPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     {
       name: 'Study Materials',
       description: 'Individual PDF notes and resources',
-      price: 'Starting from ₹49',
+     
       features: [
         { text: 'Comprehensive PDF Notes', included: true },
         { text: 'Topic-wise Summaries', included: true },
@@ -21,7 +21,7 @@ function PricingPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     {
       name: 'Mock Test Packages',
       description: 'Exam-wise practice materials',
-      price: 'Starting from ₹199',
+    
       popular: true,
       features: [
         { text: 'Exam-specific Mock Tests', included: true },
@@ -34,7 +34,7 @@ function PricingPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     {
       name: 'Academic Services',
       description: 'Professional assistance for aspirants',
-      price: 'Price on Request',
+    
       features: [
         { text: 'Research Paper Assistance', included: true },
         { text: 'Literature Review Support', included: true },
