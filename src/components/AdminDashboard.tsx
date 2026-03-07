@@ -67,6 +67,13 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
   const avatarRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Retrieve actual user info from localStorage
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const fullName = user?.full_name || "Admin";
+  const userEmail = user?.email || "admin@farminkforum.com";
+  const initials = fullName.substring(0, 2).toUpperCase();
+
   const menuItems = [
     { id: 'dashboard' as AdminSection, icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'customers' as AdminSection, icon: Users, label: 'Customers' },
@@ -322,15 +329,15 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
                   onClick={() => setAvatarOpen(!avatarOpen)}
                 >
                   <Avatar className="w-9 h-9 bg-gradient-to-br from-[#1d4d6a] to-[#16384e] text-white flex items-center justify-center font-semibold tracking-wide rounded-xl shadow-sm">
-                    AD
+                    {initials}
                   </Avatar>
                 </button>
 
                 {avatarOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-xl border border-gray-100 z-50">
                     <div className="p-3 border-b border-gray-200">
-                      <p className="text-sm font-semibold text-gray-800">Super Admin</p>
-                      <p className="text-xs text-gray-500 truncate">Superadmin@FarmInkForum.com</p>
+                      <p className="text-sm font-semibold text-gray-800">{fullName}</p>
+                      <p className="text-xs text-gray-500 truncate">{userEmail}</p>
                     </div>
                     <div className="py-1">
                       <button

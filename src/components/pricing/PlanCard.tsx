@@ -15,9 +15,10 @@ interface Plan {
 interface PlanCardProps {
   plan: Plan;
   onNavigate: (page: string) => void;
+  isLoggedIn?: boolean;
 }
 
-const PlanCard: React.FC<PlanCardProps> = ({ plan, onNavigate }) => (
+const PlanCard: React.FC<PlanCardProps> = ({ plan, onNavigate, isLoggedIn }) => (
   <Card
     className={`border-none shadow-lg hover:shadow-2xl transition-all relative ${
       plan.popular ? 'ring-2 ring-[#bf2026] scale-105' : ''
@@ -60,7 +61,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onNavigate }) => (
       </ul>
 
       <Button
-        onClick={() => onNavigate('login')}
+        onClick={() => onNavigate(isLoggedIn ? 'user-dashboard' : 'login')}
         className={`w-full ${
           plan.popular
             ? 'bg-[#bf2026] hover:bg-[#a01c22] text-white'

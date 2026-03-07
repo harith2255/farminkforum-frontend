@@ -248,13 +248,44 @@ export default function App() {
   ============================================================ */
   const resolveRoute = (): { page: Page; param: any } => {
     const path = window.location.pathname || "";
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const role = localStorage.getItem("role");
+
+    // 🔥 SECURITY: Protect Admin Dashboard routes
+    if (path.startsWith("/admin-dashboard")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
+      if (role !== "admin" && role !== "super_admin") {
+        window.history.replaceState({}, "", "/user-dashboard");
+        return { page: "user-dashboard", param: "dashboard" };
+      }
+      return { page: "admin-dashboard", param: null };
+    }
+
+    // 🔥 SECURITY: Protect User Dashboard routes
+    if (path.startsWith("/user-dashboard")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
+    }
 
     if (path.startsWith("/notes/read/")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
       const id = Number(path.split("/").pop());
       return { page: "reader-note", param: id };
     }
 
     if (path.startsWith("/reader/")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
       const meta = JSON.parse(localStorage.getItem("open_book_meta") || "{}");
 
       // fallback if someone manually types URL
@@ -267,6 +298,10 @@ export default function App() {
     }
 
     if (path.startsWith("/purchase/")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
       const id = path.split("/").pop();
       return { page: "purchase", param: id };
     }
@@ -282,12 +317,12 @@ export default function App() {
     }
 
     if (path.startsWith("/test/")) {
+      if (!isLoggedIn) {
+        window.history.replaceState({}, "", "/login");
+        return { page: "login", param: null };
+      }
       const id = path.split("/").pop();
       return { page: "test", param: id };
-    }
-
-    if (path.startsWith("/admin-dashboard")) {
-      return { page: "admin-dashboard", param: null };
     }
 
     // Handle base /user-dashboard URL (redirect to dashboard)
@@ -383,16 +418,17 @@ export default function App() {
   /* ============================================================
      8) NAVIGATE - Updated to handle /user-dashboard/dashboard
   ============================================================ */
-  const handleNavigate = (page: Page, param?: any) => {
+  const handleNavigate = (page: string, param?: any) => {
+    const targetPage = page as Page;
     setPreviousPage(currentPage);
     setPageParam(param ?? null);
     
     // Use startTransition to allow lazy loading
     startTransition(() => {
-      setCurrentPage(page);
+      setCurrentPage(targetPage);
     });
 
-    switch (page) {
+    switch (targetPage) {
       case "user-dashboard":
         if (param === "dashboard") {
           window.history.pushState({}, "", "/user-dashboard/dashboard");
@@ -497,7 +533,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f5f6f8]">
       {/* HOME */}
-      {currentPage === "home" && <Home onNavigate={handleNavigate} />}
+      {currentPage === "home" && <Home onNavigate={handleNavigate} onOpenBook={handleOpenBook} />}
 
       {/* USER DASHBOARD */}
       {currentPage === "user-dashboard" && (

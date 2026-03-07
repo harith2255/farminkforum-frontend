@@ -4,7 +4,7 @@ import PlanCard from './PlanCard';
 import FAQSection from './FAQSection';
 import { Card } from '../ui/card';
 
-function PricingPage({ onNavigate }: { onNavigate: (page: string) => void }) {
+function PricingPage({ onNavigate, isLoggedIn }: { onNavigate: (page: string) => void, isLoggedIn?: boolean }) {
   const categories = [
     {
       name: 'Study Materials',
@@ -56,6 +56,7 @@ function PricingPage({ onNavigate }: { onNavigate: (page: string) => void }) {
               key={index}
               plan={category as any}
               onNavigate={onNavigate}
+              isLoggedIn={isLoggedIn}
             />
           ))}
         </div>

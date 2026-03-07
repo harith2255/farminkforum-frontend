@@ -44,6 +44,8 @@ interface PublicPagesProps {
 }
 
 export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -51,7 +53,7 @@ export function PublicPages({ page, onNavigate, onLogin }: PublicPagesProps) {
 
       {/* Page Content */}
       {page === "explore" && <ExplorePage onNavigate={onNavigate} />}
-      {page === "pricing" && <PricingPage onNavigate={onNavigate} />}
+      {page === "pricing" && <PricingPage onNavigate={onNavigate} isLoggedIn={isLoggedIn} />}
       {page === "about" && <AboutPage />}
       {page === "contact" && <ContactPage />}
       {page === "login" && (
@@ -310,7 +312,7 @@ const handleRegister = async () => {
     // ✅ CLEAR ERROR EXPLICITLY ON SUCCESS
     setError("");
 
-    alert("✅ Account created successfully!");
+    toast.success("Account created successfully!");
     onNavigate("login");
 
   } catch (err: any) {
