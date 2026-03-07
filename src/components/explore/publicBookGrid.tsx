@@ -9,7 +9,8 @@ import { toast } from "sonner";
 
 export default function PublicBooksGrid({ books, onNavigate }) {
 
-  const isLoggedIn = () => !!localStorage.getItem("token");
+  // Rely on the global router state instead of loose token strings
+  const isLoggedIn = () => localStorage.getItem("isLoggedIn") === "true";
   const redirectToLogin = () => onNavigate?.("login");
 
   const addToCart = async (bookId: number) => {
@@ -32,14 +33,15 @@ export default function PublicBooksGrid({ books, onNavigate }) {
   };
 
   const handleBuyNow = (book) => {
-    if (!isLoggedIn()) return redirectToLogin();
+    if (!isLoggedIn()) {
+      return redirectToLogin();
+    }
 
     localStorage.setItem("purchaseType", "book");
     localStorage.setItem("purchaseId", String(book.id));
     localStorage.setItem("purchaseItems", JSON.stringify([{ id: book.id, type: "book" }]));
 
     onNavigate("purchase", book.id);
-    window.history.pushState({}, "", `/purchase/${book.id}`);
   };
 
   // ---------------------------------------------------------

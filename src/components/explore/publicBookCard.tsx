@@ -10,7 +10,8 @@ import axios from "axios";
 import { toast } from "sonner";
 
 export default function PublicBookCard({ book, onNavigate }) {
-  const isLoggedIn = () => !!localStorage.getItem("token");
+  // Rely on global router state specifically tracking true login success
+  const isLoggedIn = () => localStorage.getItem("isLoggedIn") === "true";
   const cover =
     book.cover_url ||
     book.cover ||
@@ -43,7 +44,9 @@ export default function PublicBookCard({ book, onNavigate }) {
      BUY NOW → PURCHASE PAGE (login required)
   -------------------------------------------------- */
   const handleBuyNow = () => {
-    if (!isLoggedIn()) return onNavigate("login");
+    if (!isLoggedIn()) {
+      return onNavigate("login");
+    }
 
     localStorage.setItem("purchaseType", "book");
     localStorage.setItem("purchaseId", String(book.id));
@@ -53,7 +56,6 @@ export default function PublicBookCard({ book, onNavigate }) {
     );
 
     onNavigate("purchase", book.id);
-    window.history.pushState({}, "", `/purchase/${book.id}`);
   };
 
   /* --------------------------------------------------
