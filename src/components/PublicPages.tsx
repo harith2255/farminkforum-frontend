@@ -1,4 +1,5 @@
 import { useState,useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -108,6 +109,7 @@ export function LoginPage({
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 useEffect(() => {
   const params = new URLSearchParams(window.location.search);
 
@@ -215,15 +217,24 @@ onNavigate(isAdmin ? "admin-dashboard" : "user-dashboard");
 
       <div className="space-y-2">
         <Label className="text-sm sm:text-base">Password</Label>
-        <Input
-          type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          onKeyPress={handleKeyPress}
-          placeholder="••••••••"
-          className="text-sm sm:text-base"
-        />
+        <div className="relative">
+          <Input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            onKeyPress={handleKeyPress}
+            placeholder="••••••••"
+            className="text-sm sm:text-base pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -270,6 +281,7 @@ export default function RegisterPage({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -364,14 +376,23 @@ const handleRegister = async () => {
 
       <div className="space-y-2">
         <Label className="text-sm sm:text-base">Password</Label>
-        <Input
-          name="password"
-          type="password"
-          placeholder="••••••••"
-          value={formData.password}
-          onChange={handleChange}
-          className="text-sm sm:text-base"
-        />
+        <div className="relative">
+          <Input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            value={formData.password}
+            onChange={handleChange}
+            className="text-sm sm:text-base pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">
