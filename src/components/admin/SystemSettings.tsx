@@ -15,6 +15,12 @@ export default function SystemSettings() {
   const [showModal, setShowModal] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<any>(null);
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+
   /* -----------------------------
       FETCH SETTINGS + INTEGRATIONS
   ----------------------------- */
@@ -56,6 +62,40 @@ export default function SystemSettings() {
     );
 
     alert("Settings updated!");
+  };
+
+  /* -----------------------------
+      CHANGE ADMIN PASSWORD
+  ----------------------------- */
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) {
+      setPasswordError("Both fields are required");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+    setPasswordLoading(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        "https://e-book-backend-production.up.railway.app/api/admin/settings/password",
+        { current_password: currentPassword, new_password: newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPasswordSuccess("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.error || "Failed to update password");
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -125,6 +165,49 @@ export default function SystemSettings() {
               <Button className="bg-[#bf2026] text-white" onClick={saveSettings}>
                 Save Changes
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-md mt-6">
+            <CardHeader>
+              <CardTitle className="text-[#1d4d6a]">Change Admin Password</CardTitle>
+              <CardDescription>Update your administrator password. This will override the default one-time setup password.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                {passwordError && <p className="text-red-500 text-sm font-medium">{passwordError}</p>}
+                {passwordSuccess && <p className="text-green-600 text-sm font-medium">{passwordSuccess}</p>}
+                
+                <div>
+                  <Label>Current Password</Label>
+                  <Input 
+                    type="password" 
+                    value={currentPassword} 
+                    onChange={e => setCurrentPassword(e.target.value)} 
+                    placeholder="Enter current password"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label>New Password</Label>
+                  <Input 
+                    type="password" 
+                    value={newPassword} 
+                    onChange={e => setNewPassword(e.target.value)} 
+                    placeholder="Enter new password (min 6 chars)"
+                    className="mt-1"
+                  />
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="bg-[#1d4d6a] text-white hover:bg-[#163b52] mt-2" 
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading ? "Updating..." : "Update Password"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
