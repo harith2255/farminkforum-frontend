@@ -106,6 +106,9 @@ type Page =
   | "reader-note"
   | "privacy"
   | "terms"
+  | "forgot-password"
+  | "reset-password"
+  | "verify-email"
   | "drm";
 
 // Simple Error Boundary Component
@@ -340,6 +343,9 @@ export default function App() {
       "register",
       "privacy",
       "terms",
+      "forgot-password",
+      "reset-password",
+      "verify-email",
       "drm",
     ];
     const page = path.replace("/", "");
@@ -659,7 +665,7 @@ export default function App() {
       )}
 
       {/* PUBLIC PAGES */}
-      {["explore", "pricing", "about", "contact", "privacy", "terms", "drm"].includes(currentPage) && (
+      {["explore", "pricing", "about", "contact", "privacy", "terms", "forgot-password", "drm"].includes(currentPage) && (
         <PublicPages
           page={currentPage as any}
           onNavigate={handleNavigate as any}
