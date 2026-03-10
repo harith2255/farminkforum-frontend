@@ -17,7 +17,7 @@ import axios, { AxiosResponse } from "axios";
 import * as React from "react";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 
-const API = "https://e-book-backend-production.up.railway.app/api/profile";
+const API = `${import.meta.env.VITE_API_URL}/api/profile`;
 
 type Profile = {
   id?: string;

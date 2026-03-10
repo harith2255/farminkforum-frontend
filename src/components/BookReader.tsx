@@ -28,7 +28,7 @@ interface BookReaderProps {
   onClose: () => void;
   previewPages?: number;
 }
-const API_BASE = "https://e-book-backend-production.up.railway.app";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export function BookReader({
   bookId,
@@ -437,7 +437,7 @@ if (isBookFree) {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      `https://e-book-backend-production.up.railway.app/api/interview-materials/${id}/stream`,
+      `${import.meta.env.VITE_API_URL}/api/interview-materials/${id}/stream`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

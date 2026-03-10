@@ -1,7 +1,7 @@
 // src/api/cartApi.ts
 import axios from "axios";
 
-const BASE = "https://e-book-backend-production.up.railway.app/api/cart";
+const BASE = `${import.meta.env.VITE_API_URL}/api/cart`;
 
 function authHeaders() {
   const token = localStorage.getItem("token");

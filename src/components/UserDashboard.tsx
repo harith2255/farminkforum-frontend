@@ -247,7 +247,7 @@ export default function UserDashboard({
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/dashboard", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/dashboard`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -271,7 +271,7 @@ export default function UserDashboard({
         const session = JSON.parse(localStorage.getItem("session") || "{}");
         const token = session?.access_token || localStorage.getItem("token");
 
-        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/profile", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -311,7 +311,7 @@ export default function UserDashboard({
         }
 
         const res = await axios.get(
-          "https://e-book-backend-production.up.railway.app/api/dashboard",
+          `${import.meta.env.VITE_API_URL}/api/dashboard`,
           {
             headers: { Authorization: `Bearer ${token}` },
             timeout: 8000,
@@ -364,7 +364,7 @@ export default function UserDashboard({
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/cart", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cart`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -387,7 +387,7 @@ export default function UserDashboard({
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/notifications", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/notifications`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -546,7 +546,7 @@ export default function UserDashboard({
       }
 
       const res = await axios.get(
-        "https://e-book-backend-production.up.railway.app/api/subscriptions/active",
+        `${import.meta.env.VITE_API_URL}/api/subscriptions/active`,
         {
           headers: { Authorization: `Bearer ${token}` },
           validateStatus: (s) => s < 500,
@@ -832,7 +832,7 @@ export default function UserDashboard({
                               try {
                                 const token = localStorage.getItem("token");
                                 await axios.patch(
-                                  `https://e-book-backend-production.up.railway.app/api/notifications/read/${n.id}`,
+                                  `${import.meta.env.VITE_API_URL}/api/notifications/read/${n.id}`,
                                   {},
                                   {
                                     headers: { Authorization: `Bearer ${token}` },

@@ -13,7 +13,7 @@ export default function CartPage({ onNavigate }) {
   -------------------------------------------------------- */
   const fetchCart = async () => {
     try {
-      const res = await axios.get("https://e-book-backend-production.up.railway.app/api/cart", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCartItems(Array.isArray(res.data.items) ? res.data.items : []);
@@ -41,7 +41,7 @@ export default function CartPage({ onNavigate }) {
   -------------------------------------------------------- */
   const removeFromCart = async (id) => {
     try {
-      await axios.delete(`https://e-book-backend-production.up.railway.app/api/cart/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/cart/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

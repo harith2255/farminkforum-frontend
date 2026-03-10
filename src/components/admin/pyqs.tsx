@@ -5,7 +5,7 @@ import { Plus, Upload, X, FileText, CheckCircle, Calendar, AlertCircle, Folder, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 
 
-const BASE_URL = "https://e-book-backend-production.up.railway.app/api/admin/pyq";
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api/admin/pyq`;
 
 function PYQSection() {
   const [folders, setFolders] = useState([]);

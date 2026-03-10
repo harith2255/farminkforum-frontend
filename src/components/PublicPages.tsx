@@ -25,7 +25,7 @@ import { PrivacyPolicy } from "./legal/PrivacyPolicy";
 import { TermsOfService } from "./legal/TermsOfService";
 import { DRMPolicy } from "./legal/DRMPolicy";
 
-const API_BASE_URL = "https://e-book-backend-production.up.railway.app";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface PublicPagesProps {
   page:

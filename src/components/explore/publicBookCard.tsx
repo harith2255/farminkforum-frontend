@@ -27,7 +27,7 @@ export default function PublicBookCard({ book, onNavigate }) {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "https://e-book-backend-production.up.railway.app/api/cart/add",
+        `${import.meta.env.VITE_API_URL}/api/cart/add`,
         { book_id: book.id, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );

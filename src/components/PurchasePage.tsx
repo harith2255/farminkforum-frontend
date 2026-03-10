@@ -126,12 +126,11 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const url =
-        type === "book"
-          ? `https://e-book-backend-production.up.railway.app/api/books/${productId}`
+          ? `${import.meta.env.VITE_API_URL}/api/books/${productId}`
           : type === "note"
-            ? `https://e-book-backend-production.up.railway.app/api/notes/${productId}`
+            ? `${import.meta.env.VITE_API_URL}/api/notes/${productId}`
             : type === "subscription"
-              ? `https://e-book-backend-production.up.railway.app/api/subscriptions/${productId}`
+              ? `${import.meta.env.VITE_API_URL}/api/subscriptions/${productId}`
               : null;
 
       if (!url) {
@@ -162,11 +161,11 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
             purchaseItems.map(async (entry: any) => {
               if (entry.book || entry.note) return entry;
               if (entry.book_id) {
-                const res = await axios.get(`https://e-book-backend-production.up.railway.app/api/ebooks/${entry.book_id}`);
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/ebooks/${entry.book_id}`);
                 return { ...entry, book: res.data };
               }
               if (entry.note_id) {
-                const res = await axios.get(`https://e-book-backend-production.up.railway.app/api/notes/${entry.note_id}`);
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/notes/${entry.note_id}`);
                 return { ...entry, note: res.data };
               }
               return entry;

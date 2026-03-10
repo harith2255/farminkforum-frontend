@@ -30,7 +30,7 @@ function Explore({ onOpenBook, onNavigate }) {
          1️⃣ FETCH ALL BOOKS
       ---------------------------- */
       const res = await axios.get(
-        "https://e-book-backend-production.up.railway.app/api/content?type=books"
+        `${import.meta.env.VITE_API_URL}/api/content?type=books`
       );
 
       let list = res.data?.contents || [];
@@ -44,7 +44,7 @@ function Explore({ onOpenBook, onNavigate }) {
       if (token) {
         try {
           const pres = await axios.get(
-            "https://e-book-backend-production.up.railway.app/api/purchases/purchased/book-ids",
+            `${import.meta.env.VITE_API_URL}/api/purchases/purchased/book-ids`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -57,7 +57,7 @@ function Explore({ onOpenBook, onNavigate }) {
 
         try {
           const cres = await axios.get(
-            "https://e-book-backend-production.up.railway.app/api/library/collections/book-ids",
+            `${import.meta.env.VITE_API_URL}/api/library/collections/book-ids`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 

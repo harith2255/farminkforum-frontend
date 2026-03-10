@@ -183,7 +183,7 @@ export default function App() {
       debounceTimer = setTimeout(async () => {
         try {
           await axios.put(
-            `https://e-book-backend-production.up.railway.app/api/library/progress/${bookId}`,
+            `${import.meta.env.VITE_API_URL}/api/library/progress/${bookId}`,
             { progress: percent, last_page: page },
             {
               headers: {
@@ -474,9 +474,6 @@ export default function App() {
      9) LOGOUT
   ============================================================ */
   const handleLogout = () => {
-    console.trace("🔥 LOGOUT CALLED");
-    debugger;
-
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("isLoggedIn");

@@ -65,7 +65,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
     try {
       setLoading(prev => ({ ...prev, cart: true }));
       await axios.post(
-        "https://e-book-backend-production.up.railway.app/api/cart/add",
+        `${import.meta.env.VITE_API_URL}/api/cart/add`,
         { note_id: noteId, quantity: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -126,7 +126,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
   const loadNotes = async () => {
     try {
       setLoading(prev => ({ ...prev, notes: true }));
-      const notesRes = await axios.get("https://e-book-backend-production.up.railway.app/api/notes", {
+      const notesRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/notes`, {
         params: {
           category: activeCategory !== "All" ? activeCategory : undefined,
           search: searchText || undefined,
@@ -140,7 +140,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       if (token) {
         try {
           const purchasedRes = await axios.get(
-            "https://e-book-backend-production.up.railway.app/api/purchases/purchased/note-ids",
+            `${import.meta.env.VITE_API_URL}/api/purchases/purchased/note-ids`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -208,7 +208,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
     try {
       setLoading(prev => ({ ...prev, download: true }));
       const res = await axios.post(
-        `https://e-book-backend-production.up.railway.app/api/notes/${noteId}/download`,
+        `${import.meta.env.VITE_API_URL}/api/notes/${noteId}/download`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -235,7 +235,7 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       setShowPreview(true);
       setSelectedNote({
         ...note,
-        previewUrl: `https://e-book-backend-production.up.railway.app/api/notes/${note.id}/preview-pdf`,
+        previewUrl: `${import.meta.env.VITE_API_URL}/api/notes/${note.id}/preview-pdf`,
         purchased:
           purchased.includes(note.id) ||
           note.price === 0 ||

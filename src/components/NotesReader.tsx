@@ -56,7 +56,7 @@ useEffect(() => {
   const checkAccess = async () => {
     try {
       const res = await fetch(
-        `https://e-book-backend-production.up.railway.app/api/drm/check-access?note_id=${note.id}`,
+        `${import.meta.env.VITE_API_URL}/api/drm/check-access?note_id=${note.id}`,
         {
           headers: authHeaders(token), // ✅ FIX
         }
@@ -153,7 +153,7 @@ useEffect(() => {
   (async () => {
     try {
       const hres = await fetch(
-        `https://e-book-backend-production.up.railway.app/api/notes/highlights/${note.id}`,
+        `${import.meta.env.VITE_API_URL}/api/notes/highlights/${note.id}`,
         { headers: authHeaders(token) }
       );
 
@@ -162,7 +162,7 @@ useEffect(() => {
       }
 
       const pres = await fetch(
-        `https://e-book-backend-production.up.railway.app/api/notes/lastpage/${note.id}`,
+        `${import.meta.env.VITE_API_URL}/api/notes/lastpage/${note.id}`,
         { headers: authHeaders(token) }
       );
 
@@ -191,7 +191,7 @@ useEffect(() => {
   const t = setTimeout(async () => {
     try {
       await fetch(
-        `https://e-book-backend-production.up.railway.app/api/notes/lastpage/${note.id}`,
+        `${import.meta.env.VITE_API_URL}/api/notes/lastpage/${note.id}`,
         {
           method: "PUT",
           headers: {
@@ -215,7 +215,7 @@ useEffect(() => {
  const handleAddHighlight = async (h: any) => {
   try {
     const res = await fetch(
-      "https://e-book-backend-production.up.railway.app/api/notes/highlights",
+      `${import.meta.env.VITE_API_URL}/api/notes/highlights`,
       {
         method: "POST",
         headers: {
@@ -249,7 +249,7 @@ useEffect(() => {
   const handleDeleteHighlight = async (id: number) => {
     try {
       await fetch(
-        `https://e-book-backend-production.up.railway.app/api/notes/highlights/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/notes/highlights/${id}`,
         {
           method: "DELETE",
 headers: authHeaders(token),        }

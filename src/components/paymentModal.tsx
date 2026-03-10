@@ -58,7 +58,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
       ? `${item.items?.length || 0} Items`
       : product?.title || product?.name || "Purchase";
 
-  const apiBase = import.meta.env.VITE_API_BASE || "https://e-book-backend-production.up.railway.app";
+  const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
 
   const confirmPayment = async () => {
     setLoading(true);
@@ -210,16 +210,6 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
 
   theme: { color: "#bf2026" },
 };
-          console.group("🧪 Razorpay Init Debug");
-          console.log("Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
-          console.log("Order object:", order);
-          console.log("Order ID:", order?.id);
-          console.log("Amount (paise):", order?.amount);
-          console.log("Currency:", order?.currency);
-          console.log("Title:", title);
-          console.log("Items:", purchaseItems);
-          console.groupEnd();
-
           onClose(); // close modal
 
 document.body.style.overflow = "auto";

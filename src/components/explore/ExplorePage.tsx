@@ -16,7 +16,7 @@ function ExplorePage() {
       try {
         setLoading(true);
 
-        const res = await fetch("https://e-book-backend-production.up.railway.app/api/content?type=books");
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/content?type=books`);
         const json = await res.json();
         const payload = json?.contents ?? json ?? [];
 

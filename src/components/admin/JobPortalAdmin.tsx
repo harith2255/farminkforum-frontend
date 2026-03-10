@@ -47,7 +47,7 @@ useEffect(() => {
 
 const fetchJobs = async () => {
   try {
-    const token = localStorage.getItem("token");    const res = await axios.get("https://e-book-backend-production.up.railway.app/api/admin/jobs", {
+    const token = localStorage.getItem("token");    const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/jobs`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     setJobs(res.data.jobs || []);
@@ -71,7 +71,7 @@ const handleAddJob = async () => {
   }
 
   try {
-    const token = localStorage.getItem("token");    await axios.post("https://e-book-backend-production.up.railway.app/api/admin/jobs", formData, {
+    const token = localStorage.getItem("token");    await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/jobs`, formData, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job posted successfully!");
@@ -89,7 +89,7 @@ const handleAddJob = async () => {
   if (!editingJob) return;
 
   try {
-    const token = localStorage.getItem("token");    await axios.put(`https://e-book-backend-production.up.railway.app/api/admin/jobs/${editingJob.id}`, formData, {
+    const token = localStorage.getItem("token");    await axios.put(`${import.meta.env.VITE_API_URL}/api/admin/jobs/${editingJob.id}`, formData, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job updated successfully!");
@@ -107,7 +107,7 @@ const handleAddJob = async () => {
   if (!window.confirm("Are you sure you want to delete this job?")) return;
 
   try {
-    const token = localStorage.getItem("token");    await axios.delete(`https://e-book-backend-production.up.railway.app/api/admin/jobs/${id}`, {
+    const token = localStorage.getItem("token");    await axios.delete(`${import.meta.env.VITE_API_URL}/api/admin/jobs/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Job deleted successfully!");

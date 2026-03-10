@@ -38,7 +38,7 @@ export default function CustomerManagement() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await axios.get("https://e-book-backend-production.up.railway.app/api/admin/customers", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/customers`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { search, status, plan, page, limit: 10 },
       });
@@ -63,7 +63,7 @@ export default function CustomerManagement() {
   const suspendCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
     await axios.post(
-      `https://e-book-backend-production.up.railway.app/api/admin/customers/${id}/suspend`,
+      `${import.meta.env.VITE_API_URL}/api/admin/customers/${id}/suspend`,
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -74,7 +74,7 @@ export default function CustomerManagement() {
   const activateCustomer = async (id: string) => {
     const token = localStorage.getItem("token");
     await axios.post(
-      `https://e-book-backend-production.up.railway.app/api/admin/customers/${id}/activate`,
+      `${import.meta.env.VITE_API_URL}/api/admin/customers/${id}/activate`,
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -85,7 +85,7 @@ export default function CustomerManagement() {
     if (!confirm("Are you sure you want to delete this customer?")) return;
     const token = localStorage.getItem("token");
     await axios.delete(
-      `https://e-book-backend-production.up.railway.app/api/admin/customers/${id}`,
+      `${import.meta.env.VITE_API_URL}/api/admin/customers/${id}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     await fetchCustomers();
@@ -94,7 +94,7 @@ export default function CustomerManagement() {
   const sendNotification = async () => {
     const token = localStorage.getItem("token");
     await axios.post(
-      `https://e-book-backend-production.up.railway.app/api/admin/customers/${selectedCustomer.id}/notify`,
+      `${import.meta.env.VITE_API_URL}/api/admin/customers/${selectedCustomer.id}/notify`,
       {
         title: emailSubject,
         message: emailMessage,

@@ -35,8 +35,8 @@ export default function TestPage({
   const attemptId = localStorage.getItem("active_attempt_id");
   const token = localStorage.getItem("token");
 
-  const API_TEST = "https://e-book-backend-production.up.railway.app/api/mock-tests";
-  const API_ACTION = "https://e-book-backend-production.up.railway.app/api/test";
+  const API_TEST = `${import.meta.env.VITE_API_URL}/api/mock-tests`;
+  const API_ACTION = `${import.meta.env.VITE_API_URL}/api/test`;
 
   /* ==========================================================
      Load Test

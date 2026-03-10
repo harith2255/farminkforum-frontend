@@ -70,7 +70,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       try {
         setLoading(prev => ({ ...prev, books: true }));
         const headers = getAuthHeaders();
-        const res = await axios.get("https://e-book-backend-production.up.railway.app/api/library", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/library`, {
           headers,
         });
 
@@ -113,7 +113,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       setLoading(prev => ({ ...prev, collectionBooks: true }));
       const headers = getAuthHeaders();
       const res = await axios.get(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/${collection.id}/books`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/${collection.id}/books`,
         { headers }
       );
       setOpenCollectionView(collection);
@@ -133,7 +133,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       setLoading(prev => ({ ...prev, collections: true }));
       const headers = getAuthHeaders();
       await axios.post(
-        "https://e-book-backend-production.up.railway.app/api/library/collections",
+        `${import.meta.env.VITE_API_URL}/api/library/collections`,
         { name: collectionName },
         { headers }
       );
@@ -157,7 +157,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
 
       // 1. Load collections
       const res = await axios.get(
-        "https://e-book-backend-production.up.railway.app/api/library/collections",
+        `${import.meta.env.VITE_API_URL}/api/library/collections`,
         { headers }
       );
 
@@ -165,7 +165,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
 
       // 2. Load book ids for all collections
       const idsRes = await axios.get(
-        "https://e-book-backend-production.up.railway.app/api/library/collections/book-ids",
+        `${import.meta.env.VITE_API_URL}/api/library/collections/book-ids`,
         { headers }
       );
 
@@ -191,7 +191,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.post(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/${collectionId}/add`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/${collectionId}/add`,
         { book_id: bookToAdd.book_id || bookToAdd.id },
         { headers }
       );
@@ -216,7 +216,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.delete(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/${collectionId}/remove/${bookId}`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/${collectionId}/remove/${bookId}`,
         { headers }
       );
 
@@ -239,7 +239,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       const headers = getAuthHeaders();
 
       // fetch library items
-      const libRes = await axios.get("https://e-book-backend-production.up.railway.app/api/library", { headers });
+      const libRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/library`, { headers });
 
       const formatted = (libRes.data || [])
         .map((entry: any) => {
@@ -276,7 +276,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       setLoading(prev => ({ ...prev, collections: true }));
       const headers = getAuthHeaders();
       await axios.put(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/${editingCollection.id}`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/${editingCollection.id}`,
         { name: editCollectionName },
         { headers }
       );
@@ -310,7 +310,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
           const headers = getAuthHeaders();
           if (!headers.Authorization) return;
           await axios.post(
-            "https://e-book-backend-production.up.railway.app/api/library/read/start",
+            `${import.meta.env.VITE_API_URL}/api/library/read/start`,
             { book_id: book.id },
             { headers }
           );
@@ -336,7 +336,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
           const headers = getAuthHeaders();
           
           await axios.put(
-            `https://e-book-backend-production.up.railway.app/api/library/progress/${id}`,
+            `${import.meta.env.VITE_API_URL}/api/library/progress/${id}`,
             { 
               progress: percent,
               last_page: page
@@ -346,7 +346,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
 
           if (percent === 100) {
             await axios.put(
-              `https://e-book-backend-production.up.railway.app/api/library/complete/${id}`,
+              `${import.meta.env.VITE_API_URL}/api/library/complete/${id}`,
               {},
               { headers }
             );
@@ -392,7 +392,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
         setLoading(prev => ({ ...prev, search: true }));
         const headers = getAuthHeaders();
         const res = await axios.get(
-          `https://e-book-backend-production.up.railway.app/api/library/search?query=${encodeURIComponent(
+          `${import.meta.env.VITE_API_URL}/api/library/search?query=${encodeURIComponent(
             query
           )}`,
           { headers }
@@ -436,7 +436,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.delete(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/remove-book/${book.book_id || book.id}`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/remove-book/${book.book_id || book.id}`,
         { headers }
       );
 
@@ -457,7 +457,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   const handleRemoveBook = async (bookId: number) => {
     try {
       const headers = getAuthHeaders();
-      await axios.delete(`https://e-book-backend-production.up.railway.app/api/library/remove/${bookId}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/library/remove/${bookId}`, {
         headers,
       });
 
@@ -471,7 +471,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
   const handleResetProgress = async (bookId: number) => {
     try {
       const headers = getAuthHeaders();
-      await axios.put(`https://e-book-backend-production.up.railway.app/api/library/reset/${bookId}`, {}, { headers });
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/library/reset/${bookId}`, {}, { headers });
 
       toast.success("Removed from currently reading");
       setBooks(prev =>
@@ -493,7 +493,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
       setLoading(prev => ({ ...prev, collections: true }));
       const headers = getAuthHeaders();
       await axios.delete(
-        `https://e-book-backend-production.up.railway.app/api/library/collections/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/library/collections/${id}`,
         { headers }
       );
 
@@ -532,7 +532,7 @@ export function MyLibrary({ onOpenBook }: MyLibraryProps) {
     try {
       const headers = getAuthHeaders();
       await axios.post(
-        "https://e-book-backend-production.up.railway.app/api/library/read/start",
+        `${import.meta.env.VITE_API_URL}/api/library/read/start`,
         { book_id: book.id },
         { headers }
       );
