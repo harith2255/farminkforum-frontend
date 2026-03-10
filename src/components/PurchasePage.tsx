@@ -126,6 +126,7 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const url =
+        type === "book"
           ? `${import.meta.env.VITE_API_URL}/api/books/${productId}`
           : type === "note"
             ? `${import.meta.env.VITE_API_URL}/api/notes/${productId}`
