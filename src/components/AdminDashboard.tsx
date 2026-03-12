@@ -36,7 +36,8 @@ const JobPortalAdmin = lazy(() => import("./admin/JobPortalAdmin"));
 const SystemSettings = lazy(() => import("./admin/SystemSettings"));
 
 interface AdminDashboardProps {
-  onNavigate: (page: string) => void;
+  activeSection?: string | null;
+  onNavigate: (page: string, param?: any) => void;
   onLogout: () => void;
 }
 
@@ -57,7 +58,7 @@ type AdminSection =
   | 'jobs'
   | 'settings';
 
-export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ activeSection: activeSectionProp, onNavigate, onLogout }: AdminDashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -119,6 +120,13 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
 
   const [activeSection, setActiveSection] = useState<AdminSection>(getInitialSection);
 
+  // Sync activeSection with prop from App.tsx (for back/forward buttons)
+  useEffect(() => {
+    if (activeSectionProp) {
+      setActiveSection(activeSectionProp as AdminSection);
+    }
+  }, [activeSectionProp]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Close dropdown if clicked outside
@@ -166,7 +174,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: AdminDashboardP
 
   const handleSectionChange = (section: AdminSection) => {
     setActiveSection(section);
-    window.history.pushState({}, "", `/admin-dashboard/${section}`);
+    onNavigate("admin-dashboard", section);
     
     if (section === "writing") {
       setWritingNotification(false);

@@ -107,7 +107,7 @@ export default function UserDashboard({
   const [activeSub, setActiveSub] = useState<any | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  function UpgradeRequired({ onNavigate }) {
+  function UpgradeRequired({ onNavigate }: { onNavigate: (page: string) => void }) {
     return (
       <div className="p-6 border border-red-200 bg-red-50 rounded-lg">
         <h2 className="text-lg font-semibold text-red-600 mb-2">
@@ -146,16 +146,16 @@ export default function UserDashboard({
         title: "UGC NET JRF - Adult Education Preparation",
         subtitle: "Intensive Extension Knowledge Forum",
         description: "WhatsApp group for UGC NET/JRF Adult Education Preparation",
-        qrUrl: "/qrimage/FarmInkForumQR2.png", // Replace with your actual image path
+        qrUrl: "/qrimage/FarmInkForumQR2.png", 
         instruction: "Scan this QR code using the WhatsApp camera to join this group",
         color: "bg-blue-50",
         textColor: "text-blue-800",
         buttonColor: "bg-blue-600 hover:bg-blue-700",
         whatsappUrl: "https://wa.me/?text=Hello!%20I%20want%20to%20join%20UGC%20NET%20JRF%20-%20Adult%20Education%20Preparation%20-%20Intensive%20Extension%20Knowledge%20Forum"
       }
-    };
+    } as const;
 
-    const data = qrData[selectedQR as keyof typeof qrData] || qrData.farmink;
+    const data = (qrData as any)[selectedQR] || qrData.farmink;
 
     return (
       <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
@@ -166,9 +166,9 @@ export default function UserDashboard({
                 <h2 className={`text-lg font-bold ${data.textColor} leading-tight`}>
                   {data.title}
                 </h2>
-                {data.subtitle && (
+                { (data as any).subtitle && (
                   <p className={`text-sm ${data.textColor} font-medium mt-1`}>
-                    {data.subtitle}
+                    { (data as any).subtitle }
                   </p>
                 )}
                 <p className="text-sm text-gray-600 mt-1">{data.description}</p>
@@ -210,68 +210,43 @@ export default function UserDashboard({
     );
   };
 
+  // Sync with URL / events
   useEffect(() => {
-    const handler = () => {
+    const noteHandler = () => {
       setActiveSection("notes");
       window.history.pushState({}, "", "/user-dashboard/notes");
     };
 
-    window.addEventListener("open-dashboard-notes", handler);
-    return () => window.removeEventListener("open-dashboard-notes", handler);
-  }, []);
-
-  // Restore notes section after closing reader-note
-  useEffect(() => {
-    const handler = () => {
-      setActiveSection("notes");
-      window.history.pushState({}, "", "/user-dashboard/notes");
-    };
-
-    window.addEventListener("open-dashboard-notes", handler);
-    return () => window.removeEventListener("open-dashboard-notes", handler);
-  }, []);
-
-  useEffect(() => {
-    const handler = () => {
+    const updateHandler = () => {
       window.dispatchEvent(new Event("dashboard:update"));
     };
 
-    window.addEventListener("collections:changed", handler);
-    return () => window.removeEventListener("collections:changed", handler);
+    window.addEventListener("open-dashboard-notes", noteHandler);
+    window.addEventListener("collections:changed", updateHandler);
+    
+    return () => {
+      window.removeEventListener("open-dashboard-notes", noteHandler);
+      window.removeEventListener("collections:changed", updateHandler);
+    };
   }, []);
 
-  // 🔥 Improved Dashboard Update Listener with error handling
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        setDashboardData(res.data);
-      } catch (err) {
-        console.error("Dashboard refresh failed:", err);
-      }
-    };
-
-    window.addEventListener("dashboard:update", fetchDashboard);
-  window.addEventListener("library:updated", fetchDashboard); // 🔥 Listen for library updates too
-  return () => {
-    window.removeEventListener("dashboard:update", fetchDashboard);
-    window.removeEventListener("library:updated", fetchDashboard);
-  };  }, []);
+  // Helper to get token
+  const resolveToken = () => {
+    return (
+      localStorage.getItem("token") ||
+      JSON.parse(localStorage.getItem("session") || "{}")?.access_token ||
+      null
+    );
+  };
 
   // ✅ FIX: Load Profile CLEANLY here
   useEffect(() => {
-    async function loadProfile() {
+    const loadProfile = async () => {
       try {
-        const session = JSON.parse(localStorage.getItem("session") || "{}");
-        const token = session?.access_token || localStorage.getItem("token");
+        const token = resolveToken();
+        if (!token) return;
 
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/profile`, {
+        const res = await axios.get(`${(import.meta as any).env.VITE_API_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -279,21 +254,13 @@ export default function UserDashboard({
       } catch (err) {
         console.error("Failed to load profile", err);
       }
-    }
+    };
     loadProfile();
   }, []);
 
   // 🔥 IMPROVED: fetch dashboard with retry logic
   useEffect(() => {
     let cancelled = false;
-
-    const resolveToken = () => {
-      return (
-        localStorage.getItem("token") ||
-        JSON.parse(localStorage.getItem("session") || "{}")?.access_token ||
-        null
-      );
-    };
 
     const fetchDashboard = async () => {
       const token = resolveToken();
@@ -311,7 +278,7 @@ export default function UserDashboard({
         }
 
         const res = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/dashboard`,
+          `${(import.meta as any).env.VITE_API_URL}/api/dashboard`,
           {
             headers: { Authorization: `Bearer ${token}` },
             timeout: 8000,
@@ -364,7 +331,7 @@ export default function UserDashboard({
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cart`, {
+        const res = await axios.get(`${(import.meta as any).env.VITE_API_URL}/api/cart`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -387,7 +354,7 @@ export default function UserDashboard({
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/notifications`, {
+        const res = await axios.get(`${(import.meta as any).env.VITE_API_URL}/api/notifications`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -546,7 +513,7 @@ export default function UserDashboard({
       }
 
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/subscriptions/active`,
+        `${(import.meta as any).env.VITE_API_URL}/api/subscriptions/active`,
         {
           headers: { Authorization: `Bearer ${token}` },
           validateStatus: (s) => s < 500,
@@ -832,7 +799,7 @@ export default function UserDashboard({
                               try {
                                 const token = localStorage.getItem("token");
                                 await axios.patch(
-                                  `${import.meta.env.VITE_API_URL}/api/notifications/read/${n.id}`,
+                                  `${(import.meta as any).env.VITE_API_URL}/api/notifications/read/${n.id}`,
                                   {},
                                   {
                                     headers: { Authorization: `Bearer ${token}` },
@@ -1056,17 +1023,19 @@ export default function UserDashboard({
                 <NotesRepository onNavigate={onNavigate} />
               )}
             {activeSection === "exams" && (
-                /* Commented out subscription check:
-                subStatus === "loading" ? null : subStatus === "active" ? (
-                  <Exams />
+                subStatus === "loading" ? (
+                  <div className="h-48 bg-gray-50 animate-pulse rounded-lg" />
+                ) : subStatus === "active" ? (
+                  <Exams onNavigate={(section: string) => {
+                    setActiveSection(section as any);
+                    window.history.pushState({}, "", `/user-dashboard/${section}`);
+                  }} />
                 ) : (
-                  <UpgradeRequired onNavigate={setActiveSection} />
+                  <UpgradeRequired onNavigate={(section: string) => {
+                    setActiveSection(section as any);
+                    window.history.pushState({}, "", `/user-dashboard/${section}`);
+                  }} />
                 )
-                */
-                <Exams onNavigate={(section) => {
-                  setActiveSection(section as any);
-                  window.history.pushState({}, "", `/user-dashboard/${section}`);
-                }} />
               )}
 
               {activeSection === "pyqs" && <PYQSection />}
@@ -1081,20 +1050,19 @@ export default function UserDashboard({
 
               {activeSection === "payments" && (
                 <PaymentsSubscriptions
-                  onNavigate={(page) => setActiveSection(page)}
+                  onNavigate={(page: any) => setActiveSection(page)}
                 />
               )}
 
               {activeSection === "profile" && <ProfileSettings />}
 
               {activeSection === "notifications" && (
-                <NotificationView onNavigate={onNavigate} />
+                <NotificationView />
               )}
 
               {activeSection === "cartpage" && (
                 <CartPage
-                  items={cartItems}
-                  onNavigate={(page) => {
+                  onNavigate={(page: any) => {
                     setActiveSection(page as UserSection);
                     window.history.pushState({}, "", `/user-dashboard/${page}`);
                   }}
@@ -1103,7 +1071,7 @@ export default function UserDashboard({
 
               {activeSection === "purchase" && (
                 <UniversalPurchasePage
-                  onNavigate={(page) => {
+                  onNavigate={(page: any) => {
                     if (page === "user-dashboard") {
                     setActiveSection("dashboard");
                     window.history.pushState({}, "", "/user-dashboard/dashboard");
@@ -1129,6 +1097,11 @@ export function DashboardHome({
   dashboardData,
   loading,
   error,
+}: {
+  onOpenBook: (book: any) => void;
+  dashboardData: any;
+  loading: boolean;
+  error: string;
 }) {
   if (loading)
     return (
@@ -1271,7 +1244,7 @@ const weeklyHours = formatNumber(stats?.weeklyHours);
             </p>
           )}
 
-          {recentBooks.map((entry, index) => {
+          {recentBooks.map((entry: any, index: number) => {
             const book = entry.ebooks;
             if (!book) return null;
 

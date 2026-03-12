@@ -1,20 +1,3 @@
-// 🔥 DEBUG: trace who clears auth
-const originalClear = localStorage.clear;
-localStorage.clear = function () {
-  console.error("❌ localStorage.clear() CALLED");
-  console.trace(); // ← THIS IS THE KEY
-  originalClear.apply(this, arguments as any);
-};
-
-const originalRemoveItem = localStorage.removeItem;
-localStorage.removeItem = function (key) {
-  if (key === "token") {
-    console.error("❌ token REMOVED");
-    console.trace(); // ← EXACT FILE + LINE
-  }
-  originalRemoveItem.apply(this, arguments as any);
-};
-
 import { useEffect, useState, startTransition, Suspense } from "react";
 import { Home } from "./components/Home";
 import { PublicPages } from "./components/PublicPages";
@@ -51,12 +34,12 @@ axios.interceptors.request.use((config) => {
   const sessionId = localStorage.getItem("current_session_id");
 
   config.headers = config.headers || {};
+  config.timeout = config.timeout || 15000; // 15s global timeout
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // 🔥 THIS WAS MISSING
   if (sessionId) {
     config.headers["x-session-id"] = sessionId;
   }
@@ -183,7 +166,7 @@ export default function App() {
       debounceTimer = setTimeout(async () => {
         try {
           await axios.put(
-            `${import.meta.env.VITE_API_URL}/api/library/progress/${bookId}`,
+            `${(import.meta as any).env.VITE_API_URL}/api/library/progress/${bookId}`,
             { progress: percent, last_page: page },
             {
               headers: {
@@ -264,7 +247,8 @@ export default function App() {
         window.history.replaceState({}, "", "/user-dashboard");
         return { page: "user-dashboard", param: "dashboard" };
       }
-      return { page: "admin-dashboard", param: null };
+      const section = path.split("/")[2] || "dashboard";
+      return { page: "admin-dashboard", param: section };
     }
 
     // 🔥 SECURITY: Protect User Dashboard routes
@@ -438,13 +422,19 @@ export default function App() {
       case "user-dashboard":
         if (param === "dashboard") {
           window.history.pushState({}, "", "/user-dashboard/dashboard");
+        } else if (param) {
+          window.history.pushState({}, "", `/user-dashboard/${param}`);
         } else {
           window.history.pushState({}, "", "/user-dashboard");
         }
         break;
 
       case "admin-dashboard":
-        window.history.pushState({}, "", "/admin-dashboard");
+        if (param) {
+          window.history.pushState({}, "", `/admin-dashboard/${param}`);
+        } else {
+          window.history.pushState({}, "", "/admin-dashboard");
+        }
         break;
 
       case "purchase":
@@ -596,6 +586,8 @@ export default function App() {
             </div>
           }>
             <AdminDashboard
+              key={`${currentPage}-${pageParam}`}
+              activeSection={pageParam}
               onNavigate={handleNavigate}
               onLogout={handleLogout}
             />
