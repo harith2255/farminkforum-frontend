@@ -1354,18 +1354,18 @@ const handleDownloadDeliverable = async (order: Order) => {
 
                     <div className="bg-[#bf2026] bg-opacity-10 border border-[#bf2026] rounded-lg p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-700">Subtotal</span>
-                        <span className="text-gray-900">₹{calculatedPrice - 20}</span>
+                        <span className="text-white">Subtotal</span>
+                        <span className="text-white">₹{calculatedPrice - 20}</span>
                       </div>
 
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-700">Service Fee</span>
-                        <span className="text-gray-900">₹20</span>
+                        <span className="text-white">Service Fee</span>
+                        <span className="text-white">₹20</span>
                       </div>
 
                       <div className="border-t border-[#bf2026] my-3 pt-3 flex justify-between items-center">
-                        <span className="text-[#1d4d6a] font-semibold">Total</span>
-                        <span className="text-[#1d4d6a] font-bold text-lg">₹{calculatedPrice}</span>
+                        <span className="text-white font-semibold">Total</span>
+                        <span className="text-white font-bold text-lg">₹{calculatedPrice}</span>
                       </div>
                     </div>
 

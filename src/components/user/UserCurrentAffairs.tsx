@@ -330,7 +330,7 @@ const fetchCategories = async () => {
                   {!item.isPurchased && item.price > 0 ? (
                     <button 
                       onClick={(e) => { e.stopPropagation(); buyNow(item); }}
-                      className="px-3 py-1 bg-[#1d4d6a] text-white text-xs font-medium rounded hover:bg-[#2a5d7f] transition-colors"
+                      className="px-3 py-1 bg-[#bf2026] text-white text-xs font-medium rounded hover:bg-[#2a5d7f] transition-colors"
                     >
                       Buy Now
                     </button>
@@ -554,7 +554,7 @@ const fetchCategories = async () => {
           <button
             onClick={() => fetchCurrentAffairs()}
             disabled={loading || !hasMore}
-            className="px-6 py-3 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors duration-300 font-medium disabled:opacity-50"
+            className="px-6 py-3 bg-[#bf2026] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors duration-300 font-medium disabled:opacity-50"
           >
             {loading ? "Loading..." : hasMore ? "Load More News" : "No More News"}
           </button>
