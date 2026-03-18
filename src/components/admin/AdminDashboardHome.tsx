@@ -59,14 +59,6 @@ export default function AdminDashboardHome() {
         tooltip: "Total registered users on the platform",
       },
       {
-        label: "Active Subscriptions",
-        value: kpis.activeSubs,
-        change: kpis.subsGrowthPercent,
-        icon: TrendingUp,
-        color: "text-green-500",
-        tooltip: "Total currently active subscriptions",
-      },
-      {
         label: "Books Sold",
         value: kpis.booksSold,
         change: kpis.booksGrowthPercent,
@@ -104,7 +96,32 @@ export default function AdminDashboardHome() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setKpis(res.data.kpis);
-      setChartData(res.data.chartData);
+      const rawChart = res.data.chartData || [];
+      // FRESH START: zero out any month before March 2026
+      const FRESH_START_MONTH = new Date("2026-03-01");
+      const MONTH_MAP: Record<string, number> = {
+        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+      };
+      const filteredChart = rawChart.map((entry: any) => {
+        // Parse the label into an approximate date to compare
+        const parts = String(entry.month).split(" ");
+        const monthName = parts[0];
+        const yearSuffix = parts[1] ? parseInt(parts[1]) : null;
+        // yearSuffix is like "25" or "26"
+        const fullYear = yearSuffix !== null ? (yearSuffix < 50 ? 2000 + yearSuffix : 1900 + yearSuffix) : null;
+        const monthIdx = MONTH_MAP[monthName] ?? -1;
+        let entryDate: Date | null = null;
+        if (fullYear !== null && monthIdx !== -1) {
+          entryDate = new Date(fullYear, monthIdx, 1);
+        }
+        if (entryDate && entryDate < FRESH_START_MONTH) {
+          return { ...entry, revenue: 0, users: 0 };
+        }
+        return entry;
+      });
+      setChartData(filteredChart);
+
     } catch (err) {
       console.error(err);
     } finally {

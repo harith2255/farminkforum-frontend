@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { toast } from "sonner";
 import {
   Card, CardContent, CardHeader
 } from "../ui/card";
@@ -33,6 +34,10 @@ export default function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchCustomers = async () => {
     try {
@@ -81,14 +86,26 @@ export default function CustomerManagement() {
     fetchCustomers();
   };
 
-  const deleteCustomer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
+  const confirmDelete = (id: string) => {
+    setCustomerToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!customerToDelete) return;
     const token = localStorage.getItem("token");
-    await axios.delete(
-      `${import.meta.env.VITE_API_URL}/api/admin/customers/${id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    await fetchCustomers();
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/admin/customers/${customerToDelete}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchCustomers();
+    } catch (err) {
+      console.error("Error deleting customer:", err);
+    } finally {
+      setDeleteModalOpen(false);
+      setCustomerToDelete(null);
+    }
   };
 
   const sendNotification = async () => {
@@ -107,6 +124,56 @@ export default function CustomerManagement() {
     setEmailMessage("");
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem("token");
+      
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/customers`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { search, status, plan, page: 1, limit: 10000 },
+      });
+
+      const allCustomers = res.data.data || [];
+      if (allCustomers.length === 0) {
+        toast.info("No data to export");
+        return;
+      }
+
+      const headers = ["Name", "Email", "Plan", "Billing Status", "Account Status", "Joined Date", "Total Spent"];
+      
+      const csvRows = [
+        headers.join(","),
+        ...allCustomers.map((c: any) => [
+          `"${c.full_name || "Unnamed"}"`,
+          `"${c.email}"`,
+          `"${c.subscription_plan || "N/A"}"`,
+          `"${c.subscription_status}"`,
+          `"${c.account_status}"`,
+          `"${c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}"`,
+          `"${c.total_spent || 0}"`
+        ].join(","))
+      ];
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `customers_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("✅ Export successful!");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("❌ Failed to export data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -115,7 +182,13 @@ export default function CustomerManagement() {
           <h2 className="text-[#1d4d6a] mb-1">Customer Management</h2>
           <p className="text-sm text-gray-500">{loading ? "Loading..." : `${customers.length} customers`}</p>
         </div>
-        <Button className="bg-[#bf2026] text-white">Export Data</Button>
+        <Button 
+          className="bg-[#bf2026] text-white" 
+          onClick={handleExport}
+          disabled={isExporting}
+        >
+          {isExporting ? "Exporting..." : "Export Data"}
+        </Button>
       </div>
 
       {/* Filters */}
@@ -290,7 +363,7 @@ export default function CustomerManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteCustomer(c.id)}
+                            onClick={() => confirmDelete(c.id)}
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
@@ -347,7 +420,7 @@ export default function CustomerManagement() {
                             <ShieldCheck className="w-4 h-4 text-green-500" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => deleteCustomer(c.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => confirmDelete(c.id)}>
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
@@ -386,6 +459,31 @@ export default function CustomerManagement() {
             onChange={(e) => setEmailMessage(e.target.value)}
           />
           <Button className="mt-4 w-full bg-[#bf2026] text-white" onClick={sendNotification}>Send Email</Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE MODAL */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Customer</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this customer? This action cannot be undone and will remove all associated user data.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-red-600 hover:bg-red-700 text-white" 
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

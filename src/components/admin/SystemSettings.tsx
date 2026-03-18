@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import axios from "axios";
+import { toast } from "sonner";
 import { IntegrationModal } from "./IntegrationModel";
 
 export default function SystemSettings() {
@@ -61,7 +62,7 @@ export default function SystemSettings() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    alert("Settings updated!");
+    toast.success("Settings updated successfully!");
   };
 
   /* -----------------------------
@@ -106,7 +107,6 @@ export default function SystemSettings() {
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="bg-white border border-gray-200">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
 
         {/* GENERAL SETTINGS */}
@@ -212,48 +212,6 @@ export default function SystemSettings() {
           </Card>
         </TabsContent>
 
-        {/* INTEGRATIONS */}
-        <TabsContent value="integrations" className="mt-6">
-          <Card className="border-none shadow-md">
-            <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">Payment Integrations</CardTitle>
-              <CardDescription>Configure payment gateways</CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {integrations.map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                >
-                  <div>
-                    <h4 className="text-[#1d4d6a] mb-1">{item.name}</h4>
-                    <p className="text-sm text-gray-500">{item.description}</p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedIntegration(item);
-                      setShowModal(true);
-                    }}
-                  >
-                    Configure
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* MODAL */}
-          <IntegrationModal
-            open={showModal}
-            onClose={() => setShowModal(false)}
-            integration={selectedIntegration}
-            refresh={loadData}
-          />
-        </TabsContent>
       </Tabs>
     </div>
   );
