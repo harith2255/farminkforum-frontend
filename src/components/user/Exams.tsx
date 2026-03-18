@@ -42,6 +42,8 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
 
   const [countdowns, setCountdowns] = useState<Record<number, string>>({});
   
+  
+
   const [loading, setLoading] = useState({
     folders: true,
     submissions: false,
@@ -171,25 +173,28 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     setCurrentPage(1);
   };
 
-  const buyNow = (item: any, type: "study_note" | "exam") => {
+  const buyNow = (item: any, type: "study_note" | "exam" | "subject") => {
     if (!token) return onNavigate("login");
 
     const purchaseItem = {
       type,
-      id: item.id,
-      title: item.name,
+      id: item.id || item.subjectId,
+      title: item.name || item.label,
       price: item.price,
     };
 
     localStorage.setItem("purchaseType", type);
-    localStorage.setItem("purchaseId", String(item.id));
+    localStorage.setItem("purchaseId", String(item.id || item.subjectId));
     localStorage.setItem(
       "purchaseItems",
-      JSON.stringify([{ ...purchaseItem, [type === 'study_note' ? 'note' : 'exam']: item }])
+      JSON.stringify([{ 
+        ...purchaseItem, 
+        [type === 'study_note' ? 'note' : type === 'subject' ? 'product' : type]: item 
+      }])
     );
     localStorage.setItem("previousSection", "exams");
 
-    onNavigate("purchase", String(item.id));
+    onNavigate("purchase", String(item.id || item.subjectId));
   };
 
   /* -------------------------------------------------------
@@ -314,21 +319,47 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mt-4 sm:mt-6">
-                {folders.map((folder: any) => (
-                  <div
-                    key={folder.subjectId}
-                    onClick={() => {
-                      setSelectedFolder(folder);
-                      setInsideSub(null);
-                    }}
-                    className="bg-white rounded-xl flex flex-col items-center justify-center p-4 shadow hover:shadow-lg cursor-pointer transition h-32 sm:h-36"
-                  >
-                    <Folder className="w-10 h-10 sm:w-12 sm:h-12 text-[#bf2026] mb-2 sm:mb-3" />
-                    <p className="font-medium text-xs sm:text-sm text-center">
-                      {folder.label}
-                    </p>
-                  </div>
-                ))}
+                  {folders.map((folder: any) => (
+                    <div
+                      key={folder.subjectId}
+                      onClick={() => {
+                        if (folder.is_paid && !folder.isPurchased) {
+                          return buyNow(folder, "subject");
+                        }
+                        setSelectedFolder(folder);
+                        setInsideSub(null);
+                      }}
+                      className="bg-white rounded-xl flex flex-col items-center justify-center p-4 shadow hover:shadow-lg cursor-pointer transition h-32 sm:h-36 relative overflow-hidden"
+                    >
+                      <Folder className="w-10 h-10 sm:w-12 sm:h-12 text-[#bf2026] mb-2 sm:mb-3" />
+                      <p className="font-medium text-xs sm:text-sm text-center">
+                        {folder.label}
+                      </p>
+                      
+                      {folder.is_paid && !folder.isPurchased && (
+                        <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <Button 
+                                size="sm" 
+                                className="bg-[#bf2026] text-white hover:bg-[#a5191e] scale-90 sm:scale-100"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    buyNow(folder, "subject");
+                                }}
+                            >
+                                <ShoppingCart className="w-4 h-4 mr-1" />
+                                Buy ₹{folder.price}
+                            </Button>
+                        </div>
+                      )}
+
+                      {folder.is_paid && !folder.isPurchased && (
+                        <div className="absolute top-0 right-0 bg-[#bf2026] text-white text-[10px] px-2 py-1 font-bold rounded-bl-lg flex items-center gap-1">
+                          <ShoppingCart className="w-2 h-2" />
+                          ₹{folder.price}
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
             )
           ) : null}
@@ -420,7 +451,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                         <FileText className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
                       </div>
                       <div className="flex flex-wrap gap-2 mt-3">
-                        {note.isPurchased ? (
+                        {note.isPurchased && (
                           <button
                             onClick={() => handleViewPDF(note.name, note)}
                             disabled={loading.viewing}
@@ -432,25 +463,6 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                               "View Note"
                             )}
                           </button>
-                        ) : (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs"
-                              onClick={() => handlePreview(note, "study_note")}
-                            >
-                              <Eye className="w-3 h-3 mr-1" />
-                              Preview
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex-1 text-xs"
-                              onClick={() => buyNow(note, "study_note")}
-                            >
-                              Buy ₹{note.price}
-                            </Button>
-                          </>
                         )}
                       </div>
                     </div>
@@ -504,7 +516,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          {ex.isPurchased ? (
+                          {ex.isPurchased && (
                             <>
                               <button
                                 className="bg-green-600 text-white px-3 py-1.5 rounded text-xs sm:text-sm flex-1 hover:bg-green-700 transition flex items-center justify-center gap-1"
@@ -539,25 +551,6 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                                 )}
                               </button>
                             </>
-                          ) : (
-                            <div className="flex gap-2 w-full">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 text-xs"
-                                onClick={() => handlePreview(ex, "exam")}
-                              >
-                                <Eye className="w-3 h-3 mr-1" />
-                                Preview
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex-1 text-xs"
-                                onClick={() => buyNow(ex, "exam")}
-                              >
-                                Buy ₹{ex.price}
-                              </Button>
-                            </div>
                           )}
                         </div>
                       </div>
@@ -879,12 +872,14 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               Close
             </Button>
-            <Button
-              className="bg-[#bf2026] text-white hover:bg-[#a01c22] px-6 shadow-md"
-              onClick={() => buyNow(selectedItem, selectedItem.type)}
-            >
-              Buy Now ₹{selectedItem?.price}
-            </Button>
+            {selectedItem?.is_paid && !selectedItem?.isPurchased && (
+                <Button
+                    className="bg-[#bf2026] text-white hover:bg-[#a01c22] px-6 shadow-md"
+                    onClick={() => buyNow(selectedItem, selectedItem.type)}
+                >
+                    Buy Now ₹{selectedItem?.price}
+                </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye, Folder, FolderOpen } from "lucide-react";
+import { toast } from "sonner";
 
 const BASE_URL = `${import.meta.env.VITE_API_URL}/api/admin/current-affairs`;
 
@@ -53,7 +54,7 @@ function CurrentAffairsAdmin() {
       setArticles(formatted);
     } catch (err) {
       console.error(err);
-      alert("Unable to load articles");
+      toast.error("Unable to load articles");
     }
   };
 
@@ -157,14 +158,14 @@ function CurrentAffairsAdmin() {
 
       if (!res.ok) throw new Error("Save failed");
 
-      alert(editingArticle ? "Article updated successfully!" : "Article added successfully!");
+      toast.success(editingArticle ? "Article updated successfully!" : "Article added successfully!");
 
       setShowAddModal(false);
       resetForm();
       fetchArticles();
     } catch (err) {
       console.error(err);
-      alert("Failed to save article");
+      toast.error("Failed to save article");
     }
   };
 
@@ -196,11 +197,11 @@ function CurrentAffairsAdmin() {
 
       if (!res.ok) throw new Error("Delete failed");
 
-      alert("Article deleted successfully!");
+      toast.success("Article deleted successfully!");
       fetchArticles();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete article");
+      toast.error("Failed to delete article");
     }
   };
 
@@ -224,11 +225,11 @@ function CurrentAffairsAdmin() {
 
       if (!res.ok) throw new Error("Delete failed");
 
-      alert(`Category "${folderName}" deleted successfully`);
+      toast.success(`Category "${folderName}" deleted successfully`);
       fetchArticles();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete category");
+      toast.error("Failed to delete category");
     }
   };
 

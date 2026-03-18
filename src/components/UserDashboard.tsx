@@ -1115,17 +1115,22 @@ export function DashboardHome({
   if (loading)
     return (
       <div className="space-y-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-28 bg-white rounded-xl shadow-sm border border-gray-100 p-5 animate-pulse">
-              <div className="w-10 h-10 bg-gray-200 rounded-full mb-3" />
-              <div className="w-20 h-4 bg-gray-200 rounded mb-2" />
-              <div className="w-12 h-6 bg-gray-200 rounded" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md border border-gray-100 p-6 animate-pulse overflow-hidden">
+              <div className="flex justify-between items-center">
+                <div className="flex-1">
+                  <div className="w-20 h-4 bg-gray-200 rounded mb-3" />
+                  <div className="w-16 h-8 bg-gray-300 rounded mb-2" />
+                  <div className="w-24 h-3 bg-gray-200 rounded" />
+                </div>
+                <div className="w-12 h-12 bg-gray-200 rounded-xl shrink-0" />
+              </div>
             </div>
           ))}
         </div>
-        <div className="h-48 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
-        <div className="h-32 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse" />
+        <div className="h-48 bg-white rounded-xl shadow-md border border-gray-100 animate-pulse" />
+        <div className="h-32 bg-white rounded-xl shadow-md border border-gray-100 animate-pulse" />
       </div>
     );
 

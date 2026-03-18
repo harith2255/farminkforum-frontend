@@ -25,6 +25,8 @@ import {
   Plus,
   Calendar as CalendarIcon,
   Trash2,
+  MoreVertical,
+  Search,
 } from "lucide-react";
 
 /* -------------------- DateTimeModal (unchanged logic, small safety) -------------------- */
@@ -167,6 +169,7 @@ useEffect(() => {
   const [viewPDF, setViewPDF] = useState<string | null>(null);
 
   const [editExam, setEditExam] = useState<any | null>(null);
+  const [editSubjectMode, setEditSubjectMode] = useState<any | null>(null);
   const [fileToDelete, setFileToDelete] = useState<{
     id: number;
     type: "note" | "exam";
@@ -188,8 +191,9 @@ useEffect(() => {
 const [multiNotesFiles, setMultiNotesFiles] = useState<File[]>([]);
 const [multiExamsFiles, setMultiExamsFiles] = useState<File[]>([]);
 const [price, setPrice] = useState<string>("0");
+const [isPaid, setIsPaid] = useState<boolean>(false);
 const [description, setDescription] = useState<string>("");
-
+const [uploadType, setUploadType] = useState<"note" | "exam">("note");
 
 
   // submissions state + dialog
@@ -505,11 +509,8 @@ const sortedExams = useMemo(
   // ---------------------------- Actions ----------------------------
   const deleteSubject = async () => {
   if (!selectedSubject) return;
-
-  const ok = window.confirm(
-    `Delete "${selectedSubject.subject}"?\n\nThis will permanently delete:\n• Notes\n• Exams\n• Submissions\n• Files`
-  );
-  if (!ok) return;
+  if (!selectedSubject) return;
+  // removed redundant window.confirm
 
   try {
     const token = tokenRef.current;
@@ -545,6 +546,31 @@ const sortedExams = useMemo(
   }
 };
 
+const handleUpdateSubject = async () => {
+  if (!editSubjectMode) return;
+  const token = tokenRef.current;
+  if (!token) return;
+
+  try {
+    await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/admin/exams/subject/${editSubjectMode.id}`,
+      {
+        label: editSubjectMode.subject,
+        is_paid: Number(editSubjectMode.price) > 0,
+        price: Number(editSubjectMode.price) || 0,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    toast.success("Subject updated");
+    setEditSubjectMode(null);
+    await loadFolders();
+  } catch (err: any) {
+    console.error(err);
+    toast.error("Update failed");
+  }
+};
+
 
 
 const handleUpload = async () => {
@@ -568,7 +594,7 @@ const handleUpload = async () => {
     // ===============================
     const subjectRes = await axios.post(
       `${import.meta.env.VITE_API_URL}/api/admin/exams/subject`,
-      { label, value },
+      { label, value, is_paid: Number(price) > 0, price: Number(price) || 0 },
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -578,7 +604,7 @@ const handleUpload = async () => {
     // ===============================
     // STEP 2️⃣ UPLOAD NOTE (optional)
     // ===============================
-    if (notePDF) {
+    if (notePDF && uploadType === "note") {
       const form = new FormData();
       form.append("file", notePDF);
       form.append("subject_id", String(subjectId));
@@ -595,7 +621,7 @@ const handleUpload = async () => {
     // ===============================
     // STEP 3️⃣ CREATE + UPLOAD EXAM (optional)
     // ===============================
-    if (examPDF) {
+    if (examPDF && uploadType === "exam") {
       const examRes = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/exams`,
         {
@@ -633,6 +659,10 @@ const handleUpload = async () => {
     setExamPDF(null);
     setExamStart(null);
     setExamEnd(null);
+    setPrice("0");
+    setIsPaid(false);
+    setDescription("");
+    setUploadType("note");
 
     toast.success("Subject + files uploaded successfully");
   } catch (err: any) {
@@ -674,39 +704,45 @@ const handleUpload = async () => {
   return (
     <div className="space-y-6 p-4">
       {/* header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-[#1d4d6a]">
-            Exams & Notes
-          </h2>
-          <p className="text-sm text-gray-600">{folders.length} subjects</p>
+      {screen === "main" && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-[#1d4d6a]">
+              Exams & Notes
+            </h2>
+            <p className="text-sm text-gray-600">{folders.length} subjects</p>
+          </div>
+
+          <div className="flex gap-3 items-center ">
+            <div className="relative w-64 border-2 rounded-lg ">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 " />
+              <Input
+                placeholder="Search subject..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-[44px]"
+                style={{ paddingLeft: '44px' }}
+              />
+            </div>
+
+            <select
+              className="border px-3 py-2 h-10 rounded-lg text-sm bg-white"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as any)}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+
+            <Button
+              className="bg-[#1d4d6a] text-white"
+              onClick={() => setUploadOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Upload
+            </Button>
+          </div>
         </div>
-
-        <div className="flex gap-3 items-center">
-          <Input
-            placeholder="Search subject..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
-
-          <select
-            className="border px-3 py-2 rounded-lg"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as any)}
-          >
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-
-          <Button
-            className="bg-[#1d4d6a] text-white"
-            onClick={() => setUploadOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Upload
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* main grid */}
       {screen === "main" && (
@@ -728,9 +764,27 @@ const handleUpload = async () => {
         setScreen("subject");
       }}
     >
-      <CardContent className="flex flex-col items-center p-6">
+      <CardContent className="flex flex-col items-center p-6 relative group">
         <Folder className="w-12 h-12 text-[#1d4d6a]" />
         <p className="mt-3 font-medium">{folder.subject}</p>
+        
+        {folder.is_paid && (
+          <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+            ₹ {folder.price}
+          </div>
+        )}
+
+        <Button
+          size="icon"
+          variant="ghost"
+          className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditSubjectMode(folder);
+          }}
+        >
+          <MoreVertical className="w-4 h-4" />
+        </Button>
       </CardContent>
     </Card>
   ))}
@@ -961,98 +1015,122 @@ const handleUpload = async () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>Subject Name</Label>
-              <Input
-                placeholder="e.g. English"
-                value={uploadSubject}
-                onChange={(e) => setUploadSubject(e.target.value)}
-              />
-            </div>
+            {/* Subject Info Section */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b pb-4">
+              <div className="flex-1 w-full">
+                <Label className="text-sm font-semibold">Subject Name</Label>
+                <Input
+                  placeholder="e.g. English"
+                  value={uploadSubject}
+                  onChange={(e) => setUploadSubject(e.target.value)}
+                />
+              </div>
 
-             <div className="grid grid-cols-2 gap-4">
-               <div>
-                 <Label>Price (₹)</Label>
-                 <Input
-                   type="number"
-                   placeholder="0 for free"
-                   value={price}
-                   onChange={(e) => setPrice(e.target.value)}
-                 />
-               </div>
-               <div>
-                 <Label>Description</Label>
-                 <Input
-                   placeholder="Short description"
-                   value={description}
-                   onChange={(e) => setDescription(e.target.value)}
-                 />
-               </div>
-             </div>
-
-            <div>
-              <Label>Notes PDF</Label>
-              <Input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setNotePDF(e.target.files?.[0] || null)}
-              />
-            </div>
-
-            <div>
-              <Label>Exam PDF</Label>
-              <Input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setExamPDF(e.target.files?.[0] || null)}
-              />
-            </div>
-
-            <div>
-              <Label>Exam Start</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDateModalInitial(examStart);
-                    setDateModalTitle("Select Exam Start");
-                    setDateModalOnSave(() => (d) => setExamStart(d));
-                    setDateModalOpen(true);
-                  }}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {examStart ? format(examStart, "PPP HH:mm") : "Pick start"}
-                </Button>
-                {examStart && (
-                  <Button variant="ghost" onClick={() => setExamStart(null)}>
-                    Clear
-                  </Button>
-                )}
+              <div className="space-y-2 w-full sm:w-auto">
+                <Label className="text-sm font-semibold">Subject Price (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <Input
+                    type="number"
+                    placeholder="0 for free"
+                    className="pl-10"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 italic">Price &gt; 0 marks subject as paid.</p>
               </div>
             </div>
 
-            <div>
-              <Label>Exam End</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDateModalInitial(examEnd);
-                    setDateModalTitle("Select Exam End");
-                    setDateModalOnSave(() => (d) => setExamEnd(d));
-                    setDateModalOpen(true);
-                  }}
+            {/* Type Selection */}
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label className="text-sm font-semibold">Type</Label>
+                <select 
+                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={uploadType} 
+                  onChange={(e: any) => setUploadType(e.target.value)}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {examEnd ? format(examEnd, "PPP HH:mm") : "Pick end"}
-                </Button>
-                {examEnd && (
-                  <Button variant="ghost" onClick={() => setExamEnd(null)}>
-                    Clear
-                  </Button>
-                )}
+                  <option value="note">Study Note</option>
+                  <option value="exam">Exam</option>
+                </select>
               </div>
             </div>
+
+            {/* Common Fields */}
+            <div>
+              <Label className="text-sm font-semibold">Description</Label>
+              <Input
+                placeholder="Short description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Conditional Fields */}
+            {uploadType === "note" ? (
+              <div>
+                <Label className="text-sm font-semibold">Notes PDF</Label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setNotePDF(e.target.files?.[0] || null)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-semibold">Exam PDF</Label>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setExamPDF(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Exam Start</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => {
+                          setDateModalInitial(examStart);
+                          setDateModalTitle("Select Exam Start");
+                          setDateModalOnSave(() => (d: Date | null) => setExamStart(d));
+                          setDateModalOpen(true);
+                        }}
+                      >
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {examStart ? format(examStart, "PP HH:mm") : "Pick start"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold">Exam End</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => {
+                          setDateModalInitial(examEnd);
+                          setDateModalTitle("Select Exam End");
+                          setDateModalOnSave(() => (d: Date | null) => setExamEnd(d));
+                          setDateModalOpen(true);
+                        }}
+                      >
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {examEnd ? format(examEnd, "PP HH:mm") : "Pick end"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -1295,6 +1373,44 @@ const handleUpload = async () => {
                 </Card>
               ))}
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Subject Dialog */}
+      {editSubjectMode && (
+        <Dialog open={true} onOpenChange={() => setEditSubjectMode(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Subject</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Subject Name</Label>
+                <Input
+                  value={editSubjectMode.subject || ""}
+                  onChange={(e) => setEditSubjectMode({ ...editSubjectMode, subject: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 pt-2">
+                <Label className="text-sm font-semibold">Price (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <Input
+                    type="number"
+                    placeholder="0 for free"
+                    className="pl-10"
+                    value={editSubjectMode.price}
+                    onChange={(e) => setEditSubjectMode({ ...editSubjectMode, price: e.target.value })}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 italic">Price &gt; 0 will mark subject as paid.</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditSubjectMode(null)}>Cancel</Button>
+              <Button onClick={handleUpdateSubject}>Save Changes</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

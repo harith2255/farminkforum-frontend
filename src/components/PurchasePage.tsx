@@ -36,6 +36,8 @@ type PurchaseType =
   | "writing"
   | "cart"
   | "exam"
+  | "current_affairs"
+  | "subject"
   | null;
 
 export default function UniversalPurchasePage({ id, item: passedItem, onNavigate }: any) {
@@ -82,6 +84,10 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         return <PenTool className="w-12 h-12 text-green-600" />;
       case "exam":
         return <BadgeCheck className="w-12 h-12 text-red-600" />;
+      case "current_affairs":
+        return <FileText className="w-12 h-12 text-orange-600" />;
+      case "subject":
+        return <ShoppingBag className="w-12 h-12 text-blue-500" />;
       default:
         return <ShoppingBag className="w-12 h-12 text-gray-600" />;
     }
@@ -122,6 +128,7 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
     entry?.note ||
     entry?.subscription ||
     entry?.writing_order ||
+    entry?.article ||
     entry?.product ||
     entry ||
     null;
@@ -141,7 +148,11 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
             ? `${import.meta.env.VITE_API_URL}/api/notes/${productId}`
             : type === "subscription"
               ? `${import.meta.env.VITE_API_URL}/api/subscriptions/${productId}`
-              : null;
+              : type === "current_affairs"
+                ? `${import.meta.env.VITE_API_URL}/api/current-affairs/${productId}`
+                : type === "subject"
+                  ? `${import.meta.env.VITE_API_URL}/api/exams/folders/${productId}`
+                  : null;
 
       if (!url) {
         toast.error("Unsupported purchase type");
@@ -194,7 +205,7 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         if (purchaseItems.length === 1) {
           const single = purchaseItems[0];
 
-          if (single.book || single.note || single.exam || single.product) {
+          if (single.book || single.note || single.exam || single.product || single.article) {
             if (!cancelled) setItem({ ...getProductFromEntry(single), type: purchaseType });
             return;
           }
@@ -273,10 +284,12 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
       }
 
       if (result?.source === "purchase") {
+        const previousSection = localStorage.getItem("previousSection");
         localStorage.removeItem("purchaseType");
         localStorage.removeItem("purchaseId");
         localStorage.removeItem("purchaseItems");
         localStorage.removeItem("cartItems");
+        localStorage.removeItem("previousSection");
 
         window.dispatchEvent(
           new CustomEvent("library:updated", {
@@ -289,7 +302,11 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         toast.success("Purchase completed!");
 
         setTimeout(() => {
-          onNavigate("user-dashboard");
+          if (previousSection && previousSection !== "purchase") {
+            onNavigate("user-dashboard", previousSection);
+          } else {
+            onNavigate("user-dashboard");
+          }
         }, 0);
       }
     } catch (err) {
@@ -384,10 +401,10 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
                       key={i} 
                       className="flex items-start gap-6 pb-6 border-b last:border-none group hover:bg-blue-50/50 p-4 rounded-2xl transition-all duration-300"
                     >
-                      <div className="w-24 h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-md border border-gray-200 flex-shrink-0">
-                        {p.cover_url ? (
+                      <div className="w-24 h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-md border border-gray-200 shrink-0">
+                        {p.cover_url || p.image_url ? (
                           <img 
-                            src={p.cover_url} 
+                            src={p.cover_url || p.image_url} 
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                             alt={p.title}
                           />
@@ -414,6 +431,12 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
                               )}
                               {itemType === "exam" && (
                                 <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Exam</span>
+                              )}
+                              {itemType === "current_affairs" && (
+                                <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Current Affairs</span>
+                              )}
+                              {itemType === "subject" && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">Subject Package</span>
                               )}
                             </div>
                             {p.description && (

@@ -56,7 +56,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
   const title =
     item?.type === "cart"
       ? `${item.items?.length || 0} Items`
-      : product?.title || product?.name || "Purchase";
+      : product?.title || product?.label || product?.name || "Purchase";
 
   const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
 
@@ -136,22 +136,7 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
           /* ===================== 📦 BOOK / NOTE / CART ===================== */
 
 
-          // if (item?.type === "cart") {
-          //   purchaseItems = (item.items || [])
-          //     .map((i) => ({
-          //       id: i.id ?? i.book_id ?? i.note_id,
-          //       type: i.type ?? (i.book ? "book" : i.note ? "note" : null),
-          //     }))
-          //     .filter(Boolean);
-          // } else if (product?.id) {
-          //   purchaseItems = [{ id: product.id, type: item.type || "book" }];
-          // }
-
-          // if (!purchaseItems.length) {
-          //   toast.error("Nothing to purchase.");
-          //   setLoading(false);
-          //   return;
-          // }
+          
 
           /* ===================== 💳 RAZORPAY ===================== */
 
