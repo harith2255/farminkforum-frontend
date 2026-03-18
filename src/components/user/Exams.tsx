@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Folder, ArrowLeft, Clock, FileText, Download, Loader2, Play, Lock } from "lucide-react";
+import { Folder, ArrowLeft, Clock, FileText, Download, Loader2, Play, Lock, Eye, ShoppingCart } from "lucide-react";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { toast } from "sonner";
+import PDFJSViewer from "../PDFJSViewer";
 
 /* -------------------------------------------------------
    TOKEN HANDLING
@@ -36,8 +46,14 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     folders: true,
     submissions: false,
     submitting: false,
-    viewing: false
+    viewing: false,
+    preview: false
   });
+
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   /* -------------------------------------------------------
      FETCH FOLDERS
@@ -46,8 +62,8 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     if (!token) return;
 
     try {
-      setLoading(prev => ({ ...prev, folders: true }));
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/exams/folders`, {
+      setLoading((prev: any) => ({ ...prev, folders: true }));
+      const res = await axios.get(`${(import.meta as any).env.VITE_API_URL}/api/exams/folders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -61,7 +77,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     } catch (err) {
       console.error("loadFolders error:", err);
     } finally {
-      setLoading(prev => ({ ...prev, folders: false }));
+      setLoading((prev: any) => ({ ...prev, folders: false }));
     }
   };
 
@@ -72,9 +88,9 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     if (!token) return;
 
     try {
-      setLoading(prev => ({ ...prev, submissions: true }));
+      setLoading((prev: any) => ({ ...prev, submissions: true }));
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/exams/submissions/me`,
+        `${(import.meta as any).env.VITE_API_URL}/api/exams/submissions/me`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -84,7 +100,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     } catch (err) {
       console.error("loadMySubmissions error:", err);
     } finally {
-      setLoading(prev => ({ ...prev, submissions: false }));
+      setLoading((prev: any) => ({ ...prev, submissions: false }));
     }
   };
 
@@ -136,14 +152,44 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     const url = typeof item === "string" ? item : normalizeFileUrl(item);
     if (!url) return alert("File not available");
     
-    setLoading(prev => ({ ...prev, viewing: true }));
+    setLoading((prev: any) => ({ ...prev, viewing: true }));
     setViewPDF(file);
     setViewFileURL(url);
     
     // Small delay to ensure iframe loads
     setTimeout(() => {
-      setLoading(prev => ({ ...prev, viewing: false }));
+      setLoading((prev: any) => ({ ...prev, viewing: false }));
     }, 500);
+  };
+
+  /* -------------------------------------------------------
+     PREVIEW & PURCHASE
+  ------------------------------------------------------- */
+  const handlePreview = async (item: any, type: "study_note" | "exam") => {
+    setSelectedItem({ ...item, type });
+    setShowPreview(true);
+    setCurrentPage(1);
+  };
+
+  const buyNow = (item: any, type: "study_note" | "exam") => {
+    if (!token) return onNavigate("login");
+
+    const purchaseItem = {
+      type,
+      id: item.id,
+      title: item.name,
+      price: item.price,
+    };
+
+    localStorage.setItem("purchaseType", type);
+    localStorage.setItem("purchaseId", String(item.id));
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ ...purchaseItem, [type === 'study_note' ? 'note' : 'exam']: item }])
+    );
+    localStorage.setItem("previousSection", "exams");
+
+    onNavigate("purchase", String(item.id));
   };
 
   /* -------------------------------------------------------
@@ -157,13 +203,13 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
     }
 
     try {
-      setLoading(prev => ({ ...prev, submitting: true }));
+      setLoading((prev: any) => ({ ...prev, submitting: true }));
       const form = new FormData();
       if (answerFile) form.append("answer_file", answerFile);
       if (answerText.trim()) form.append("answer_text", answerText);
 
       await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/exams/${attendExamId}/attend`,
+        `${(import.meta as any).env.VITE_API_URL}/api/exams/${attendExamId}/attend`,
         form,
         {
           headers: {
@@ -184,7 +230,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
       alert(err.response?.data?.message || "Failed to submit exam");
       console.error("Submit exam error:", err);
     } finally {
-      setLoading(prev => ({ ...prev, submitting: false }));
+      setLoading((prev: any) => ({ ...prev, submitting: false }));
     }
   };
 
@@ -268,7 +314,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mt-4 sm:mt-6">
-                {folders.map((folder) => (
+                {folders.map((folder: any) => (
                   <div
                     key={folder.subjectId}
                     onClick={() => {
@@ -355,7 +401,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                  {selectedFolder.notes.map((note) => (
+                  {selectedFolder.notes.map((note: any) => (
                     <div
                       key={note.id}
                       className="p-4 bg-white rounded-xl shadow hover:shadow-md transition"
@@ -373,28 +419,46 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                         </div>
                         <FileText className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
                       </div>
-                      <button
-                        onClick={() => handleViewPDF(note.name, note)}
-                        disabled={loading.viewing}
-                        className="bg-[#bf2026] text-white px-3 py-1.5 rounded text-xs sm:text-sm w-full mt-3 hover:bg-[#a51c22] transition flex items-center justify-center gap-2"
-                      >
-                        {loading.viewing ? (
-                          <>
-                            <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                            Loading...
-                          </>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {note.isPurchased ? (
+                          <button
+                            onClick={() => handleViewPDF(note.name, note)}
+                            disabled={loading.viewing}
+                            className="bg-green-600 text-white px-3 py-1.5 rounded text-xs sm:text-sm flex-1 hover:bg-green-700 transition flex items-center justify-center gap-2"
+                          >
+                            {loading.viewing ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              "View Note"
+                            )}
+                          </button>
                         ) : (
-                          "View Note"
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => handlePreview(note, "study_note")}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Preview
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex-1 text-xs"
+                              onClick={() => buyNow(note, "study_note")}
+                            >
+                              Buy ₹{note.price}
+                            </Button>
+                          </>
                         )}
-                      </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          )}
-
-          {/* EXAMS */}
+          )}          {/* EXAMS */}
           {insideSub === "exam" && (
             <div className="space-y-4">
               <button 
@@ -415,7 +479,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                  {selectedFolder.exams.map((ex) => {
+                  {selectedFolder.exams.map((ex: any) => {
                     const countdown = countdowns[ex.id];
 
                     return (
@@ -427,6 +491,11 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                           <p className="font-semibold text-[#1d4d6a] text-sm sm:text-base line-clamp-2">
                             {ex.name}
                           </p>
+                          {ex.description && (
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {ex.description}
+                            </p>
+                          )}
                           {ex.duration && (
                             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                               {ex.duration} min
@@ -434,42 +503,62 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                           )}
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button
-                            className="bg-[#bf2026] text-white px-3 py-1.5 rounded text-xs sm:text-sm flex-1 hover:bg-[#a51c22] transition flex items-center justify-center gap-1"
-                            onClick={() => handleViewPDF(ex.name, ex)}
-                            disabled={loading.viewing}
-                          >
-                            {loading.viewing ? (
-                              <>
-                                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                Loading...
-                              </>
-                            ) : (
-                              "View PDF"
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setAttendExamId(ex.id)}
-                            disabled={!ex.unlocked}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
-                              ex.unlocked
-                                ? "bg-[#bf2026] text-white hover:bg-[#a51c22] shadow-lg hover:shadow-xl active:scale-95"
-                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            }`}
-                          >
-                            {ex.unlocked ? (
-                              <>
-                                <Play className="w-5 h-5 fill-current" />
-                                Attend Now
-                              </>
-                            ) : (
-                              <>
-                                <Lock className="w-5 h-5" />
-                                Locked
-                              </>
-                            )}
-                          </button>
+                        <div className="flex flex-col gap-2">
+                          {ex.isPurchased ? (
+                            <>
+                              <button
+                                className="bg-green-600 text-white px-3 py-1.5 rounded text-xs sm:text-sm flex-1 hover:bg-green-700 transition flex items-center justify-center gap-1"
+                                onClick={() => handleViewPDF(ex.name, ex)}
+                                disabled={loading.viewing}
+                              >
+                                {loading.viewing ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  "View PDF"
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setAttendExamId(ex.id)}
+                                disabled={!ex.unlocked}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded font-bold transition-all text-sm ${
+                                  ex.unlocked
+                                    ? "bg-[#bf2026] text-white hover:bg-[#a51c22] shadow-sm"
+                                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                {ex.unlocked ? (
+                                  <>
+                                    <Play className="w-4 h-4 fill-current" />
+                                    Attend
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock className="w-4 h-4" />
+                                    Locked
+                                  </>
+                                )}
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex gap-2 w-full">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 text-xs"
+                                onClick={() => handlePreview(ex, "exam")}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                Preview
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-[#bf2026] text-white hover:bg-[#a01c22] flex-1 text-xs"
+                                onClick={() => buyNow(ex, "exam")}
+                              >
+                                Buy ₹{ex.price}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -578,7 +667,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                       className="w-full h-full border-0" 
                       src={viewFileURL}
                       title={viewPDF}
-                      onLoad={() => setLoading(prev => ({ ...prev, viewing: false }))}
+                      onLoad={() => setLoading((prev: any) => ({ ...prev, viewing: false }))}
                     />
                   </div>
                 )}
@@ -612,7 +701,7 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {submissions.map((s) => (
+              {submissions.map((s: any) => (
                 <div
                   key={s.id}
                   className="bg-white p-4 sm:p-5 rounded-xl border shadow hover:shadow-md transition"
@@ -716,9 +805,9 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
                   <div className="h-[calc(100%-4rem)]">
                     <iframe 
                       className="w-full h-full border-0" 
-                      src={viewFileURL}
-                      title={viewPDF}
-                      onLoad={() => setLoading(prev => ({ ...prev, viewing: false }))}
+                      src={viewFileURL || undefined}
+                      title={viewPDF || undefined}
+                      onLoad={() => setLoading((prev: any) => ({ ...prev, viewing: false }))}
                     />
                   </div>
                 )}
@@ -727,6 +816,78 @@ export default function UserStudyResources({ onNavigate }: { onNavigate: (sectio
           )}
         </div>
       )}
+
+      {/* =====================================================
+          PREVIEW MODAL
+      ===================================================== */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#1d4d6a] text-lg sm:text-xl font-bold">
+              Preview: {selectedItem?.name}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Viewing sample pages. Purchase to access full content.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 border rounded-lg bg-white h-[60vh] overflow-auto">
+            {selectedItem?.id && (
+              <>
+                <PDFJSViewer
+                  url={`${(import.meta as any).env.VITE_API_URL}/api/exams/${selectedItem.type === 'study_note' ? 'notes/' : ''}${selectedItem.id}/preview-stream`}
+                  page={currentPage}
+                  scale={1.1}
+                  purchased={false}
+                  isLocked={true}
+                  previewPages={2}
+                  bookId={selectedItem.id}
+                  onBuyClick={() => buyNow(selectedItem, selectedItem.type)}
+                  onTotalPages={setTotalPages}
+                  onPageChange={setCurrentPage}
+                />
+
+                {/* PAGINATION */}
+                <div className="flex items-center justify-between mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    Prev
+                  </Button>
+
+                  <p className="text-sm text-gray-500 font-medium">
+                    Page {currentPage} / {totalPages}
+                  </p>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage >= totalPages || currentPage >= 2}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4 border-t pt-4">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Close
+            </Button>
+            <Button
+              className="bg-[#bf2026] text-white hover:bg-[#a01c22] px-6 shadow-md"
+              onClick={() => buyNow(selectedItem, selectedItem.type)}
+            >
+              Buy Now ₹{selectedItem?.price}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

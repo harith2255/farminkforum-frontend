@@ -17,6 +17,8 @@ function CurrentAffairsAdmin() {
     category: "",
     content: "",
     tags: "",
+    price: "0",
+    description: "",
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().slice(0, 5),
     image: null,
@@ -43,7 +45,8 @@ function CurrentAffairsAdmin() {
         status: a.status,
         date: a.article_date,
         time: a.article_time,
-        imageUrl: a.image_url,
+        price: a.price || "0",
+        description: a.description || "",
         createdAt: a.created_at,
       }));
 
@@ -92,6 +95,8 @@ function CurrentAffairsAdmin() {
       category: selectedFolder?.name || "",
       content: "",
       tags: "",
+      price: "0",
+      description: "",
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       image: null,
@@ -132,6 +137,8 @@ function CurrentAffairsAdmin() {
       form.append("status", formData.status);
       form.append("date", formData.date);
       form.append("time", formData.time);
+      form.append("price", String(formData.price || "0"));
+      form.append("description", formData.description || "");
 
       if (formData.image) {
         form.append("image", formData.image);
@@ -168,6 +175,8 @@ function CurrentAffairsAdmin() {
       category: "",
       content: "",
       tags: "",
+      price: "0",
+      description: "",
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       image: null,
@@ -648,6 +657,36 @@ function CurrentAffairsAdmin() {
                           className="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm sm:text-base"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Price & Description */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        name="price"
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        placeholder="0 for free"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm sm:text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Short Description
+                      </label>
+                      <input
+                        type="text"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        placeholder="Brief summary"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm sm:text-base"
+                      />
                     </div>
                   </div>
                 </div>

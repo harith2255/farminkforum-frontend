@@ -3,17 +3,34 @@ import { Search, Calendar, Clock, Filter, ChevronDown, Eye, X, ExternalLink } fr
 
 const BASE_URL = `${import.meta.env.VITE_API_URL}/api/current-affairs`;
 
-function CurrentAffairs() {
+interface CurrentAffairItem {
+  id: number;
+  title: string;
+  category: string;
+  description: string;
+  tags: string[];
+  importance: string;
+  views: number;
+  date: string;
+  time: string;
+  image_url: string;
+  price: number;
+  isPurchased: boolean;
+  source?: string;
+  relatedTopics?: string[];
+}
+
+function CurrentAffairs({ onNavigate }: { onNavigate: (section: string, id?: any) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [news, setNews] = useState([]);
+  const [news, setNews] = useState<CurrentAffairItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedNews, setSelectedNews] = useState(null);
+  const [selectedNews, setSelectedNews] = useState<CurrentAffairItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const modalRef = useRef(null);
 
   const handleSearch = (e) => {
@@ -115,9 +132,11 @@ const fetchCategories = async () => {
 
   // Sort news by importance: high first, then medium, then low
   const sortedNews = useMemo(() => {
+    const importanceOrder: Record<string, number> = { high: 1, medium: 2, low: 3 };
     return [...news].sort((a, b) => {
-      const importanceOrder = { high: 1, medium: 2, low: 3 };
-      return importanceOrder[a.importance] - importanceOrder[b.importance];
+      const orderA = importanceOrder[(a.importance || 'low').toLowerCase()] || 4;
+      const orderB = importanceOrder[(b.importance || 'low').toLowerCase()] || 4;
+      return orderA - orderB;
     });
   }, [news]);
 
@@ -133,7 +152,7 @@ const fetchCategories = async () => {
     }
   };
 
-  const handleCardClick = (newsItem) => {
+  const handleCardClick = (newsItem: any) => {
     setSelectedNews(newsItem);
     setIsModalOpen(true);
   };
@@ -141,6 +160,28 @@ const fetchCategories = async () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedNews(null);
+  };
+
+  const buyNow = (item: any) => {
+    const token = localStorage.getItem("token");
+    if (!token) return onNavigate("login");
+
+    const purchaseItem = {
+      type: "current_affairs",
+      id: item.id,
+      title: item.title,
+      price: item.price,
+    };
+
+    localStorage.setItem("purchaseType", "current_affairs");
+    localStorage.setItem("purchaseId", String(item.id));
+    localStorage.setItem(
+      "purchaseItems",
+      JSON.stringify([{ ...purchaseItem, article: item }])
+    );
+    localStorage.setItem("previousSection", "current-affairs");
+
+    onNavigate("purchase", String(item.id));
   };
 
   // Close modal on escape key
@@ -240,6 +281,11 @@ const fetchCategories = async () => {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}>
                   {categories.find(cat => (cat.id || cat._id) === item.category)?.name || item.category}
                 </span>
+                {item.price > 0 && (
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${item.isPurchased ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {item.isPurchased ? 'PURCHASED' : `₹${item.price}`}
+                  </span>
+                )}
               </div>
 
               {/* Title */}
@@ -275,10 +321,19 @@ const fetchCategories = async () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-gray-500 text-xs">
-                    <Eye className="h-3 w-3" />
-                    <span>{item.views?.toLocaleString() || '0'}</span>
-                  </div>
+                  {!item.isPurchased && item.price > 0 ? (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); buyNow(item); }}
+                      className="px-3 py-1 bg-[#1d4d6a] text-white text-xs font-medium rounded hover:bg-[#2a5d7f] transition-colors"
+                    >
+                      Buy Now
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1 text-gray-500 text-xs">
+                      <Eye className="h-3 w-3" />
+                      <span>{item.views?.toLocaleString() || '0'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -337,9 +392,30 @@ const fetchCategories = async () => {
 
                 {/* Full Description */}
                 <div className="prose max-w-none mb-8">
-                  <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
-                    {selectedNews.fullDescription || selectedNews.description}
-                  </p>
+                  {selectedNews.isPurchased ? (
+                    <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
+                      {selectedNews.description}
+                    </p>
+                  ) : (
+                    <div className="relative">
+                      <p className="text-gray-600 text-lg leading-relaxed blur-[2px] select-none">
+                        {selectedNews.description.slice(0, 200)}...
+                      </p>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-lg border-2 border-dashed border-gray-300 p-6 text-center">
+                        <div className="bg-amber-100 p-3 rounded-full mb-3">
+                          <Clock className="h-6 w-6 text-amber-600" />
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900 mb-2">Premium Content</h4>
+                        <p className="text-gray-600 mb-4 max-w-sm">This is a premium current affairs article. Buy now to unlock the full analysis and details.</p>
+                        <button 
+                          onClick={() => buyNow(selectedNews)}
+                          className="px-8 py-3 bg-[#1d4d6a] text-white rounded-xl font-bold hover:bg-[#2a5d7f] shadow-md transition-all"
+                        >
+                          Unlock Now for ₹{selectedNews.price}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Tags */}
@@ -397,7 +473,15 @@ const fetchCategories = async () => {
 
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3">
+                {!selectedNews.isPurchased && selectedNews.price > 0 && (
+                  <button
+                    onClick={() => buyNow(selectedNews)}
+                    className="flex-1 sm:flex-none px-8 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-bold shadow-lg"
+                  >
+                    Unlock Full Article (₹{selectedNews.price})
+                  </button>
+                )}
                 <button
                   onClick={closeModal}
                   className="px-6 py-2.5 bg-[#1d4d6a] text-white rounded-lg hover:bg-[#2a5d7f] transition-colors font-medium"

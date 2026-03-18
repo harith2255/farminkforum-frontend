@@ -19,7 +19,15 @@ import {
   Lock,
   BadgeCheck,
   HelpCircle,
+  Eye,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
 
 type PurchaseType =
   | "book"
@@ -34,6 +42,7 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const purchaseType: PurchaseType =
     (localStorage.getItem("purchaseType") as PurchaseType) || null;
@@ -425,12 +434,25 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
                           </p>
                         )}
                         
-                        {p.pages && (
-                          <p className="text-gray-700">
-                            <span className="font-medium">Pages:</span> {p.pages}
-                          </p>
-                        )}
-                      </div>
+                          {p.pages && (
+                            <p className="text-gray-700">
+                              <span className="font-medium">Pages:</span> {p.pages}
+                            </p>
+                          )}
+
+                          {/* Preview Button */}
+                          {(itemType === "book" || itemType === "note") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-4 flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                              onClick={() => setShowPreview(true)}
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Preview
+                            </Button>
+                          )}
+                        </div>
                     </div>
                   );
                 })}
@@ -607,6 +629,46 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
           onNavigate("user-dashboard", "dashboard");
         }}
       />
+
+      {/* Preview Modal */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-[#1d4d6a]">
+              Preview: {product?.title || "Item"}
+            </DialogTitle>
+            <DialogDescription>
+              {product?.author ? `by ${product.author}` : "Product Preview"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4 p-6 bg-gray-50 rounded-xl border border-gray-100 italic text-gray-700 leading-relaxed whitespace-pre-wrap">
+            {item?.preview_content || product?.description || "No preview text available for this item."}
+            {!item?.preview_content && !product?.description && (
+              <div className="text-center py-10 text-gray-400">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>Detailed preview is not available for this specific item.</p>
+              </div>
+            )}
+            {item?.preview_content && (
+              <div className="mt-6 pt-6 border-t border-gray-200 text-center not-italic">
+                <p className="text-sm text-blue-600 font-medium mb-4">
+                  Purchase the full {purchaseType === "note" ? "note" : "book"} to read all {product?.pages || "remaining"} pages.
+                </p>
+                <Button 
+                  onClick={() => {
+                    setShowPreview(false);
+                    setShowPayment(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Purchase Now
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

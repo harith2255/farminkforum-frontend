@@ -10,6 +10,13 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "../ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Switch } from "../ui/switch";
 import { Avatar, AvatarFallback } from "../ui/avatar";
@@ -256,12 +263,27 @@ const updatePersonalInfo = async () => {
   if (!profile) return;
 
   setError(null);
+  setMessage(null);
+
+  // Basic Validation
+  if (!profile.first_name?.trim()) {
+    setError("First name is required");
+    return;
+  }
+  if (!profile.last_name?.trim()) {
+    setError("Last name is required");
+    return;
+  }
+  if (profile.phone && !/^\+?[1-9]\d{1,14}$/.test(profile.phone.replace(/[\s-]/g, ""))) {
+    setError("Please enter a valid international phone number");
+    return;
+  }
 
   try {
+    setLoading(prev => ({ ...prev, personalInfo: true }));
     const payload = {
       first_name: profile.first_name,
       last_name: profile.last_name,
-      email: profile.email,
       phone: profile.phone,
       dob: profile.dob,
       institution: profile.institution,
@@ -276,20 +298,20 @@ const updatePersonalInfo = async () => {
 
     setProfile(res.data.profile);
 
-// 🔥 notify dashboard + header
-window.dispatchEvent(
-  new CustomEvent("profileUpdated", {
-    detail: res.data.profile,
-  })
-);
+    // 🔥 notify dashboard + header
+    window.dispatchEvent(
+      new CustomEvent("profileUpdated", {
+        detail: res.data.profile,
+      })
+    );
 
-setMessage("Profile updated");
-
-    setMessage("Profile updated");
+    setMessage("Profile updated successfully");
     setTimeout(() => setMessage(null), 3000);
   } catch (err: any) {
     console.error(err);
     setError(err?.response?.data?.error || "Could not update profile");
+  } finally {
+    setLoading(prev => ({ ...prev, personalInfo: false }));
   }
 };
 
@@ -577,11 +599,16 @@ setMessage("Profile updated");
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Phone Number</Label>
+                    <Label className="flex justify-between">
+                      Phone Number
+                      <span className="text-[10px] text-gray-400 font-normal">e.g. +91 9876543210</span>
+                    </Label>
                     <Input
+                      placeholder="+91 00000 00000"
                       value={profile?.phone ?? ""}
                       onChange={(e) => updateProfileField("phone", e.target.value)}
                       disabled={loading.personalInfo}
+                      className="mt-1 focus:ring-2 focus:ring-[#bf2026]"
                     />
                   </div>
                   <div>
@@ -615,11 +642,20 @@ setMessage("Profile updated");
                   </div>
                   <div>
                     <Label>Academic Level</Label>
-                    <Input
+                    <Select
                       value={profile?.academic_level ?? ""}
-                      onChange={(e) => updateProfileField("academic_level", e.target.value)}
+                      onValueChange={(val) => updateProfileField("academic_level", val)}
                       disabled={loading.personalInfo}
-                    />
+                    >
+                      <SelectTrigger className="mt-1 focus:ring-2 focus:ring-[#bf2026]">
+                        <SelectValue placeholder="Select Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["High School", "Undergraduate", "Masters", "Post-Doc", "Diploma", "PG Diploma", "Others"].map(lvl => (
+                          <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

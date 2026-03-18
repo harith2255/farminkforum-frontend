@@ -19,6 +19,12 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar } from './ui/avatar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 const AdminDashboardHome = lazy(() => import("./admin/AdminDashboardHome"));
 const CustomerManagement = lazy(() => import("./admin/CustomerManagement"));
@@ -78,7 +84,7 @@ export default function AdminDashboard({ activeSection: activeSectionProp, onNav
   const menuItems = [
     { id: 'dashboard' as AdminSection, icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'customers' as AdminSection, icon: Users, label: 'Customers' },
-    { id: 'content' as AdminSection, icon: BookOpen, label: 'Content' },
+    { id: 'content' as AdminSection, icon: BookOpen, label: 'Study Materials' },
     { id: 'exams' as AdminSection, icon: Crown, label: 'Exams' },
     { id: 'pyqs' as AdminSection, icon: Clock, label: 'PYQs' },
     { id: 'currentaffairs' as AdminSection, icon: Calendar, label: 'Current Affairs' },
@@ -242,42 +248,51 @@ export default function AdminDashboard({ activeSection: activeSectionProp, onNav
           [&::-webkit-scrollbar-thumb]:bg-white/20
           hover:[&::-webkit-scrollbar-thumb]:bg-white/30">
           <nav className="p-4">
-            {menuItems.map((item) => (
-              <button
-              type="button"
-                key={item.id}
-                onClick={() => handleSectionChange(item.id)}
-                className={`
-                  w-full flex items-center 
-                  ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'} 
-                  rounded-lg mb-1 transition-all group 
-                  ${activeSection === item.id
-                    ? 'bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20'
-                    : 'text-gray-300 hover:bg-[#2a5f7f] hover:text-white'
-                  }
-                `}
-                title={sidebarCollapsed ? item.label : undefined}
-              >
-                <div className="relative">
-                  <item.icon
-                    className={`
-                      transition-all duration-200 
-                      ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} 
-                      ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}
-                    `}
-                  />
-                  {item.id === "writing" && writingNotification && (
-                    <>
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-ping" />
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" />
-                    </>
+            <TooltipProvider>
+              {menuItems.map((item) => (
+                <Tooltip key={item.id} delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => handleSectionChange(item.id)}
+                      className={`
+                        w-full flex items-center 
+                        ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3'} 
+                        rounded-lg mb-1 transition-all group 
+                        ${activeSection === item.id
+                          ? 'bg-[#bf2026] text-white shadow-lg shadow-[#bf2026]/20'
+                          : 'text-gray-300 hover:bg-[#2a5f7f] hover:text-white'
+                        }
+                      `}
+                    >
+                      <div className="relative">
+                        <item.icon
+                          className={`
+                            transition-all duration-200 
+                            ${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} 
+                            ${activeSection === item.id ? 'text-white' : 'group-hover:text-[#bf2026]'}
+                          `}
+                        />
+                        {item.id === "writing" && writingNotification && (
+                          <>
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-ping" />
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" />
+                          </>
+                        )}
+                      </div>
+                      {!sidebarCollapsed && (
+                        <span className="text-sm font-medium">{item.label}</span>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  {sidebarCollapsed && (
+                    <TooltipContent side="right">
+                      <p>{item.label}</p>
+                    </TooltipContent>
                   )}
-                </div>
-                {!sidebarCollapsed && (
-                  <span className="text-sm font-medium">{item.label}</span>
-                )}
-              </button>
-            ))}
+                </Tooltip>
+              ))}
+            </TooltipProvider>
           </nav>
         </div>
 

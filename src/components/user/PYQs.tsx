@@ -4,7 +4,7 @@ import { Search, Filter, ChevronDown, BookOpen, Folder, ChevronRight, FolderOpen
 
 
 const BASE_URL = `${import.meta.env.VITE_API_URL}/api/pyq`;
-const authFetch = (url) => {
+const authFetch = (url: string) => {
   const token = localStorage.getItem("token");
   return fetch(url, {
     headers: {
@@ -13,15 +13,39 @@ const authFetch = (url) => {
   });
 };
 
+interface Subject {
+  id: number;
+  name: string;
+  folders: any[];
+}
+
+interface Paper {
+  id: number;
+  type: string;
+  title: string;
+  year: number;
+  fileUrl: string;
+  fileSize: string;
+}
+
 function PYQSection() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedSubject, setSelectedSubject] = useState("All Subjects");
     const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
     const [currentView, setCurrentView] = useState("subjects");
-    const [selectedSubjectData, setSelectedSubjectData] = useState(null);
-    const [selectedYearFolder, setSelectedYearFolder] = useState(null);
-    const [subjects, setSubjects] = useState([]);
+    const [selectedSubjectData, setSelectedSubjectData] = useState<Subject | null>(null);
+    const [selectedYearFolder, setSelectedYearFolder] = useState<any | null>(null);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedSearch(searchQuery);
+      }, 300);
+      return () => clearTimeout(handler);
+    }, [searchQuery]);
 
     useEffect(() => {
   fetchSubjects();
@@ -29,6 +53,7 @@ function PYQSection() {
 
 const fetchSubjects = async () => {
   try {
+    setLoading(true);
     const res = await authFetch(`${BASE_URL}/subjects`);
     if (!res.ok) throw new Error("Failed to load subjects");
 
@@ -42,7 +67,8 @@ const fetchSubjects = async () => {
     );
   } catch (err) {
     console.error(err);
-    alert("Unable to load subjects");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -50,7 +76,7 @@ const fetchSubjects = async () => {
 
     const filterOptions = ["All Subjects", ...subjects.map(subject => subject.name)];
 
-    const handleSearch = (e) => {
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
     };
 
@@ -59,8 +85,9 @@ const fetchSubjects = async () => {
         setShowSubjectDropdown(false);
     };
 
-  const openSubject = async (subject) => {
+  const openSubject = async (subject: Subject) => {
   try {
+    setLoading(true);
     const res = await authFetch(
       `${BASE_URL}/subjects/${subject.id}/folders`
     );
@@ -72,14 +99,16 @@ const fetchSubjects = async () => {
     setCurrentView("yearFolders");
   } catch (err) {
     console.error(err);
-    alert("Unable to load year folders");
+  } finally {
+    setLoading(false);
   }
 };
 
-   const openYearFolder = async (folder) => {
+   const openYearFolder = async (folder: any) => {
   try {
+    setLoading(true);
     const res = await authFetch(
-      `${BASE_URL}/subjects/${selectedSubjectData.id}/papers/${folder.start}/${folder.end}`
+      `${BASE_URL}/subjects/${selectedSubjectData!.id}/papers/${folder.start}/${folder.end}`
     );
     if (!res.ok) throw new Error("Failed to load papers");
 
@@ -87,7 +116,7 @@ const fetchSubjects = async () => {
 
     setSelectedYearFolder({
       ...folder,
-      papers: data.map(p => ({
+      papers: data.map((p: any) => ({
         id: p.id,
         type: p.type,
         title: p.title,
@@ -100,7 +129,8 @@ const fetchSubjects = async () => {
     setCurrentView("papers");
   } catch (err) {
     console.error(err);
-    alert("Unable to load papers");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -127,9 +157,37 @@ const fetchSubjects = async () => {
 };
 
 
-    const filteredSubjects = selectedSubject === "All Subjects" 
-        ? subjects 
-        : subjects.filter(subject => subject.name === selectedSubject);
+    const filteredSubjects = subjects.filter(subject => {
+        const matchesSubject = selectedSubject === "All Subjects" || subject.name === selectedSubject;
+        const matchesSearch = subject.name.toLowerCase().includes(debouncedSearch.toLowerCase());
+        return matchesSubject && matchesSearch;
+    });
+
+    const highlightText = (text, query) => {
+      if (!query.trim()) return text;
+      const parts = text.split(new RegExp(`(${query})`, "gi"));
+      return (
+        <span>
+          {parts.map((part, i) => 
+            part.toLowerCase() === query.toLowerCase() ? (
+              <span key={i} className="bg-yellow-100 text-[#1d4d6a] font-bold rounded-sm px-0.5">{part}</span>
+            ) : part
+          )}
+        </span>
+      );
+    };
+
+    const renderSkeleton = () => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse">
+            <div className="w-12 h-12 bg-gray-100 rounded-xl mb-4"></div>
+            <div className="h-4 bg-gray-100 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-gray-50 rounded w-1/2"></div>
+          </div>
+        ))}
+      </div>
+    );
 
     return (
         <div className="space-y-6 p-4 sm:p-0">
@@ -152,7 +210,7 @@ const fetchSubjects = async () => {
                             <input
                                 type="text"
                                 placeholder="Search subjects or topics..."
-                                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm"
+                                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm transition-all shadow-sm"
                                 value={searchQuery}
                                 onChange={handleSearch}
                             />
@@ -234,15 +292,17 @@ const fetchSubjects = async () => {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            {currentView === "subjects" ? (
+            {loading ? (
+                renderSkeleton()
+            ) : currentView === "subjects" ? (
                 /* ========== SUBJECTS VIEW ========== */
-                <div className="mt-4">
+                <div className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-800">
                             {selectedSubject === "All Subjects" ? "All Subjects" : selectedSubject}
                         </h3>
-                        <span className="text-sm text-gray-500">
-                            {filteredSubjects.length} subject{filteredSubjects.length !== 1 ? 's' : ''}
+                        <span className="text-sm text-gray-400 font-medium">
+                            {filteredSubjects.length} subject{filteredSubjects.length !== 1 ? 's' : ''} found
                         </span>
                     </div>
 
@@ -260,8 +320,8 @@ const fetchSubjects = async () => {
                                                 <Folder className="h-6 w-6 text-blue-600" />
                                             </div>
                                             <div>
-                                                <h4 className="font-semibold text-gray-800 group-hover:text-[#1d4d6a] transition-colors">
-                                                    {subject.name}
+                                                <h4 className="font-semibold text-gray-800 group-hover:text-[#1d4d6a] transition-colors line-clamp-1">
+                                                    {highlightText(subject.name, debouncedSearch)}
                                                 </h4>
                                             </div>
                                         </div>

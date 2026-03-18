@@ -47,10 +47,16 @@ import UniversalPurchasePage from "./PurchasePage";
 import Exams from "./user/Exams";
 import ReadNotePage from "./ReadNotePage";
 import PYQSection from "./user/PYQs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface UserDashboardProps {
   activeTab?: string;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, param?: any) => void;
   onOpenBook: (book: any) => void;
   onLogout: () => void;
 }
@@ -631,7 +637,7 @@ export default function UserDashboard({
             flex flex-col transition-all duration-300
             ${sidebarCollapsed ? "w-20" : "w-64"}
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-            lg:translate-x-0 lg:static lg:w-${sidebarCollapsed ? "20" : "64"}`}
+            lg:translate-x-0 lg:static ${sidebarCollapsed ? "lg:w-20" : "lg:w-64"}`}
         >
           <div className="p-6 border-b border-gray-200 flex items-center justify-center">
             <div className="flex flex-col items-center leading-tight text-center">
@@ -643,29 +649,39 @@ export default function UserDashboard({
           {/* Scrollable navigation */}
 <div className="flex-1 overflow-y-auto scscroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
   <nav className="p-4">
-    {menuItems.map((item) => (
-      <button
-        key={item.id}
-        onClick={() => {
-          setActiveSection(item.id as UserSection);
-          setDropdownOpen(false);
-          setAvatarOpen(false);
-          setWhatsAppOpen(false);
-          setSidebarOpen(false);
-          window.history.pushState({}, "", `/user-dashboard/${item.id}`);
-        }}
-        className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start px-4'} py-3 rounded-lg mb-1 transition-all ${
-          activeSection === item.id
-            ? "bg-[#bf2026] text-white shadow-md"
-            : "text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        <item.icon className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
-        {!sidebarCollapsed && (
-          <span className="text-sm ml-3">{item.label}</span>
-        )}
-      </button>
-    ))}
+    <TooltipProvider>
+      {menuItems.map((item) => (
+        <Tooltip key={item.id} delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                setActiveSection(item.id as UserSection);
+                setDropdownOpen(false);
+                setAvatarOpen(false);
+                setWhatsAppOpen(false);
+                setSidebarOpen(false);
+                window.history.pushState({}, "", `/user-dashboard/${item.id}`);
+              }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start px-4'} py-3 rounded-lg mb-1 transition-all ${
+                activeSection === item.id
+                  ? "bg-[#bf2026] text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <item.icon className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
+              {!sidebarCollapsed && (
+                <span className="text-sm ml-3">{item.label}</span>
+              )}
+            </button>
+          </TooltipTrigger>
+          {sidebarCollapsed && (
+            <TooltipContent side="right">
+              <p>{item.label}</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      ))}
+    </TooltipProvider>
   </nav>
 </div>
 
@@ -682,7 +698,9 @@ export default function UserDashboard({
 
         {/* Main Content */}
         <div
-          className={`flex-1 lg:ml-${sidebarCollapsed ? "20" : "64"} transition-all duration-300 overflow-hidden`}
+          className={`flex-1 transition-all duration-300 overflow-hidden ${
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
+          }`}
         >
           {/* Header */}
           <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -1023,24 +1041,15 @@ export default function UserDashboard({
                 <NotesRepository onNavigate={onNavigate} />
               )}
             {activeSection === "exams" && (
-                subStatus === "loading" ? (
-                  <div className="h-48 bg-gray-50 animate-pulse rounded-lg" />
-                ) : subStatus === "active" ? (
                   <Exams onNavigate={(section: string) => {
                     setActiveSection(section as any);
                     window.history.pushState({}, "", `/user-dashboard/${section}`);
                   }} />
-                ) : (
-                  <UpgradeRequired onNavigate={(section: string) => {
-                    setActiveSection(section as any);
-                    window.history.pushState({}, "", `/user-dashboard/${section}`);
-                  }} />
-                )
               )}
 
               {activeSection === "pyqs" && <PYQSection />}
 
-              {activeSection === "currentaffairs" && <CurrentAffairs />}
+              {activeSection === "currentaffairs" && <CurrentAffairs onNavigate={onNavigate} />}
 
               {activeSection === "writing" && (
                 <WritingServices onNavigate={onNavigate} />
@@ -1147,89 +1156,112 @@ const weeklyHours = formatNumber(stats?.weeklyHours);
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4">
       {/* Books Read */}
-      <Card className="shadow-md hover:shadow-lg transition-shadow">
-        <CardContent className="p-6 flex justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Books Read</p>
-            <h3 className="text-[#1d4d6a] mb-1">{stats.booksRead ?? 0}</h3>
-            <div className="flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp className="w-3 h-3" />
-              <span>+{stats.booksThisMonth ?? 0} this month</span>
-            </div>
-          </div>
-          <BookOpen className="w-6 h-6 text-[#bf2026]" />
-        </CardContent>
-      </Card>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-none group cursor-pointer">
+            <CardContent className="p-6 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1 group-hover:text-[#1d4d6a] transition-colors">Books Read</p>
+                <h3 className="text-[#1d4d6a] text-2xl font-bold mb-1">{stats.booksRead ?? 0}</h3>
+                <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>+{stats.booksThisMonth ?? 0} new</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                <BookOpen className="w-6 h-6 text-[#1d4d6a]" />
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>Total number of books you have finished reading</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Tests */}
-      <Card className="shadow-md hover:shadow-lg transition-shadow">
-        <CardContent className="p-6 flex justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Tests Completed</p>
-            <h3 className="text-[#1d4d6a] mb-1">{stats.testsCompleted ?? 0}</h3>
-            <div className="flex items-center gap-1 text-xs text-green-600">
-              <Trophy className="w-3 h-3" />
-              <span>
-                {Number(stats.avgScore) > 0
-  ? `${Number(stats.avgScore).toFixed(1)}% avg`
-  : "No tests yet"}
-              </span>
-            </div>
-          </div>
-          <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
-        </CardContent>
-      </Card>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-none group cursor-pointer">
+            <CardContent className="p-6 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1 group-hover:text-[#1d4d6a] transition-colors">Tests Completed</p>
+                <h3 className="text-[#1d4d6a] text-2xl font-bold mb-1">{stats.testsCompleted ?? 0}</h3>
+                <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+                  <Trophy className="w-3 h-3" />
+                  <span>
+                    {Number(stats.avgScore) > 0
+                      ? `${Number(stats.avgScore).toFixed(1)}% avg`
+                      : "No tests yet"}
+                  </span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                <ClipboardCheck className="w-6 h-6 text-[#bf2026]" />
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>Mock tests you have successfully submitted</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Study Hours */}
-<Card className="shadow-md hover:shadow-lg transition-shadow">
-  <CardContent className="p-6 flex justify-between">
-    <div>
-      <p className="text-sm text-gray-500 mb-1">Study Hours</p>
-
-      <h3 className="text-[#1d4d6a] mb-1">
-        {totalHours}h
-      </h3>
-
-      <div className="flex items-center gap-1 text-xs">
-        <Clock className="w-3 h-3" />
-
-        {Number(weeklyHours) > 0 ? (
-          <span className="text-green-600">
-            +{weeklyHours}h this week
-          </span>
-        ) : (
-          <span className="text-gray-400">
-            No study time this week yet
-          </span>
-        )}
-      </div>
-    </div>
-
-    <TrendingUp className="w-6 h-6 text-[#bf2026]" />
-  </CardContent>
-</Card>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-none group cursor-pointer">
+            <CardContent className="p-6 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1 group-hover:text-[#1d4d6a] transition-colors">Study Hours</p>
+                <h3 className="text-[#1d4d6a] text-2xl font-bold mb-1">{totalHours}h</h3>
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <Clock className="w-3 h-3" />
+                  {Number(weeklyHours) > 0 ? (
+                    <span className="text-green-600">+{weeklyHours}h this week</span>
+                  ) : (
+                    <span className="text-gray-400">No time yet</span>
+                  )}
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                <Clock className="w-6 h-6 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>Total time spent studying on the platform</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Streak */}
-      <Card className="shadow-md hover:shadow-lg transition-shadow">
-        <CardContent className="p-6 flex justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Active Streak</p>
-            <h3 className="text-[#1d4d6a] mb-1">
-              {stats.activeStreak ?? 0} Days
-            </h3>
-            <div className="flex items-center gap-1 text-xs text-orange-600">
-              <Trophy className="w-3 h-3" />
-             <span>
-  {stats.activeStreak === 0 && "Start learning today 🚀"}
-  {stats.activeStreak > 0 && stats.activeStreak < 5 && "Keep going 💪"}
-  {stats.activeStreak >= 5 && "🔥 Great streak!"}
-</span>
-
-            </div>
-          </div>
-          <Trophy className="w-6 h-6 text-[#bf2026]" />
-        </CardContent>
-      </Card>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-none group cursor-pointer">
+            <CardContent className="p-6 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1 group-hover:text-[#1d4d6a] transition-colors">Active Streak</p>
+                <h3 className="text-[#1d4d6a] text-2xl font-bold mb-1">{stats.activeStreak ?? 0} Days</h3>
+                <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+                  <Trophy className="w-3 h-3" />
+                  <span>
+                    {stats.activeStreak === 0 && "Start today! 🚀"}
+                    {stats.activeStreak > 0 && stats.activeStreak < 5 && "Keep it up! 💪"}
+                    {stats.activeStreak >= 5 && "🔥 On fire!"}
+                  </span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                <Trophy className="w-6 h-6 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>Your consecutive days of activity</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Continue Reading */}
       <Card className="shadow-md mt-6 md:col-span-4">

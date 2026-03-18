@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -126,6 +127,7 @@ export function ContentManagementGrid() {
     total_questions: "",
     duration_minutes: "",
     scheduled_date: "",
+    price: "",
     description: "",
     file: null as File | null,
   });
@@ -251,7 +253,7 @@ export function ContentManagementGrid() {
 
     } catch (err) {
       console.error("Delete error:", err);
-      alert("Delete failed");
+      toast.error("Delete failed");
     }
   };
 
@@ -299,6 +301,7 @@ export function ContentManagementGrid() {
           difficulty: editItem.difficulty,
           total_questions: Number(editItem.total_questions),
           duration_minutes: Number(editItem.duration_minutes),
+          price: Number(editItem.price || 0),
           description: editItem.description,
         };
 
@@ -313,7 +316,7 @@ export function ContentManagementGrid() {
 
       await axios.put(endpoint, payload, { headers });
 
-      alert("✅ Updated successfully!");
+      toast.success("✅ Updated successfully!");
       setShowEditDialog(false);
       
       // Refetch current tab data
@@ -323,7 +326,7 @@ export function ContentManagementGrid() {
 
     } catch (err) {
       console.error("Edit error:", err);
-      alert("❌ Failed to update content");
+      toast.error("❌ Failed to update content");
     } finally {
       setEditSaving(false);
     }
@@ -332,7 +335,7 @@ export function ContentManagementGrid() {
   // Upload Handlers
   const uploadBook = async () => {
     if (!bookForm.title || !bookForm.author || !bookForm.file) {
-      return alert("Please fill title, author and upload a file.");
+      return toast.error("Please fill title, author and upload a file.");
     }
 
     try {
@@ -352,7 +355,7 @@ export function ContentManagementGrid() {
 
       await axios.post(`${API}/admin/content/upload`, data, { headers });
 
-      alert("✅ E-Book uploaded successfully!");
+      toast.success("✅ E-Book uploaded successfully!");
       setShowUploadBook(false);
       setBookForm({
         title: "",
@@ -368,7 +371,7 @@ export function ContentManagementGrid() {
 
     } catch (err: any) {
       console.error("uploadBook error", err);
-      alert(err?.response?.data?.error || "Upload failed");
+      toast.error(err?.response?.data?.error || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -376,7 +379,7 @@ export function ContentManagementGrid() {
 
   const uploadNote = async () => {
     if (!noteForm.title || !noteForm.author || !noteForm.file) {
-      return alert("Please fill title, author and upload a file.");
+      return toast.error("Please fill title, author and upload a file.");
     }
 
     try {
@@ -396,7 +399,7 @@ export function ContentManagementGrid() {
       };
       await axios.post(`${API}/admin/content/upload`, data, { headers });
 
-      alert("✅ Note uploaded successfully!");
+      toast.success("✅ Note uploaded successfully!");
       setShowUploadNote(false);
       setNoteForm({
         title: "",
@@ -410,7 +413,7 @@ export function ContentManagementGrid() {
 
     } catch (err: any) {
       console.error("uploadNote error", err);
-      alert(err?.response?.data?.error || "Upload failed");
+      toast.error(err?.response?.data?.error || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -429,6 +432,7 @@ export function ContentManagementGrid() {
       data.append("duration_minutes", testForm.duration_minutes || "");
       data.append("scheduled_date", testForm.scheduled_date || "");
       data.append("description", testForm.description || "");
+      data.append("price", (testForm as any).price || "0");
 
       if (testForm.file) {
         data.append("file", testForm.file);
@@ -443,7 +447,7 @@ export function ContentManagementGrid() {
 
       await axios.post(`${API}/admin/content/upload`, data, { headers });
 
-      alert("✅ Mock Test uploaded successfully!");
+      toast.success("✅ Mock Test uploaded successfully!");
 
       // Reset forms
       setTestForm({
@@ -453,6 +457,7 @@ export function ContentManagementGrid() {
         total_questions: "",
         duration_minutes: "",
         scheduled_date: "",
+        price: "",
         description: "",
         file: null,
       });
@@ -464,7 +469,7 @@ export function ContentManagementGrid() {
 
     } catch (err: any) {
       console.error("uploadTest error", err);
-      alert(err?.response?.data?.error || "Upload failed");
+      toast.error(err?.response?.data?.error || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -511,7 +516,7 @@ export function ContentManagementGrid() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Left Section */}
         <div>
-          <h2 className="text-[#1d4d6a] mb-1">Content Management</h2>
+          <h2 className="text-[#1d4d6a] mb-1">Study Materials</h2>
           <p className="text-sm text-gray-500">Upload and manage E-Books, Notes and Mock Tests</p>
         </div>
 
@@ -817,7 +822,10 @@ export function ContentManagementGrid() {
               <div><Label>Total Questions</Label><Input type="number" value={mcqs.length} readOnly className="bg-gray-50" /></div>
               <div><Label>Duration (minutes)</Label><Input type="number" value={testForm.duration_minutes} onChange={(e) => setTestForm({ ...testForm, duration_minutes: e.target.value })} /></div>
             </div>
-            <div><Label>Scheduled Date</Label><Input type="datetime-local" value={testForm.scheduled_date} onChange={(e) => setTestForm({ ...testForm, scheduled_date: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Scheduled Date</Label><Input type="datetime-local" value={testForm.scheduled_date} onChange={(e) => setTestForm({ ...testForm, scheduled_date: e.target.value })} /></div>
+              <div><Label>Price (₹)</Label><Input type="number" value={(testForm as any).price} onChange={(e) => setTestForm({ ...testForm, price: e.target.value })} /></div>
+            </div>
             <div><Label>Description</Label><Textarea value={testForm.description} onChange={(e) => setTestForm({ ...testForm, description: e.target.value })} /></div>
             
             {/* MCQ Section */}
@@ -906,8 +914,9 @@ export function ContentManagementGrid() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><Label>Duration (minutes)</Label><Input type="number" value={editItem.duration_minutes || ""} onChange={(e) => setEditItem({ ...editItem, duration_minutes: e.target.value })} /></div>
-                    <div><Label>Scheduled Date</Label><Input type="datetime-local" value={editItem.start_time ? new Date(editItem.start_time).toISOString().slice(0, 16) : ""} onChange={(e) => setEditItem({ ...editItem, start_time: new Date(e.target.value).toISOString() })} /></div>
+                    <div><Label>Price (₹)</Label><Input type="number" value={editItem.price || ""} onChange={(e) => setEditItem({ ...editItem, price: e.target.value })} /></div>
                   </div>
+                  <div><Label>Scheduled Date</Label><Input type="datetime-local" value={editItem.start_time ? new Date(editItem.start_time).toISOString().slice(0, 16) : ""} onChange={(e) => setEditItem({ ...editItem, start_time: new Date(e.target.value).toISOString() })} /></div>
                   <div><Label>Description</Label><Textarea value={editItem.description || ""} onChange={(e) => setEditItem({ ...editItem, description: e.target.value })} /></div>
                 </>
               )}

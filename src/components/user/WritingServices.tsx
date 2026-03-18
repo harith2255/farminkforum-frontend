@@ -292,8 +292,11 @@ const [openMaterial, setOpenMaterial] = useState<InterviewMaterial | null>(null)
   // Validation
   const validateStep = useCallback((stepNumber: number): boolean => {
     switch (stepNumber) {
-      case 1:
-        return !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.pages && formData.deadline);
+      case 1: {
+        const hasBasicInfo = !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.deadline);
+        // Pages are optional for certain services or if explicitly left blank for others
+        return hasBasicInfo;
+      }
       case 2:
         return !!(formData.instructions.trim());
       case 3:
@@ -527,7 +530,7 @@ const categories = useMemo(() => {
       // Prepare order payload
       const orderPayload = {
         ...formData,
-        pages: parseInt(formData.pages),
+        pages: formData.pages ? parseInt(formData.pages) : 0,
         deadline: formData.deadline || null,
         total_price: calculatePrice(),
         attachments_url,
@@ -591,7 +594,7 @@ const categories = useMemo(() => {
     }
   }, [fetchActiveOrders, handleApiError]);
 
-const handleDownloadDeliverable = async (order) => {
+const handleDownloadDeliverable = async (order: Order) => {
   const fileUrl = order.final_text || order.notes_url;
   if (!fileUrl) return;
 
@@ -762,7 +765,7 @@ const handleDownloadDeliverable = async (order) => {
     if (!data.academic_level) return "Academic level is required";
     if (!data.title.trim()) return "Title is required";
     if (!data.subject_area) return "Subject area is required";
-    if (!data.pages || parseInt(data.pages) < 1) return "Valid page count is required";
+    // if (!data.pages || parseInt(data.pages) < 1) return "Valid page count is required";
     if (!data.deadline) return "Deadline is required";
     
     const today = new Date();
@@ -1151,15 +1154,16 @@ const handleDownloadDeliverable = async (order) => {
                       </div>
 
                       <div>
-                        <Label>Pages Required<span className="text-red-500">*</span></Label>
+                        <Label className="flex justify-between items-center">
+                          <span>Pages <span className="text-gray-400 font-normal text-xs ml-1">(Optional)</span></span>
+                        </Label>
                         <Input
                           type="number"
                           min="1"
-                          className="mt-1"
-                          placeholder="e.g., 4"
+                          className="mt-1 focus:ring-2 focus:ring-[#1d4d6a] border-gray-200"
+                          placeholder="Leave blank if not applicable"
                           value={formData.pages}
                           onChange={(e) => updateForm("pages", e.target.value)}
-                          required
                         />
                       </div>
                     </div>
@@ -1330,7 +1334,7 @@ const handleDownloadDeliverable = async (order) => {
 
                         <div>
                           <p className="text-gray-500">Pages</p>
-                          <p className="text-gray-900">{formData.pages} pages</p>
+                          <p className="text-gray-900">{formData.pages ? `${formData.pages} pages` : "N/A"}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Deadline</p>

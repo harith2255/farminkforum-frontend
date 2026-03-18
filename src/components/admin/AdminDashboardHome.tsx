@@ -16,12 +16,18 @@ import {
   IndianRupee,
 } from "lucide-react";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
+import {
   LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
 } from "recharts";
@@ -50,6 +56,7 @@ export default function AdminDashboardHome() {
         change: kpis.userGrowthPercent,
         icon: Users,
         color: "text-blue-500",
+        tooltip: "Total registered users on the platform",
       },
       {
         label: "Active Subscriptions",
@@ -57,6 +64,7 @@ export default function AdminDashboardHome() {
         change: kpis.subsGrowthPercent,
         icon: TrendingUp,
         color: "text-green-500",
+        tooltip: "Total currently active subscriptions",
       },
       {
         label: "Books Sold",
@@ -64,13 +72,23 @@ export default function AdminDashboardHome() {
         change: kpis.booksGrowthPercent,
         icon: BookOpen,
         color: "text-purple-500",
+        tooltip: "Total number of books sold",
       },
       {
         label: "Total Revenue",
-        value: `₹${kpis.revenueMTD}`,
+        value: `₹${kpis.totalRevenue}`,
         change: kpis.revenueGrowthPercent,
         icon: IndianRupee,
         color: "text-red-500",
+        tooltip: "Total revenue generated from all sales",
+      },
+      {
+        label: "Monthly Revenue",
+        value: `₹${kpis.revenueMTD}`,
+        change: kpis.revenueGrowthPercent,
+        icon: TrendingUp,
+        color: "text-orange-500",
+        tooltip: "Revenue generated in the current month",
       },
     ];
   }, [kpis]);
@@ -134,39 +152,48 @@ return (
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpiData.map((kpi, index) => (
-          <Card
-            key={index}
-            className="border-none shadow-md hover:shadow-lg transition-all"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">{kpi.label}</p>
-                  <h3 className="text-[#1d4d6a] mb-2">{kpi.value}</h3>
+          <TooltipProvider key={index}>
+            <Tooltip delayDuration={300}>
+              <Card className="border-none shadow-md hover:shadow-lg transition-all group cursor-default">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <TooltipTrigger asChild>
+                        <p className="text-sm text-gray-500 mb-1 inline-block border-b border-dotted border-gray-300">
+                          {kpi.label}
+                        </p>
+                      </TooltipTrigger>
+                      <h3 className="text-[#1d4d6a] mb-2">{kpi.value}</h3>
 
-                  <div
-                    className={`flex items-center gap-1 text-xs ${
-                      kpi.change >= 0 ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {kpi.change >= 0 ? (
-                      <ArrowUp className="w-3 h-3" />
-                    ) : (
-                      <ArrowDown className="w-3 h-3" />
-                    )}
-                    <span>{Math.abs(kpi.change)}%</span>
+                      <div
+                        className={`flex items-center gap-1 text-xs ${
+                          kpi.change >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {kpi.change >= 0 ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3" />
+                        )}
+                        <span>{Math.abs(kpi.change)}%</span>
+                      </div>
+                    </div>
+
+                    <TooltipTrigger asChild>
+                      <div
+                        className={`w-12 h-12 ${kpi.color} bg-opacity-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110`}
+                      >
+                        <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+                      </div>
+                    </TooltipTrigger>
                   </div>
-                </div>
-
-               <div
-  className={`w-12 h-12 ${kpi.color} bg-opacity-10 rounded-lg flex items-center justify-center`}
->
-  <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
-</div>
-
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+              <TooltipContent side="top">
+                <p>{kpi.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ))}
       </div>
 
@@ -185,7 +212,7 @@ return (
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis yAxisId="left" stroke="#6b7280" />
               <YAxis yAxisId="right" orientation="right" stroke="#6b7280" />
-              <Tooltip />
+              <RechartsTooltip />
               <Legend />
 
               <Line
@@ -231,6 +258,7 @@ return (
       >
         {/* indicator */}
         <div
+          title={`Type: ${activity.type}`}
           className={`w-2 h-2 rounded-full mt-2 ${
             activity.type === "subscription"
               ? "bg-green-500"

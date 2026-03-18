@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Clock, Trophy, Target, Award, ChevronRight } from "lucide-react";
+import { Clock, Trophy, Target, Award, ChevronRight, Search } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 
@@ -38,6 +38,7 @@ export function MockTests() {
   const [completedTests, setCompletedTests] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const API_URL = `${import.meta.env.VITE_API_URL}/api/mock-tests`;
   const token = localStorage.getItem("token");
@@ -333,10 +334,17 @@ export function MockTests() {
               </TabsTrigger>
             </TabsList>
 
-            {/*---------------------------------------------------
-              AVAILABLE TESTS - Responsive grid
-            -----------------------------------------------------*/}
             <TabsContent value="available" className="mt-4 sm:mt-6">
+              <div className="mb-4 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search available tests..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1d4d6a]"
+                />
+              </div>
               {loading.available ? (
                 renderSpinner("Loading available tests...")
               ) : availableTests.length === 0 ? (
@@ -345,7 +353,12 @@ export function MockTests() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {availableTests.map((test: any) => (
+                  {availableTests
+                    .filter(t => 
+                      t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      t.subject.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((test: any) => (
                     <Card
                       key={test.id}
                       className="border-none shadow-md hover:shadow-lg transition-all"

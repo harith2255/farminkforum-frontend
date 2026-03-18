@@ -167,6 +167,43 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
     }
   };
 
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const parts = text.split(new RegExp(`(${query})`, "gi"));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <span key={i} className="bg-yellow-100 text-[#1d4d6a] font-semibold rounded-sm px-0.5">{part}</span>
+          ) : part
+        )}
+      </span>
+    );
+  };
+
+  const renderNoteSkeleton = () => (
+    <div className="grid grid-cols-1 gap-4">
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i} className="shadow-sm border-none bg-white animate-pulse">
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              <div className="w-20 h-24 bg-gray-100 rounded"></div>
+              <div className="flex-1 space-y-3">
+                <div className="h-5 bg-gray-100 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-50 rounded w-1/4"></div>
+                <div className="h-3 bg-gray-50 rounded w-1/6"></div>
+                <div className="flex gap-2 pt-2">
+                  <div className="h-8 bg-gray-100 rounded w-20"></div>
+                  <div className="h-8 bg-gray-100 rounded w-20"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
   useEffect(() => {
     loadNotes();
   }, [activeCategory]);
@@ -292,13 +329,13 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
       {/* Search */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search notes..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            placeholder="Search notes or subjects..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4d6a] focus:border-transparent text-sm transition-all shadow-sm"
           />
           {loading.notes && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -327,20 +364,23 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
         ))}
       </div>
 
-      {/* INITIAL LOADING */}
-      {loading.initial ? (
-        renderSpinner("Loading notes...")
+      {loading.initial || (loading.notes && notes.length === 0) ? (
+        renderNoteSkeleton()
       ) : notes.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          {searchText
-            ? `No notes found for "${searchText}"`
-            : "No notes available yet."}
+        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+             <BookOpen className="w-8 h-8 text-gray-400" />
+           </div>
+           <h3 className="text-lg font-medium text-gray-600">No notes found</h3>
+           <p className="text-sm text-gray-500 mt-1">
+             {searchText 
+               ? `We couldn't find anything matching "${searchText}"`
+               : "No notes available in this category yet."}
+           </p>
         </div>
-      ) : loading.notes ? (
-        renderSpinner("Searching notes...")
       ) : (
         /* LIST */
-        <div className="space-y-3">
+        <div className={`space-y-4 transition-all duration-500 ${loading.notes ? "opacity-50 blur-[1px]" : "opacity-100 blur-0"}`}>
           {notes.map((note) => (
             <Card key={note.id} className="shadow-md hover:shadow-lg transition">
               <CardContent className="p-4">
@@ -350,9 +390,11 @@ export default function NotesRepository({ onNavigate }: NotesRepositoryProps) {
                   </div>
 
                   <div className="flex-1">
-                    <h4 className="text-[#1d4d6a] text-base sm:text-lg font-semibold">{note.title}</h4>
-                    <p className="text-sm text-gray-500">by {note.author}</p>
-                    <span className="text-xs text-gray-500">{note.pages} pages</span>
+                    <h4 className="text-[#1d4d6a] text-lg font-bold mb-1 group-hover:text-[#bf2026] transition-colors">
+                      {highlightText(note.title, searchText)}
+                    </h4>
+                    <p className="text-sm text-gray-500">by {highlightText(note.author || "Expert", searchText)}</p>
+                    <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">{note.pages} pages</span>
 
                     {/* ⭐ ACTION BUTTONS */}
                     <div className="flex flex-wrap gap-2 mt-3">

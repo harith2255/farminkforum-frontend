@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef ,useMemo} from "react";
 import axios from "axios";
+import { toast } from "sonner";
 
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -166,6 +167,11 @@ useEffect(() => {
   const [viewPDF, setViewPDF] = useState<string | null>(null);
 
   const [editExam, setEditExam] = useState<any | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<{
+    id: number;
+    type: "note" | "exam";
+    name: string;
+  } | null>(null);
 
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [dateModalInitial, setDateModalInitial] = useState<Date | null>(null);
@@ -181,6 +187,8 @@ useEffect(() => {
 
 const [multiNotesFiles, setMultiNotesFiles] = useState<File[]>([]);
 const [multiExamsFiles, setMultiExamsFiles] = useState<File[]>([]);
+const [price, setPrice] = useState<string>("0");
+const [description, setDescription] = useState<string>("");
 
 
 
@@ -206,6 +214,15 @@ const uploadMultipleNotes = async () => {
 
     multiNotesFiles.forEach((file) => form.append("files", file));
     form.append("subject_id", selectedSubject.id);
+    form.append("price", price);
+    form.append("description", description);
+
+    console.log("📤 Uploading multiple notes:", {
+      count: multiNotesFiles.length,
+      subject_id: selectedSubject.id,
+      price,
+      description
+    });
 
     await axios.post(
       `${import.meta.env.VITE_API_URL}/api/admin/exams/notes/upload-multiple`,
@@ -215,10 +232,10 @@ const uploadMultipleNotes = async () => {
 
     setMultiNotesFiles([]);
     await loadFolders();
-    console.info("Files uploaded");
+    toast.success("Files uploaded successfully");
   } catch (err) {
     console.error(err);
-    console.warn("Failed to upload");
+    toast.error("Failed to upload notes");
   }
 };
 const uploadMultipleExams = async () => {
@@ -230,6 +247,8 @@ const uploadMultipleExams = async () => {
 
     multiExamsFiles.forEach((file) => form.append("files", file));
     form.append("subject_id", selectedSubject.id);
+    form.append("price", price);
+    form.append("description", description);
 
     await axios.post(
       `${import.meta.env.VITE_API_URL}/api/admin/exams/exams/upload-multiple`,
@@ -239,15 +258,13 @@ const uploadMultipleExams = async () => {
 
     setMultiExamsFiles([]);
     await loadFolders();
-    console.info("Files uploaded");
+    toast.success("Exams uploaded successfully");
   } catch (err) {
     console.error(err);
-    console.warn("Failed to upload");
+    toast.error("Failed to upload exams");
   }
 };
 const deleteNote = async (noteId: number) => {
-  if (!window.confirm("Delete file?")) return;
-
   try {
     const token = tokenRef.current;
     await axios.delete(
@@ -264,16 +281,15 @@ setFolders((prev) =>
   )
 );
   loadFolders();
+  toast.success("Note deleted");
   } catch (err) {
     console.error(err);
-    console.warn("Failed to delete");
+    toast.error("Failed to delete note");
   }
 
 };
 
 const deleteExam = async (examId: number) => {
-  if (!window.confirm("Delete file?")) return;
-
   try {
     const token = tokenRef.current;
     await axios.delete(
@@ -291,10 +307,10 @@ const deleteExam = async (examId: number) => {
           }
         : prev
     );
-
+    toast.success("Exam deleted");
   } catch (err) {
     console.error(err);
-    console.warn("Failed to delete");
+    toast.error("Failed to delete exam");
   }
 };
 
@@ -474,7 +490,7 @@ const sortedExams = useMemo(
         { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
       );
 
-      console.info("Grade saved");
+      toast.success("Grade saved");
 
       // refresh list for current exam
       if (selectedExamId) await fetchSubmissions(selectedExamId);
@@ -482,7 +498,7 @@ const sortedExams = useMemo(
       await loadFolders();
     } catch (err) {
       console.error("Grade submission failed:", err);
-      console.warn("Failed to save grade");
+      toast.error("Failed to save grade");
     }
   };
 
@@ -521,14 +537,11 @@ const sortedExams = useMemo(
     setScreen("main");
     setDeleteDialogOpen(false);
 
-    console.info("Subject deleted successfully ✅");
-
-    // ❌ DO NOT re-fetch immediately
-    // await loadFolders();
+    toast.success("Subject deleted successfully ✅");
 
   } catch (err: any) {
     console.error("Delete subject failed:", err);
-    alert(err?.response?.data?.error || "Failed to delete subject");
+    toast.error(err?.response?.data?.error || "Failed to delete subject");
   }
 };
 
@@ -537,13 +550,13 @@ const sortedExams = useMemo(
 const handleUpload = async () => {
   const token = tokenRef.current;
   if (!token) {
-    alert("Not authenticated");
+    toast.error("Not authenticated");
     return;
   }
 
   try {
     if (!uploadSubject.trim()) {
-      alert("Enter subject name");
+      toast.error("Enter subject name");
       return;
     }
 
@@ -569,6 +582,8 @@ const handleUpload = async () => {
       const form = new FormData();
       form.append("file", notePDF);
       form.append("subject_id", String(subjectId));
+      form.append("price", price);
+      form.append("description", description);
 
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/exams/notes/upload`,
@@ -586,9 +601,10 @@ const handleUpload = async () => {
         {
           subject_id: subjectId,
           title: examPDF.name,
-          description: "Uploaded exam",
+          description: description || "Uploaded exam",
           start_time: examStart ? examStart.toISOString() : null,
           end_time: examEnd ? examEnd.toISOString() : null,
+          price: Number(price) || 0,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -618,10 +634,10 @@ const handleUpload = async () => {
     setExamStart(null);
     setExamEnd(null);
 
-    console.info("✅ Subject + files uploaded successfully");
+    toast.success("Subject + files uploaded successfully");
   } catch (err: any) {
     console.error("UPLOAD FAILED:", err?.response?.data || err);
-    alert(err?.response?.data?.error || err.message || "Upload failed");
+    toast.error(err?.response?.data?.error || err.message || "Upload failed");
   }
 };
 
@@ -647,10 +663,10 @@ const handleUpload = async () => {
       );
       setEditExam(null);
       await loadFolders();
-      console.info("Exam updated");
+      toast.success("Exam updated");
     } catch (err: any) {
       console.error("Update exam failed", err?.message || err);
-      console.warn(err?.response?.data?.error || "Update failed");
+      toast.error(err?.response?.data?.error || "Update failed");
     }
   };
 
@@ -775,19 +791,43 @@ const handleUpload = async () => {
     </h3>
 
     {/* multiple upload */}
-    <div className="mt-3 flex items-center gap-2">
-      <Input
-        type="file"
-        multiple
-        accept="application/pdf"
-        onChange={(e) =>
-          setMultiNotesFiles(Array.from(e.target.files || []))
-        }
-      />
+    <div className="mt-3 space-y-3 p-4 border rounded-lg bg-gray-50/50">
+      <div className="flex items-center gap-2">
+        <Input
+          type="file"
+          multiple
+          accept="application/pdf"
+          onChange={(e) =>
+            setMultiNotesFiles(Array.from(e.target.files || []))
+          }
+        />
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Price (₹)</Label>
+          <Input 
+            type="number" 
+            placeholder="0 for free" 
+            value={price} 
+            onChange={(e) => setPrice(e.target.value)}
+            className="h-8"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Description</Label>
+          <Input 
+            placeholder="Common description" 
+            value={description} 
+            onChange={(e) => setDescription(e.target.value)}
+            className="h-8"
+          />
+        </div>
+      </div>
 
-      <Button size="sm" onClick={uploadMultipleNotes}>
-        <Upload className="w-4 h-4 mr-1" />
-        Upload
+      <Button size="sm" onClick={uploadMultipleNotes} className="w-full">
+        <Upload className="w-4 h-4 mr-2" />
+        Upload {multiNotesFiles.length > 0 ? `${multiNotesFiles.length} ` : ""}Notes
       </Button>
     </div>
 
@@ -808,7 +848,7 @@ const handleUpload = async () => {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => deleteNote(n.id)}
+                onClick={() => setFileToDelete({ id: n.id, type: "note", name: n.name })}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -869,7 +909,7 @@ const handleUpload = async () => {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => deleteExam(e.id)}
+                onClick={() => setFileToDelete({ id: e.id, type: "exam", name: e.name })}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -929,6 +969,26 @@ const handleUpload = async () => {
                 onChange={(e) => setUploadSubject(e.target.value)}
               />
             </div>
+
+             <div className="grid grid-cols-2 gap-4">
+               <div>
+                 <Label>Price (₹)</Label>
+                 <Input
+                   type="number"
+                   placeholder="0 for free"
+                   value={price}
+                   onChange={(e) => setPrice(e.target.value)}
+                 />
+               </div>
+               <div>
+                 <Label>Description</Label>
+                 <Input
+                   placeholder="Short description"
+                   value={description}
+                   onChange={(e) => setDescription(e.target.value)}
+                 />
+               </div>
+             </div>
 
             <div>
               <Label>Notes PDF</Label>
@@ -1238,6 +1298,40 @@ const handleUpload = async () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* File Delete Dialog */}
+      <Dialog
+        open={!!fileToDelete}
+        onOpenChange={(v) => v || setFileToDelete(null)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete {fileToDelete?.type === 'note' ? 'Note' : 'Exam'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete <span className="font-semibold">{fileToDelete?.name}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setFileToDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={async () => {
+                  if (fileToDelete) {
+                    if (fileToDelete.type === "note") await deleteNote(fileToDelete.id);
+                    else await deleteExam(fileToDelete.id);
+                    setFileToDelete(null);
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
