@@ -317,19 +317,19 @@ export default function AdminDashboard({ activeSection: activeSectionProp, onNav
       `}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
               <Button 
                 data-menu-toggle
                 onClick={handleMenuToggle} 
                 variant="ghost" 
                 size="sm" 
-                className="inline-flex"
+                className="inline-flex shrink-0"
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-[#1d4d6a] mb-1">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-semibold text-[#1d4d6a] mb-0.5 truncate max-w-[140px] sm:max-w-none">
                   {menuItems.find((item) => item.id === activeSection)?.label}
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500">Manage your platform</p>

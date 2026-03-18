@@ -20,7 +20,7 @@ export function Navbar({ onNavigate }: NavbarProps) {
           <img
             src="/logooutline.png"
             alt="FarmInk Forum Logo"
-            className="h-12 sm:h-15 w-auto object-contain drop-shadow-lg"
+            className="h-10 sm:h-12 md:h-15 w-auto object-contain drop-shadow-lg"
           />
         </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "../ui/button";
-import { CheckCircle, Clock, Maximize2, Minimize2, ChevronLeft, ChevronRight, Bookmark, Circle, HelpCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, Clock, Maximize2, Minimize2, ChevronLeft, ChevronRight, Bookmark, Circle, HelpCircle, AlertTriangle, Grid, X } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ export default function TestPage({
   const [initialized, setInitialized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState<Record<number, boolean>>({});
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
   const questionsPerPage = 5;
 
@@ -305,19 +306,19 @@ export default function TestPage({
       {/* LEFT SIDE: QUESTIONS */}
       <div className={`flex-1 flex flex-col items-center transition-all ${isFullscreen ? "max-w-5xl mx-auto w-full py-8 px-4" : ""}`}>
         {/* HEADER BAR FOR FULLSCREEN */}
-        <div className="w-full max-w-4xl flex justify-between items-center mb-6">
+        <div className="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-[#1d4d6a]">Mock Examination</h2>
-            <p className="text-sm text-gray-500">ID: {activeTestId} • Attempt: {attemptId?.slice(-6)}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#1d4d6a]">Mock Examination</h2>
+            <p className="text-xs sm:text-sm text-gray-500">ID: {activeTestId} • Attempt: {attemptId?.slice(-6)}</p>
           </div>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="text-gray-500 hover:text-[#1d4d6a]"
+            className="text-gray-500 hover:text-[#1d4d6a] p-0 h-auto sm:h-9 sm:px-3 sm:py-2"
           >
-            {isFullscreen ? <Minimize2 className="w-5 h-5 mr-2" /> : <Maximize2 className="w-5 h-5 mr-2" />}
-            {isFullscreen ? "Exit Fullscreen" : "Distraction-Free"}
+            {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />}
+            <span className="text-xs sm:text-sm">{isFullscreen ? "Exit Fullscreen" : "Distraction-Free"}</span>
           </Button>
         </div>
 
@@ -415,12 +416,35 @@ export default function TestPage({
         </div>
       </div>
 
-      {/* RIGHT SIDE: PALETTE (Sticky on Desktop) */}
-      <div className="w-full md:w-80 shrink-0">
-        <div className="bg-white shadow-lg rounded-2xl p-6 sticky top-4">
-          <h4 className="font-bold text-[#1d4d6a] mb-4 flex items-center gap-2">
-            Question Palette
-          </h4>
+      {/* MOBILE PALETTE TOGGLE */}
+      <div className="md:hidden fixed bottom-6 left-6 z-50">
+        <Button
+          onClick={() => setIsPaletteOpen(!isPaletteOpen)}
+          className="bg-[#1d4d6a] text-white rounded-full w-12 h-12 shadow-2xl flex items-center justify-center p-0"
+        >
+          <Grid className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* RIGHT SIDE: PALETTE */}
+      <div className={`
+        fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-[60] transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shadow-lg md:rounded-2xl md:z-auto
+        ${isPaletteOpen ? "translate-x-0" : "translate-x-full"}
+      `}>
+        <div className="h-full flex flex-col p-6 overflow-y-auto lg:sticky lg:top-4">
+          <div className="flex items-center justify-between mb-4 md:block">
+            <h4 className="font-bold text-[#1d4d6a] flex items-center gap-2">
+              Question Palette
+            </h4>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="md:hidden"
+              onClick={() => setIsPaletteOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
           
           <div className="grid grid-cols-5 gap-2 mb-8">
             {questions.map((q, i) => {
