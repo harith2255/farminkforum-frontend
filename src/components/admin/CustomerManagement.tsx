@@ -247,8 +247,8 @@ export default function CustomerManagement() {
                     <TableRow>
                       <TableHead>Customer</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Billing Status</TableHead>
+                      {/* <TableHead>Plan</TableHead> */}
+                      {/* <TableHead>Billing Status</TableHead> */}
                       <TableHead>Account Status</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Total Spent</TableHead>
@@ -284,12 +284,12 @@ export default function CustomerManagement() {
 
                       <TableCell>{c.email}</TableCell>
 
-                      <TableCell>
+                      {/* <TableCell>
                         <Badge>{c.subscription_plan || "N/A"}</Badge>
-                      </TableCell>
+                      </TableCell> */}
 
                       {/* Billing Status (subscription) */}
-                      <TableCell>
+                      {/* <TableCell>
                         <Badge
                           className={
                             c.subscription_status === "active"
@@ -299,7 +299,7 @@ export default function CustomerManagement() {
                         >
                           {c.subscription_status}
                         </Badge>
-                      </TableCell>
+                      </TableCell> */}
 
                       {/* Account Status (profile) */}
                       <TableCell>
