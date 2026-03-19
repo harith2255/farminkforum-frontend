@@ -15,12 +15,20 @@ import { Textarea } from "../ui/textarea";
 import { toast } from "sonner";
 import axios from "axios";
 import {
+  File,
   FileText,
   CheckCircle,
   XCircle,
-  File,
   Download,
   MessageCircle,
+  GraduationCap,
+  BookOpen,
+  Layers,
+  Calendar,
+  User,
+  Hash,
+  Clock,
+  ExternalLink
 } from "lucide-react";
 import * as React from "react";
 
@@ -32,10 +40,14 @@ export default function AdminWritingDashboard() {
 
   const [showWorkDialog, setShowWorkDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showQuoteDialog, setShowQuoteDialog] = useState(false);
 
   const [finalText, setFinalText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [quotePrice, setQuotePrice] = useState("");
+  const [quoteNotes, setQuoteNotes] = useState("");
+  const [quoteExpiry, setQuoteExpiry] = useState("");
 
   // messages popup + polling
   const [messages, setMessages] = useState<any[]>([]);
@@ -124,21 +136,44 @@ return { ...o, unread_count: unread };
     }
   };
 
-  /* ================================
-     ACCEPT ORDER
-  =================================*/
-  const acceptOrder = async (id: number) => {
+  const reviewOrder = async (id: number) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${id}/accept`,
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${id}/review`,
         {},
         { headers }
       );
-      toast.success("Order accepted");
+      toast.success("Order moved to review");
       loadOrders();
-    } catch (err) {
-      console.error(err);
-      toast.error("Error accepting order");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Error starting review");
+    }
+  };
+
+  const sendQuote = async () => {
+    if (!selectedOrder) return;
+    if (!quotePrice) {
+      toast.error("Price is required for quote");
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${selectedOrder.id}/quote`,
+        {
+          price: Number(quotePrice),
+          notes: quoteNotes,
+          expires_at: quoteExpiry || null
+        },
+        { headers }
+      );
+      toast.success("Quote sent successfully");
+      setShowQuoteDialog(false);
+      setQuotePrice("");
+      setQuoteNotes("");
+      loadOrders();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Error sending quote");
     }
   };
 
@@ -175,14 +210,14 @@ const uploadRes = await axios.post(
         notes_url = uploadRes.data.url;
       }
 
-     await axios.put(
-  `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
-  {
-    notes_url,
-    final_text: finalText,
-  },
-  { headers }
-);
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${selectedOrder.id}/complete`,
+        {
+          notes_url,
+          final_text: finalText,
+        },
+        { headers }
+      );
 
 
       toast.success("Order completed");
@@ -203,7 +238,7 @@ const uploadRes = await axios.post(
     if (!selectedOrder) return;
 
     try {
-      await axios.put(
+      await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/writing-service/orders/${selectedOrder.id}/reject`,
         { reason: rejectReason },
         { headers }
@@ -390,126 +425,195 @@ useEffect(() => {
   <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {orders.map((order) => (
-          <Card key={order.id} className="shadow-md border-none">
-            <CardHeader>
-              <CardTitle className="text-[#1d4d6a]">{order.title}</CardTitle>
-
-              <Badge
-                className={
-                  order.status === "Completed"
-                    ? "bg-green-100 text-green-700"
-                    : order.status === "In Progress"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }
-              >
-                {order.status}
-              </Badge>
+          <Card key={order.id} className="shadow-lg border border-gray-100 hover:border-gray-200 transition-all rounded-xl overflow-hidden">
+            <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Type: {order.type}</span>
+                  </div>
+                  <CardTitle className="text-[#1d4d6a] text-lg font-bold leading-tight">
+                    {order.title || "Untitled Project"}
+                  </CardTitle>
+                </div>
+                
+                <Badge
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    order.status === "COMPLETED" || order.status === "Completed"
+                      ? "bg-green-50 text-green-700 border border-green-200"
+                      : order.status === "PAID" || order.status === "IN_PROGRESS" || order.status === "In Progress"
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : order.status === "QUOTED"
+                      ? "bg-purple-50 text-purple-700 border border-purple-200"
+                      : order.status === "PAYMENT_PENDING"
+                      ? "bg-orange-50 text-orange-700 border border-orange-200"
+                      : order.status === "REJECTED"
+                      ? "bg-red-50 text-red-700 border border-red-200"
+                      : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                  }`}
+                >
+                  {order.status}
+                </Badge>
+              </div>
             </CardHeader>
 
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p>
-                    <strong>Type:</strong> {order.type}
-                  </p>
-                  <p>
-                    <strong>Word Count:</strong>{" "}
-                    {order.word_count || "Not specified"}
+            <CardContent className="space-y-4 text-sm pb-6">
+              {/* Main Metadata Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <GraduationCap className="w-3 h-3 text-[#bf2026]" />
+                    <span>Academic Level</span>
+                  </div>
+                  <p className="pl-5 text-gray-800 font-semibold text-sm capitalize">
+                    {order.academic_level || "Not specified"}
                   </p>
                 </div>
 
-                {/* Messages button with unread badge */}
-                <div>
-                  <Button
-                    variant="outline"
-                    className="border-blue-400 text-blue-700 flex items-center gap-2"
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      loadMessages(Number(order.id));
-                      setShowMessagesPopup(true);
-                    }}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Messages
-                    {order.unread_count > 0 && (
-                      <span className="ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
-                        {order.unread_count}
-                      </span>
-                    )}
-                  </Button>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <BookOpen className="w-3 h-3 text-[#bf2026]" />
+                    <span>Subject Area</span>
+                  </div>
+                  <p className="pl-5 text-gray-800 font-semibold text-sm capitalize">
+                    {order.subject_area || "Not specified"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <Layers className="w-3 h-3 text-[#bf2026]" />
+                    <span>Project Size</span>
+                  </div>
+                  <p className="pl-5 text-gray-800 font-semibold text-sm uppercase">
+                    {order.pages ? `${order.pages} Pages` : order.word_count || "Custom Size"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <Calendar className="w-3 h-3 text-[#bf2026]" />
+                    <span>Timeline</span>
+                  </div>
+                  <p className="pl-5 text-gray-800 font-semibold text-sm">
+                    {order.deadline
+                      ? new Date(order.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : "No Deadline"}
+                  </p>
+                </div>
+
+                <div className="space-y-1 col-span-2">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    <User className="w-3 h-3 text-[#bf2026]" />
+                    <span>Customer Reference</span>
+                  </div>
+                  <p className="pl-5 text-gray-500 font-mono text-[10px] truncate bg-gray-50 p-1 rounded">
+                    ID: {order.user_id}
+                  </p>
                 </div>
               </div>
 
-              <p>
-                <strong>Deadline:</strong>{" "}
-                {order.deadline
-                  ? new Date(order.deadline).toLocaleDateString()
-                  : "—"}
-              </p>
+              {/* Messages Button (Moved to a cleaner spot) */}
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-[10px] font-medium text-gray-400">
+                  Ref: #{order.id}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-400 text-blue-700 hover:bg-blue-50 flex items-center gap-2"
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    loadMessages(Number(order.id));
+                    setShowMessagesPopup(true);
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Conversation
+                  {order.unread_count > 0 && (
+                    <span className="ml-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {order.unread_count}
+                    </span>
+                  )}
+                </Button>
+              </div>
 
-              <p>
-                <strong>User ID:</strong> {order.user_id}
-              </p>
+              {/* Instructions Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <FileText className="w-4 h-4 text-[#bf2026]" />
+                  <span className="font-semibold text-sm">Detailed Instructions:</span>
+                </div>
+                <div className="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[60px] leading-relaxed text-sm">
+                  {order.instructions || "No instructions provided."}
+                </div>
+              </div>
 
-              <p>
-                <strong>Instructions:</strong>
-              </p>
-              <p className="text-gray-700 bg-gray-50 p-2 rounded">
-                {order.instructions || "No instructions"}
-              </p>
-
+              {/* Attachments Section */}
               {order.attachments_url && (
-                <div className="mt-2">
-                  <strong>Attachment:</strong>
-                  <div className="flex items-center gap-2 mt-1">
-                    <File className="w-4 h-4" />
-                    <a
-                      href={order.attachments_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 underline flex items-center"
-                    >
-                      Download File <Download className="w-4 ml-1" />
-                    </a>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <File className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Student Attachment</span>
                   </div>
+                  <a
+                    href={order.attachments_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 font-semibold"
+                  >
+                    Download <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2">
-                {order.status === "Pending" && (
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+                {order.status === "REQUESTED" && (
                   <Button
-                    className="bg-blue-600 text-white"
-                    onClick={() => acceptOrder(order.id)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => reviewOrder(order.id)}
                   >
-                    Accept
+                    <Clock className="w-4 h-4 mr-2" /> Start Review
                   </Button>
                 )}
 
-                {order.status === "In Progress" && (
+                {order.status === "UNDER_REVIEW" && (
                   <Button
-                    className="bg-[#bf2026] text-white"
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setShowQuoteDialog(true);
+                    }}
+                  >
+                    <Hash className="w-4 h-4 mr-2" /> Send Quote
+                  </Button>
+                )}
+
+                {(order.status === "PAID" || order.status === "IN_PROGRESS" || order.status === "In Progress") && (
+                  <Button
+                    className="flex-1 bg-[#bf2026] hover:bg-[#bf2026]/90 text-white"
                     onClick={() => {
                       setSelectedOrder(order);
                       loadMessages(Number(order.id));
                       setShowWorkDialog(true);
                     }}
                   >
-                    <FileText className="w-4 h-4 mr-1" /> Complete Work
+                    <CheckCircle className="w-4 h-4 mr-2" /> Complete Delivery
                   </Button>
                 )}
 
-                {order.status !== "Completed" && (
+                {!["COMPLETED", "Completed", "REJECTED"].includes(order.status) && (
                   <Button
-                    variant="outline"
-                    className="border-red-400 text-red-600"
+                    variant="ghost"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     onClick={() => {
                       setSelectedOrder(order);
                       loadMessages(Number(order.id));
                       setShowRejectDialog(true);
                     }}
                   >
-                    <XCircle className="w-4 h-4 mr-1" /> Reject
+                    <XCircle className="w-4 h-4 mr-2" /> Reject
                   </Button>
                 )}
               </div>
@@ -741,6 +845,56 @@ useEffect(() => {
             </Button>
             <Button className="bg-red-600 text-white" onClick={rejectOrder}>
               Reject Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SEND QUOTE DIALOG */}
+      <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Quote</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Price (INR)</Label>
+              <Input
+                type="number"
+                value={quotePrice}
+                onChange={(e) => setQuotePrice(e.target.value)}
+                placeholder="e.g. 1500"
+              />
+            </div>
+            <div>
+              <Label>Admin Notes / Instructions for User</Label>
+              <Textarea
+                rows={3}
+                value={quoteNotes}
+                onChange={(e) => setQuoteNotes(e.target.value)}
+                placeholder="Details about the price or scope..."
+              />
+            </div>
+            <div>
+              <Label>Quote Expiry (Optional)</Label>
+              <Input
+                type="date"
+                value={quoteExpiry}
+                onChange={(e) => setQuoteExpiry(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowQuoteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button className="bg-purple-600 text-white" onClick={sendQuote}>
+              Send Quote to Student
             </Button>
           </DialogFooter>
         </DialogContent>

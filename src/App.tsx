@@ -92,6 +92,7 @@ type Page =
   | "forgot-password"
   | "reset-password"
   | "verify-email"
+  | "writing"
   | "drm";
 
 // Simple Error Boundary Component
@@ -337,6 +338,10 @@ export default function App() {
       return { page: page as Page, param: null };
     }
 
+    if (path.startsWith("/writing")) {
+      return { page: "user-dashboard", param: "writing" };
+    }
+
     // fallback always return
     return { page: "home", param: null };
   };
@@ -453,6 +458,10 @@ export default function App() {
 
       case "test":
         window.history.pushState({}, "", `/test/${param}`);
+        break;
+
+      case "writing":
+        window.history.pushState({}, "", "/writing");
         break;
 
       default:

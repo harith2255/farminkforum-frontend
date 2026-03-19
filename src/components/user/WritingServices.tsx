@@ -59,12 +59,16 @@ interface Order {
   title: string;
   type: string;
   academic_level?: string;
-  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: 'REQUESTED' | 'UNDER_REVIEW' | 'QUOTED' | 'PAYMENT_PENDING' | 'PAID' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
   progress?: number;
   deadline?: string;
   writer_name?: string;
   author_name?: string;
   completed_date?: string;
+  rejection_reason?: string;
+  current_price?: number;
+  admin_notes?: string;
+  quote_id?: string;
   grade?: string;
   rating?: number;
   additional_notes?: string;
@@ -171,12 +175,21 @@ const getDaysUntilDeadline = (deadline: string): number => {
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
+    case 'COMPLETED':
     case 'Completed':
       return 'bg-green-100 text-green-700';
+    case 'IN_PROGRESS':
     case 'In Progress':
+    case 'PAID':
       return 'bg-blue-100 text-blue-700';
+    case 'QUOTED':
+    case 'PAYMENT_PENDING':
+      return 'bg-purple-100 text-purple-700 font-bold border border-purple-200 animate-pulse';
+    case 'REQUESTED':
+    case 'UNDER_REVIEW':
     case 'Pending':
       return 'bg-yellow-100 text-yellow-700';
+    case 'REJECTED':
     case 'Cancelled':
       return 'bg-red-100 text-red-700';
     default:
@@ -293,8 +306,8 @@ const [openMaterial, setOpenMaterial] = useState<InterviewMaterial | null>(null)
   const validateStep = useCallback((stepNumber: number): boolean => {
     switch (stepNumber) {
       case 1: {
-        const hasBasicInfo = !!(formData.type && formData.academic_level && formData.title && formData.subject_area && formData.deadline);
-        // Pages are optional for certain services or if explicitly left blank for others
+        const hasBasicInfo = !!(formData.type && formData.academic_level && formData.title && formData.subject_area);
+        // Pages and deadline are optional
         return hasBasicInfo;
       }
       case 2:
@@ -523,44 +536,46 @@ const categories = useMemo(() => {
           body: fm,
         });
 
+        if (!uploadRes.ok) throw new Error("File upload failed");
         const uploadData = await uploadRes.json();
         attachments_url = uploadData.url || null;
       }
- const tempId = "temp_" + Date.now();
-      // Prepare order payload
+
+      // Prepare order payload (No price here, backend handles initial status)
       const orderPayload = {
         ...formData,
         pages: formData.pages ? parseInt(formData.pages) : 0,
         deadline: formData.deadline || null,
-        total_price: calculatePrice(),
         attachments_url,
       };
 
-      // Save temporary order in localStorage
-      localStorage.setItem("pendingWritingOrder", JSON.stringify(orderPayload));
-      localStorage.setItem("purchaseType", "writing");
-      localStorage.setItem("purchaseId", tempId);
+      // Call Backend to Create Order
+      const res = await fetch(`${API_BASE_URL}/orders`, {
+        method: "POST",
+        headers: getJsonHeaders(),
+        body: JSON.stringify(orderPayload),
+      });
 
-      // Clear form
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to submit request");
+
+      toast.success("Service request submitted successfully! Admin will review and provide a quote shortly.");
+
+      // Clear form and switch to active tab
       clearForm();
+      setActiveTab("active");
+      fetchActiveOrders();
 
-      // Navigate to payment page
-      if (typeof onNavigate === "function") {
-        onNavigate("purchase", tempId);
-      }
-
-      toast.success("Order prepared for payment!");
-
-    } catch (err) {
-      handleApiError(err, "Failed to prepare order for payment");
+    } catch (err: any) {
+      handleApiError(err, "Failed to submit request");
     } finally {
       setLoading(prev => ({ ...prev, submitting: false }));
     }
   }, [
     formData,
     selectedFile,
-    calculatePrice,
-    onNavigate,
+    fetchActiveOrders,
     handleApiError,
     validateStep,
     clearForm,
@@ -613,6 +628,40 @@ const handleDownloadDeliverable = async (order: Order) => {
   URL.revokeObjectURL(downloadUrl);
 };
 
+
+  const handleProceedToPayment = useCallback((order: Order) => {
+    // Prepare for Payment
+    localStorage.setItem("purchaseType", "writing");
+    localStorage.setItem("purchaseId", order.id);
+
+    // Navigate to payment page
+    if (typeof onNavigate === "function") {
+      onNavigate("purchase", order.id);
+    }
+  }, [onNavigate]);
+
+  const handleAcceptQuote = useCallback(async (order: Order) => {
+    try {
+      setLoading(prev => ({ ...prev, submitting: true }));
+
+      // 1. Accept Quote in Backend
+      const acceptRes = await fetch(`${API_BASE_URL}/orders/${order.id}/accept-quote`, {
+        method: "POST",
+        headers: getJsonHeaders(),
+      });
+
+      const acceptData = await acceptRes.json();
+      if (!acceptRes.ok) throw new Error(acceptData.error || "Failed to accept quote");
+
+      // 2. Navigate
+      handleProceedToPayment(order);
+
+    } catch (err: any) {
+      handleApiError(err, "Payment initiation failed");
+    } finally {
+      setLoading(prev => ({ ...prev, submitting: false }));
+    }
+  }, [handleProceedToPayment, handleApiError]);
 
   const handleRateOrder = useCallback(async (order: Order, rating: number) => {
     try {
@@ -766,12 +815,12 @@ const handleDownloadDeliverable = async (order: Order) => {
     if (!data.title.trim()) return "Title is required";
     if (!data.subject_area) return "Subject area is required";
     // if (!data.pages || parseInt(data.pages) < 1) return "Valid page count is required";
-    if (!data.deadline) return "Deadline is required";
-    
-    const today = new Date();
-    const deadline = new Date(data.deadline);
-    today.setHours(0, 0, 0, 0);
-    if (deadline < today) return "Deadline must be today or in the future";
+    if (data.deadline) {
+      const today = new Date();
+      const deadline = new Date(data.deadline);
+      today.setHours(0, 0, 0, 0);
+      if (deadline < today) return "Deadline must be today or in the future";
+    }
     
     return null;
   }, []);
@@ -828,6 +877,32 @@ const handleDownloadDeliverable = async (order: Order) => {
     if (diffDays === 0) return "Due today";
     if (diffDays === 1) return "Due tomorrow";
     return `Due in ${diffDays} days`;
+  }, []);
+
+  const calculateProgress = useCallback((status: string): number => {
+    switch (status) {
+      case "REQUESTED":
+      case "Pending":
+        return 10;
+      case "UNDER_REVIEW":
+        return 30;
+      case "QUOTED":
+        return 45;
+      case "PAYMENT_PENDING":
+        return 50;
+      case "PAID":
+        return 60;
+      case "IN_PROGRESS":
+      case "In Progress":
+        return 75;
+      case "COMPLETED":
+      case "Completed":
+        return 100;
+      case "REJECTED":
+        return 0;
+      default:
+        return 0;
+    }
   }, []);
 
   const handleSaveEdit = useCallback(async () => {
@@ -1169,14 +1244,13 @@ const handleDownloadDeliverable = async (order: Order) => {
                     </div>
 
                     <div>
-                      <Label>Deadline<span className="text-red-500">*</span></Label>
+                      <Label>Deadline <span className="text-gray-400 font-normal text-xs ml-1">(Optional)</span></Label>
                       <div className="flex items-center gap-2">
                         <Input
                           type="date"
                           className="mt-1"
                           value={formData.deadline}
                           onChange={(e) => updateForm("deadline", e.target.value)}
-                          required
                         />
                         <Calendar className="text-gray-500" size={18} />
                       </div>
@@ -1352,20 +1426,15 @@ const handleDownloadDeliverable = async (order: Order) => {
                       </div>
                     </div>
 
-                    <div className="bg-[#bf2026] bg-opacity-10 border border-[#bf2026] rounded-lg p-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white">Subtotal</span>
-                        <span className="text-white">₹{calculatedPrice - 20}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white">Service Fee</span>
-                        <span className="text-white">₹20</span>
-                      </div>
-
-                      <div className="border-t border-[#bf2026] my-3 pt-3 flex justify-between items-center">
-                        <span className="text-white font-semibold">Total</span>
-                        <span className="text-white font-bold text-lg">₹{calculatedPrice}</span>
+                    <div className="bg-[#bf2026]  border border-white rounded-lg p-6">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-white mt-0.5" />
+                        <div>
+                          <p className="text-white font-semibold">Custom Pricing Request</p>
+                          <p className="text-sm text-white mt-1">
+                            Your request will be reviewed by our expert team. We will provide a custom quote based on your specific requirements within 24 hours.
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -1390,7 +1459,7 @@ const handleDownloadDeliverable = async (order: Order) => {
                             Submitting...
                           </>
                         ) : (
-                          "Submit Order & Pay"
+                          "Submit for Review"
                         )}
                       </Button>
                     </div>
@@ -1454,13 +1523,13 @@ const handleDownloadDeliverable = async (order: Order) => {
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm text-gray-600">
                           <span>Progress</span>
-                          <span>{order.progress || 0}%</span>
+                          <span>{calculateProgress(order.status)}%</span>
                         </div>
 
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-[#bf2026] h-2 rounded-full transition-all"
-                            style={{ width: `${order.progress || 0}%` }}
+                            style={{ width: `${calculateProgress(order.status)}%` }}
                           />
                         </div>
 
@@ -1492,7 +1561,23 @@ const handleDownloadDeliverable = async (order: Order) => {
                               Message
                             </Button>
 
-                            {order.status === "Pending" && (
+                            {(order.status === "QUOTED" || order.status === "PAYMENT_PENDING") && (
+                              <Button
+                                className="bg-[#bf2026] hover:bg-[#a01c22] text-white flex items-center gap-2 font-bold px-4 animate-bounce"
+                                size="sm"
+                                onClick={() => 
+                                  order.status === "QUOTED" 
+                                    ? handleAcceptQuote(order) 
+                                    : handleProceedToPayment(order)
+                                }
+                                disabled={loading.submitting}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                {order.status === "QUOTED" ? "Accept & Pay Now" : "Pay Now"} (₹{order.current_price})
+                              </Button>
+                            )}
+
+                            {(order.status === "REQUESTED" || order.status === "Pending") && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1503,19 +1588,29 @@ const handleDownloadDeliverable = async (order: Order) => {
                                   <Edit className="w-4 h-4" />
                                   Edit
                                 </Button>
-                                // <Button
-                                //   variant="outline"
-                                //   size="sm"
-                                //   onClick={() => handleCancelOrder(order)}
-                                //   disabled={loading.cancelling}
-                                //   className="text-red-500 hover:text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
-                                // >
-                                //   <Trash2 className="w-4 h-4" />
-                                //   Cancel
-                                // </Button>
                             )}
                           </div>
                         </div>
+
+                        {order.status === "QUOTED" && order.admin_notes && (
+                           <div className="bg-purple-50 p-3 rounded-md border border-purple-100 mt-3 text-sm">
+                             <p className="font-semibold text-purple-800 flex items-center gap-2">
+                               <MessageSquare className="w-4 h-4" />
+                               Admin Quote Note:
+                             </p>
+                             <p className="text-purple-700 mt-1 italic">"{order.admin_notes}"</p>
+                           </div>
+                        )}
+
+                        {order.status === "REJECTED" && order.rejection_reason && (
+                           <div className="bg-red-50 p-3 rounded-md border border-red-100 mt-3 text-sm">
+                             <p className="font-semibold text-red-800 flex items-center gap-2">
+                               <AlertCircle className="w-4 h-4" />
+                               Rejection Reason:
+                             </p>
+                             <p className="text-red-700 mt-1">{order.rejection_reason}</p>
+                           </div>
+                        )}
 
                         {order.attachments_url && (
                           <div className="text-sm mt-2 flex items-center gap-2">

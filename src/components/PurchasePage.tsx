@@ -220,18 +220,43 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
         const effectiveId = purchaseId || id;
 
         if (purchaseType === "writing") {
-          const pending = JSON.parse(localStorage.getItem("pendingWritingOrder") || "{}");
-
-          if (!pending?.total_price) {
-            toast.error("Writing order data missing. Start again.");
+          const effectiveId = purchaseId || id;
+          if (!effectiveId) {
+            toast.error("Writing order ID missing.");
             onNavigate("writing");
             return;
           }
 
-          setItem({
-            ...pending,
-            type: "writing",
-          });
+          try {
+            const token = getToken();
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/writing/orders/${effectiveId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.data) {
+              setItem({
+                ...res.data,
+                title: res.data.title || "Writing Service order",
+                price: res.data.current_price,
+                total_price: res.data.current_price,
+                current_price: res.data.current_price,
+                type: "writing",
+              });
+            } else {
+              throw new Error("No data returned");
+            }
+          } catch (err) {
+            console.error("Failed to fetch writing order:", err);
+            // Fallback to legacy if available (for robustness during transition)
+            const pending = JSON.parse(localStorage.getItem("pendingWritingOrder") || "{}");
+            if (pending?.total_price) {
+              setItem({ ...pending, type: "writing" });
+            } else {
+              toast.error("Could not load your writing order details.");
+              onNavigate("writing");
+              return;
+            }
+          }
 
           setLoading(false);
           return;
@@ -273,13 +298,18 @@ export default function UniversalPurchasePage({ id, item: passedItem, onNavigate
     }
 
     try {
-      if (result?.source === "writing") {
+      const isWriting = 
+        result?.source === "writing" || 
+        result?.source === "free_claim" ||
+        item?.type === "writing";
+
+      if (isWriting) {
         localStorage.removeItem("pendingWritingOrder");
         localStorage.removeItem("purchaseType");
         localStorage.removeItem("purchaseId");
 
-        toast.success("✍️ Writing order created!");
-        onNavigate("user-dashboard");
+        toast.success("✍️ Writing order processed!");
+        onNavigate("user-dashboard", "services");
         return;
       }
 

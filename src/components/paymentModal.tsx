@@ -48,6 +48,8 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
   const amount =
     product?.total_price ||
     item?.total_price ||
+    product?.current_price ||
+    item?.current_price ||
     product?.price ||
     product?.amount ||
     item?.total ||
@@ -77,22 +79,30 @@ export default function PaymentModal({ open, item, onClose, onSuccess }) {
       let purchaseItems = [];
 
       if (itemType === "writing") {
-        const pending = JSON.parse(
-          localStorage.getItem("pendingWritingOrder") || "{}"
-        );
+        const orderId = product?.id || item?.id;
+        
+        if (orderId) {
+          // New flow: Use the existing order ID
+          purchaseItems = [{ id: orderId, type: "writing" }];
+        } else {
+          // Legacy fallback: Use localStorage payload
+          const pending = JSON.parse(
+            localStorage.getItem("pendingWritingOrder") || "{}"
+          );
 
-        if (!pending || !pending.total_price || !pending.title) {
-          toast.error("Invalid writing order");
-          setLoading(false);
-          return;
+          if (!pending || !pending.total_price || !pending.title) {
+            toast.error("Invalid writing order");
+            setLoading(false);
+            return;
+          }
+
+          purchaseItems = [
+            {
+              type: "writing",
+              payload: pending,
+            },
+          ];
         }
-
-        purchaseItems = [
-          {
-            type: "writing",
-            payload: pending, // backend will create writing order
-          },
-        ];
       }
       else if (item?.type === "cart") {
         purchaseItems = (item.items || [])
