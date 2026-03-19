@@ -1,0 +1,21 @@
+{
+  "short_name": "FarmInk",
+  "name": "FarmInk Forum",
+  "description": "Secure e-book reader with preview, DRM protection, and mock tests.",
+  "icons": [
+    {
+      "src": "logooutline.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logooutline.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
