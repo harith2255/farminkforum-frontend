@@ -134,29 +134,25 @@ export default function PaymentsAdmin() {
                   <CreditCard className="w-6 h-6 text-[#bf2026]" />
                 </div>
 
-                <div className="flex-1">
-                  <h4 className="text-[#1d4d6a] font-semibold mb-1">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[#1d4d6a] font-semibold mb-0.5 truncate text-sm sm:text-base">
                     {tx.type || "Payment"}
                   </h4>
 
-                  <p className="text-sm text-gray-500">
-                    User: {tx.user} • Method: {tx.method || "N/A"}
+                  <p className="text-sm text-gray-600 flex flex-wrap items-center gap-1.5 truncate">
+                    <span className="font-medium text-[#1d4d6a]">{tx.user?.name || (typeof tx.user === 'string' ? tx.user : "Unknown User")}</span>
+                    {tx.user?.email && <span className="text-xs text-gray-400">({tx.user.email})</span>}
                   </p>
 
-                  <p className="text-xs text-gray-500 mt-1">
-                  <p className="text-xs text-gray-500 mt-1">
-                    {tx.date}
-                  </p>
-
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 flex items-center gap-2">
+                    {tx.date} <span className="text-gray-200">|</span> Method: {tx.method || "N/A"}
                   </p>
                 </div>
               </div>
 
-              {/* Right side */}
               <div className="text-right">
-                <p className="text-[#1d4d6a] font-bold flex items-center justify-end gap-1">
-                  <IndianRupee className="w-3 h-3" />
-                  {tx.amount}
+                <p className="text-[#1d4d6a] font-bold text-lg">
+                  ₹{tx.amount}
                 </p>
 
                 <Badge
