@@ -1,16 +1,42 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye, Folder, FolderOpen } from "lucide-react";
+import { Plus, Search, ChevronRight, X, Calendar, Tag, Globe, Clock, Edit, Trash2, Eye, Folder, FolderOpen, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 const BASE_URL = `${import.meta.env.VITE_API_URL}/api/admin/current-affairs`;
 
+interface Article {
+  id: number;
+  title: string;
+  category: string;
+  content: string;
+  tags: string;
+  status: string;
+  date: string;
+  time: string;
+  price: string;
+  description: string;
+  createdAt: string;
+}
+
+interface Folder {
+  id: number;
+  name: string;
+}
+
 function CurrentAffairsAdmin() {
-  const [viewMode, setViewMode] = useState("folders");
+  const [viewMode, setViewMode] = useState<"folders" | "articles">("folders");
   const [search, setSearch] = useState("");
-  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingArticle, setEditingArticle] = useState(null);
-  const [articles, setArticles] = useState([]);
+  const [editingArticle, setEditingArticle] = useState<number | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
+  
+  // States for professional deletion dialog
+  const [articleToDelete, setArticleToDelete] = useState<Article | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     id: Date.now(),
@@ -22,7 +48,8 @@ function CurrentAffairsAdmin() {
     description: "",
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().slice(0, 5),
-    image: null,
+    image: null as File | null,
+    status: "published",
     createdAt: new Date().toISOString()
   });
 
@@ -37,7 +64,7 @@ function CurrentAffairsAdmin() {
 
       const data = await res.json();
 
-      const formatted = data.map((a) => ({
+      const formatted: Article[] = data.map((a: any) => ({
         id: a.id,
         title: a.title,
         category: a.category,
@@ -59,7 +86,7 @@ function CurrentAffairsAdmin() {
   };
 
   const folders = useMemo(() => {
-    const categories = new Set();
+    const categories = new Set<string>();
     articles.forEach(article => {
       if (article.category && article.category.trim()) {
         categories.add(article.category.trim());
@@ -72,7 +99,7 @@ function CurrentAffairsAdmin() {
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, [articles]);
 
-  const getArticleCountForCategory = (categoryName) => {
+  const getArticleCountForCategory = (categoryName: string) => {
     return articles.filter(article => article.category === categoryName).length;
   };
 
@@ -82,7 +109,7 @@ function CurrentAffairsAdmin() {
     setSearch("");
   };
 
-  const selectFolder = (folder) => {
+  const selectFolder = (folder: Folder) => {
     setSelectedFolder(folder);
     setViewMode("articles");
     setSearch("");
@@ -93,7 +120,7 @@ function CurrentAffairsAdmin() {
     setFormData({
       id: Date.now(),
       title: "",
-      category: selectedFolder?.name || "",
+      category: (selectedFolder as any)?.name || "",
       content: "",
       tags: "",
       price: "0",
@@ -107,25 +134,26 @@ function CurrentAffairsAdmin() {
     setShowAddModal(true);
   };
 
-  const handleEditArticle = (article) => {
+  const handleEditArticle = (article: Article) => {
     setEditingArticle(article.id);
     setFormData({
       ...article,
-      image: null,
+      image: null as File | null,
     });
     setShowAddModal(true);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === 'image' && files.length > 0) {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    const files = (e.target as HTMLInputElement).files;
+    if (name === 'image' && files && files.length > 0) {
       setFormData(prev => ({ ...prev, image: files[0] }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
@@ -187,34 +215,37 @@ function CurrentAffairsAdmin() {
     setEditingArticle(null);
   };
 
-  const handleDeleteArticle = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this article?")) return;
+  const confirmDeleteArticle = async () => {
+    if (!articleToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/${id}`, {
+      const res = await fetch(`${BASE_URL}/${articleToDelete.id}`, {
         method: "DELETE",
       });
 
       if (!res.ok) throw new Error("Delete failed");
 
       toast.success("Article deleted successfully!");
+      setArticleToDelete(null);
       fetchArticles();
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete article");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleDeleteFolder = async (folderName) => {
-    if (!window.confirm(
-      `This will permanently delete all articles in "${folderName}". Continue?`
-    )) return;
+  const confirmDeleteFolder = async () => {
+    if (!folderToDelete) return;
+    setIsDeleting(true);
 
     try {
       const token = localStorage.getItem("token");
 
       const res = await fetch(
-        `${BASE_URL}/category/${encodeURIComponent(folderName)}`,
+        `${BASE_URL}/category/${encodeURIComponent(folderToDelete)}`,
         {
           method: "DELETE",
           headers: {
@@ -225,15 +256,18 @@ function CurrentAffairsAdmin() {
 
       if (!res.ok) throw new Error("Delete failed");
 
-      toast.success(`Category "${folderName}" deleted successfully`);
+      toast.success(`Category "${folderToDelete}" deleted successfully`);
+      setFolderToDelete(null);
       fetchArticles();
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete category");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const filteredFolders = folders.filter(folder =>
+  const filteredFolders = folders.filter((folder: Folder) =>
     folder.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -241,7 +275,7 @@ function CurrentAffairsAdmin() {
     ? articles.filter(article => article.category === selectedFolder.name)
     : [];
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch(status) {
       case "published": return "bg-green-100 text-green-800";
       case "draft": return "bg-yellow-100 text-yellow-800";
@@ -370,7 +404,7 @@ function CurrentAffairsAdmin() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteFolder(folder.name);
+                              setFolderToDelete(folder.name);
                             }}
                             className="p-1 sm:p-1.5 hover:bg-red-50 rounded text-gray-600 hover:text-red-600"
                             title="Delete Folder"
@@ -469,7 +503,7 @@ function CurrentAffairsAdmin() {
                       <Edit className="h-4 w-4 text-gray-600" />
                     </button>
                     <button
-                      onClick={() => handleDeleteArticle(article.id)}
+                      onClick={() => setArticleToDelete(article)}
                       className="p-1.5 hover:bg-red-50 rounded transition-colors"
                       title="Delete"
                     >
@@ -517,7 +551,7 @@ function CurrentAffairsAdmin() {
                   <Edit className="h-4 w-4 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => handleDeleteArticle(article.id)}
+                  onClick={() => setArticleToDelete(article)}
                   className="p-1.5 hover:bg-red-50 rounded"
                   title="Delete"
                 >
@@ -732,6 +766,78 @@ function CurrentAffairsAdmin() {
           </div>
         </div>
       )}
+      {/* Deletion Confirmation Dialogs */}
+      <Dialog open={!!articleToDelete} onOpenChange={() => !isDeleting && setArticleToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Delete Article
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              Are you sure you want to delete <span className="font-semibold text-gray-900">"{articleToDelete?.title}"</span>?
+            </p>
+            <p className="text-sm text-red-500 mt-2">
+              This action cannot be undone and will permanently remove this article from the system.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setArticleToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDeleteArticle}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Article"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!folderToDelete} onOpenChange={() => !isDeleting && setFolderToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Delete Category
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              Are you sure you want to delete the category <span className="font-semibold text-gray-900">"{folderToDelete}"</span>?
+            </p>
+            <p className="text-sm text-red-500 mt-2">
+              Warning: This will permanently delete **all articles** contained within this category. This action is irreversible.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setFolderToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDeleteFolder}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting ALL articles..." : "Delete Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
