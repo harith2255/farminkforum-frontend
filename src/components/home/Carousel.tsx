@@ -21,7 +21,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     category: "Agricultural Extension Education",
     cover: "./carouse1.webp",
     rating: 4.8,
-    readers: 12400,
+    readers: 3400,
   },
   {
     id: 2,
@@ -31,7 +31,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     cover:
       "./carousel2.webp",
     rating: 4.7,
-    readers: 15600,
+    readers: 5600,
   },
   {
     id: 3,
@@ -41,7 +41,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     cover:
       "./carousel3.webp",
     rating: 4.6,
-    readers: 9800,
+    readers: 2800,
   },
   {
     id: 4,
@@ -51,7 +51,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     cover:
       "./carousel4.webp",
     rating: 4.9,
-    readers: 17200,
+    readers: 7200,
   },
   {
     id: 5,
@@ -61,7 +61,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     cover:
       "./carousel5.webp",
     rating: 4.7,
-    readers: 10200,
+    readers: 2200,
   },
   {
     id: 6,
@@ -71,7 +71,7 @@ export function Carousel({ onNavigate}: CarouselProps) {
     cover:
       "./carousel6.webp",
     rating: 4.8,
-    readers: 11300,
+    readers: 3300,
   },
 ];
 
